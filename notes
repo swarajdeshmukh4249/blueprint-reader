@@ -1,0 +1,25 @@
+Frontend-Next.js
+Backend-Supabase
+Vercel-deploying
+Godaddy/Name Cheap- domain
+Stripe- payments
+Github - version control
+Cler - AUth
+Better stack- Error tracker
+
+
+#run file:
+
+backend:
+
+cd "/Users/swarajdeshmukh4249gmail.com/Desktop/blueprint-reader/backend"
+python3 -m venv venv
+source venv/bin/activate
+pip install fastapi uvicorn python-multipart
+uvicorn main:app --reload
+
+frontend:
+
+cd "/Users/swarajdeshmukh4249gmail.com/Desktop/blueprint-reader/frontend"
+npm install
+npm run dev

@@ -1,0 +1,8 @@
+[phases.setup]
+nixPkgs = ["tesseract", "libGL", "poppler_utils"]
+
+[phases.install]
+cmds = ["pip install -r requirements.txt"]
+
+[start]
+cmd = "python supabase_worker.py"

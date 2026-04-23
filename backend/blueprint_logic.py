@@ -32,8 +32,22 @@ def extract_area_from_polylines(msp):
     if not areas:
         return 0.0
 
-    # FIX: Take largest polygon (outer boundary)
-    return round(max(areas), 2)
+    # take largest polygon
+    raw_area = max(areas)
+
+    # -------- FIX: UNIT SCALING --------
+    # Many DXF files are in mm → convert to sq ft
+    # Heuristic: if area is too large, assume mm²
+    if raw_area > 1_000_000:  # likely mm²
+        # mm² → ft² conversion
+        scaled_area = raw_area / 92903
+    elif raw_area > 10_000:  # could be cm²
+        scaled_area = raw_area / 929
+    else:
+        # already likely in ft²
+        scaled_area = raw_area
+
+    return round(scaled_area, 2)
 
 
 # ---------------------------
@@ -106,7 +120,11 @@ def analyze_dxf(file_bytes: bytes):
         text_area = extract_area_from_text(raw_text)
 
         # 3. FINAL AREA DECISION (IMPORTANT FIX)
-        final_area = max(poly_area, text_area)
+        # smarter decision: prefer text if it's significantly larger (common in plans)
+        if text_area > poly_area * 1.2:
+            final_area = text_area
+        else:
+            final_area = poly_area
 
         return {
             "source_type": "dxf",

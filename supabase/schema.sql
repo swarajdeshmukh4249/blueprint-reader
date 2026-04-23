@@ -9,14 +9,18 @@ create table if not exists public.analysis_jobs (
   status text not null default 'queued' check (status in ('queued', 'processing', 'completed', 'failed')),
   result jsonb,
   error text,
+
+  -- Auth: who uploaded this and under which org (null = personal)
+  user_id text,
+  org_id  text,
+
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
 );
 
+-- Auto-update updated_at
 create or replace function public.set_analysis_jobs_updated_at()
-returns trigger
-language plpgsql
-as $$
+returns trigger language plpgsql as $$
 begin
   new.updated_at = timezone('utc', now());
   return new;
@@ -24,45 +28,52 @@ end;
 $$;
 
 drop trigger if exists analysis_jobs_set_updated_at on public.analysis_jobs;
-
 create trigger analysis_jobs_set_updated_at
 before update on public.analysis_jobs
-for each row
-execute function public.set_analysis_jobs_updated_at();
+for each row execute function public.set_analysis_jobs_updated_at();
 
+-- Indexes for fast dashboard queries
+create index if not exists idx_analysis_jobs_user_id on public.analysis_jobs(user_id);
+create index if not exists idx_analysis_jobs_org_id  on public.analysis_jobs(org_id);
+
+-- Row Level Security
 alter table public.analysis_jobs enable row level security;
 
-create policy "Allow public read access to analysis jobs"
-on public.analysis_jobs
-for select
-to anon, authenticated
-using (true);
+-- Users can read their own personal jobs (org_id is null)
+create policy "Users read own personal jobs"
+on public.analysis_jobs for select
+to authenticated
+using (user_id = auth.uid()::text and org_id is null);
 
-create policy "Allow public insert access to analysis jobs"
-on public.analysis_jobs
-for insert
-to anon, authenticated
+-- Users can read all jobs belonging to their org
+create policy "Org members read org jobs"
+on public.analysis_jobs for select
+to authenticated
+using (org_id is not null and org_id = (auth.jwt() ->> 'org_id'));
+
+-- Anyone authenticated can insert (user_id enforced in app layer)
+create policy "Authenticated users can insert"
+on public.analysis_jobs for insert
+to authenticated, anon
 with check (true);
 
-create policy "Allow service role to update analysis jobs"
-on public.analysis_jobs
-for update
+-- Service role (Python worker) can update any job
+create policy "Service role can update jobs"
+on public.analysis_jobs for update
 to service_role
-using (true)
-with check (true);
+using (true) with check (true);
 
+-- Storage bucket
 insert into storage.buckets (id, name, public)
 values ('blueprints', 'blueprints', false)
 on conflict (id) do nothing;
 
 create policy "Allow uploads into blueprints bucket"
-on storage.objects
-for insert
+on storage.objects for insert
 to anon, authenticated
 with check (bucket_id = 'blueprints');
 
-create policy "Allow read access to blueprints bucket metadata"
-on storage.objects
-for select
+create policy "Allow read access to blueprints bucket"
+on storage.objects for select
 to anon, authenticated
 using (bucket_id = 'blueprints');

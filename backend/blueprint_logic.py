@@ -14,6 +14,21 @@ from pypdf import PdfReader
 from shapely.geometry import Polygon
 
 print("NEW BLUEPRINT LOGIC RUNNING")
+
+# Vision LLM — imported lazily so legacy mode still works if google-generativeai not installed
+try:
+    from vision_analyzer import (
+        analyze_pdf_with_vision,
+        analyze_image_with_vision,
+        analyze_dxf_with_vision,
+        analyze_dwg_with_vision,
+    )
+    VISION_AVAILABLE = True
+except ImportError:
+    VISION_AVAILABLE = False
+
+# Set to False to disable Vision and use legacy OCR/regex only
+VISION_ENABLED = os.environ.get("VISION_ENABLED", "true").lower() == "true"
 ROOM_KEYWORDS = [
     "MASTER BEDROOM",
     "BED ROOM",
@@ -961,7 +976,7 @@ def analyze_pdf(file_bytes: bytes) -> dict[str, Any]:
                 room_instances_found = inferred_instances
                 room_counts = inferred_counts
 
-    return {
+    legacy_result = {
         "source_type": "pdf",
         "method_used": method_used,
         "rooms_found": room_types_found,
@@ -984,6 +999,11 @@ def analyze_pdf(file_bytes: bytes) -> dict[str, Any]:
         "area_statement": area_statement,
         "openings": openings,
     }
+
+    if VISION_ENABLED and VISION_AVAILABLE:
+        legacy_result["method_used"] = method_used + " + Claude Vision"
+        return analyze_pdf_with_vision(file_bytes, legacy_result)
+    return legacy_result
 
 
 def analyze_image(file_bytes: bytes) -> dict[str, Any]:
@@ -1009,7 +1029,7 @@ def analyze_image(file_bytes: bytes) -> dict[str, Any]:
             room_instances_found = inferred_instances
             room_counts = inferred_counts
 
-    return {
+    legacy_result = {
         "source_type": "image",
         "method_used": "Image OCR with spatial preprocessing",
         "rooms_found": room_types_found,
@@ -1032,6 +1052,11 @@ def analyze_image(file_bytes: bytes) -> dict[str, Any]:
         "area_statement": area_statement,
         "openings": openings,
     }
+
+    if VISION_ENABLED and VISION_AVAILABLE:
+        legacy_result["method_used"] = "Image OCR with spatial preprocessing + Claude Vision"
+        return analyze_image_with_vision(file_bytes, legacy_result)
+    return legacy_result
 
 
 def analyze_dxf(file_bytes: bytes) -> dict[str, Any]:
@@ -1098,7 +1123,7 @@ def analyze_dxf(file_bytes: bytes) -> dict[str, Any]:
         block_names = sorted(block_counts.keys())
         top_polyline_areas = sorted(poly_areas, reverse=True)[:10]
 
-        return {
+        legacy_dxf = {
             "source_type": "dxf",
             "method_used": "DXF CAD entity parsing + domain-specific interpretation",
             "rooms_found": room_types_found,
@@ -1122,6 +1147,11 @@ def analyze_dxf(file_bytes: bytes) -> dict[str, Any]:
             "openings": openings,
             "note": None,
         }
+
+        if VISION_ENABLED and VISION_AVAILABLE:
+            legacy_dxf["method_used"] = "DXF CAD entity parsing + Claude Vision"
+            return analyze_dxf_with_vision(file_bytes, legacy_dxf)
+        return legacy_dxf
 
     except Exception as e:
         return {
@@ -1158,9 +1188,9 @@ def analyze_dxf(file_bytes: bytes) -> dict[str, Any]:
 
 
 def analyze_dwg(file_bytes: bytes) -> dict[str, Any]:
-    return {
+    legacy_dwg = {
         "source_type": "dwg",
-        "method_used": "DWG placeholder - convert to DXF for advanced parsing",
+        "method_used": "DWG — Claude Vision render attempt",
         "rooms_found": [],
         "room_instances_found": [],
         "room_counts": {},
@@ -1180,8 +1210,14 @@ def analyze_dwg(file_bytes: bytes) -> dict[str, Any]:
         "floors": [],
         "area_statement": {},
         "openings": {"doors": [], "windows": []},
-        "note": "Direct DWG parsing is not enabled yet. Convert DWG to DXF for analysis.",
+        "note": None,
     }
+
+    if VISION_ENABLED and VISION_AVAILABLE:
+        return analyze_dwg_with_vision(file_bytes, legacy_dwg)
+
+    legacy_dwg["note"] = "DWG parsing requires Vision mode. Set VISION_ENABLED=true and add GOOGLE_API_KEY."
+    return legacy_dwg
 
 
 def analyze_blueprint(file_bytes: bytes, filename: str) -> dict[str, Any]:

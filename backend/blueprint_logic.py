@@ -17,8 +17,10 @@ print("NEW BLUEPRINT LOGIC RUNNING")
 
 def extract_area_from_polylines(msp):
     areas = []
+    polyline_count = 0
 
     for entity in msp.query("LWPOLYLINE"):
+        polyline_count += 1
         try:
             if entity.closed:
                 points = [(p[0], p[1]) for p in entity]
@@ -28,6 +30,9 @@ def extract_area_from_polylines(msp):
                         areas.append(poly.area)
         except Exception:
             continue
+
+    print("Total polylines found:", polyline_count)
+    print("Valid polygons used:", len(areas))
 
     if not areas:
         return 0.0
@@ -132,6 +137,8 @@ def analyze_dxf(file_bytes: bytes):
             "polyline_area": poly_area,
             "text_area": text_area,
             "total_area": final_area,
+            "debug_polyline_area": poly_area,
+            "debug_text_area": text_area,
             "materials": estimate_materials(final_area),
             "cost": estimate_cost(final_area),
             "raw_text": raw_text,

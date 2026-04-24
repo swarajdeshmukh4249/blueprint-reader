@@ -23,5 +23,5 @@ shapely
 # ── DXF rendering for Vision ───────────────────────────────────────────────
 matplotlib
 
-# ── Gemini Vision (free tier) ──────────────────────────────────────────────
-google-generativeai
+# ── Gemini Vision ──────────────────────────────────────────────────────────
+google-genai

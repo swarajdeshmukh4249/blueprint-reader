@@ -96,10 +96,17 @@ def fetch_next_job(project_url: str, service_role_key: str) -> dict[str, Any] | 
         }
     )
     url = f"{project_url}/rest/v1/analysis_jobs?{query}"
-    jobs = make_request(url, service_role_key)
+    jobs = make_request(
+        url,
+        service_role_key,
+        extra_headers={
+            "Prefer": "return=representation",
+            "Content-Type": "application/json",
+        },
+    )
 
     if not jobs:
-      return None
+        return None
 
     return jobs[0]
 

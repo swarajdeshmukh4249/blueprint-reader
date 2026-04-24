@@ -20,7 +20,8 @@ import tempfile
 from io import BytesIO
 from typing import Any
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 logger = logging.getLogger(__name__)
 
@@ -41,20 +42,7 @@ def _get_client():
             "GOOGLE_API_KEY is not set. "
             "Get a free key at https://aistudio.google.com and add it to backend/.env"
         )
-    genai.configure(api_key=GOOGLE_API_KEY)
-    return genai.GenerativeModel(
-        model_name=GEMINI_MODEL,
-        generation_config=genai.GenerationConfig(
-            response_mime_type="application/json",
-            temperature=0.1,
-        ),
-        system_instruction=(
-            "You are a senior architect and quantity surveyor with 20+ years of experience "
-            "reading architectural blueprints, CAD drawings, and construction documents. "
-            "You extract precise structured data for Bill of Quantities (BOQ) generation. "
-            "Always respond with valid JSON only — no markdown, no preamble, no explanation outside the JSON."
-        ),
-    )
+    return genai.Client(api_key=GOOGLE_API_KEY)
 
 
 # ─────────────────────────────────────────────
@@ -159,8 +147,35 @@ def _dxf_to_pil(file_bytes: bytes):
 # ─────────────────────────────────────────────
 
 def _call_gemini(parts: list) -> dict[str, Any]:
-    model = _get_client()
-    response = model.generate_content(parts + [USER_PROMPT])
+    client = _get_client()
+
+    # Build contents list for new SDK
+    contents = []
+    for part in parts:
+        if isinstance(part, dict) and "mime_type" in part:
+            contents.append(types.Part.from_bytes(
+                data=part["data"],
+                mime_type=part["mime_type"],
+            ))
+        else:
+            contents.append(part)
+    contents.append(USER_PROMPT)
+
+    response = client.models.generate_content(
+        model=GEMINI_MODEL,
+        contents=contents,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            temperature=0.1,
+            system_instruction=(
+                "You are a senior architect and quantity surveyor with 20+ years of experience "
+                "reading architectural blueprints, CAD drawings, and construction documents. "
+                "You extract precise structured data for Bill of Quantities (BOQ) generation. "
+                "Always respond with valid JSON only — no markdown, no preamble, no explanation outside the JSON."
+            ),
+        ),
+    )
+
     raw = response.text.strip()
 
     if raw.startswith("```"):
@@ -213,7 +228,18 @@ def _merge_with_legacy(gemini_data: dict, legacy_data: dict) -> dict:
         })
 
     if not total_area and room_data:
-        total_area = round(sum(r["area"] for r in room_data if r["area"]), 2)
+        # Sum all rooms that have a real area (skip 0.0 which means Gemini returned null)
+        rooms_with_area = [r for r in room_data if r.get("area") and r["area"] > 0]
+        if rooms_with_area:
+            total_area = round(sum(r["area"] for r in rooms_with_area), 2)
+            # If Gemini missed area for some rooms, flag it
+            missing = len(room_data) - len(rooms_with_area)
+            if missing > 0:
+                existing_notes = gemini_data.get("notes") or ""
+                gemini_data["notes"] = (
+                    existing_notes +
+                    f" [Note: {missing} room(s) had no extractable dimensions — total area may be understated.]"
+                ).strip()
 
     room_types    = list({r.get("name", "") for r in rooms if r.get("name")})
     room_instances = [r.get("instance_label") or r.get("name", "") for r in rooms]

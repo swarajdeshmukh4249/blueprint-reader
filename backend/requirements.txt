@@ -1,27 +1,27 @@
-# ── Web framework ─────────────────────────────────────────────────────────
-fastapi==0.115.0
-uvicorn[standard]==0.30.6
-python-multipart==0.0.9
+# ── Web framework ──────────────────────────────────────────────────────────
+fastapi
+uvicorn[standard]
+python-multipart
 
-# ── Supabase ──────────────────────────────────────────────────────────────
-supabase==2.7.4
+# ── Supabase ───────────────────────────────────────────────────────────────
+supabase
 
-# ── PDF processing ────────────────────────────────────────────────────────
-pypdf==4.3.1
-pdf2image==1.17.0          # requires: sudo apt install poppler-utils
+# ── PDF processing ─────────────────────────────────────────────────────────
+pypdf
+pdf2image
 
-# ── Image / OCR ───────────────────────────────────────────────────────────
-Pillow==10.4.0
-opencv-python-headless==4.10.0.84
-pytesseract==0.3.13        # requires: sudo apt install tesseract-ocr
-numpy==1.26.4
+# ── Image / OCR ────────────────────────────────────────────────────────────
+Pillow
+opencv-python-headless
+pytesseract
+numpy
 
-# ── CAD parsing ───────────────────────────────────────────────────────────
-ezdxf==1.3.4
-shapely==2.0.6
+# ── CAD parsing ────────────────────────────────────────────────────────────
+ezdxf
+shapely
 
-# ── DXF → Image rendering (for Vision) ───────────────────────────────────
-matplotlib==3.9.2
+# ── DXF rendering for Vision ───────────────────────────────────────────────
+matplotlib
 
-# ── Gemini Vision LLM (FREE tier: 1500 req/day) ───────────────────────────
-google-generativeai==0.8.3
+# ── Gemini Vision (free tier) ──────────────────────────────────────────────
+google-generativeai

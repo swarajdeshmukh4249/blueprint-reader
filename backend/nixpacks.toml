@@ -1,17 +1,24 @@
 [phases.setup]
 nixPkgs = [
   "python311",
-  "python311Packages.pip",
   "tesseract",
   "poppler_utils",
   "libGL",
   "libGLU",
+  "gcc",
+  "zlib",
+  "libjpeg",
+  "libpng",
+  "freetype",
+  "pkg-config",
 ]
 
 [phases.install]
 cmds = [
-  "pip install -r requirements.txt"
+  "python3 -m venv /opt/venv",
+  "/opt/venv/bin/pip install --upgrade pip",
+  "/opt/venv/bin/pip install -r requirements.txt"
 ]
 
 [start]
-cmd = "python supabase_worker.py"
+cmd = "/opt/venv/bin/python supabase_worker.py"

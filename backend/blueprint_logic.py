@@ -15,6 +15,13 @@ from shapely.geometry import Polygon
 
 print("NEW BLUEPRINT LOGIC RUNNING")
 
+# BOQ Engine — Maharashtra PWD DSR 2023-24
+try:
+    from boq_engine import generate_boq
+    BOQ_ENGINE_AVAILABLE = True
+except ImportError:
+    BOQ_ENGINE_AVAILABLE = False
+
 # Vision LLM — imported lazily so legacy mode still works if google-generativeai not installed
 try:
     from vision_analyzer import (
@@ -534,32 +541,35 @@ def infer_room_instances_from_room_data(room_data: list[dict[str, Any]]) -> tupl
 
 
 def estimate_materials(total_area_sq_ft: float) -> dict[str, int]:
+    """Legacy fallback — used only when full analysis dict is unavailable."""
+    import math
+    sqm = total_area_sq_ft / 10.7639
+    perimeter_m = 4 * math.sqrt(sqm)
+    wall_area = perimeter_m * 3.0 * 1.5  # ext + int walls approx
     return {
-        "Bricks": int(total_area_sq_ft * 8),
-        "Cement Bags": int(total_area_sq_ft * 0.4),
-        "Steel (kg)": int(total_area_sq_ft * 4),
-        "Floor Tiles (sq ft)": int(total_area_sq_ft * 1.05),
+        "Bricks (Nos)": int(wall_area * 60),
+        "Cement Bags (50kg)": int(total_area_sq_ft * 0.55),
+        "Steel — TMT Fe500 (kg)": int(total_area_sq_ft * 3.5),
+        "Floor Tiles (sqft)": int(total_area_sq_ft * 1.1),
+        "Sand (cum)": int(total_area_sq_ft * 0.05),
+        "Aggregate (cum)": int(total_area_sq_ft * 0.04),
     }
 
 
 def estimate_costs(total_area_sq_ft: float) -> dict[str, float]:
-    base_construction_cost = total_area_sq_ft * 1800
-    flooring_cost = total_area_sq_ft * 120
-    paint_cost = total_area_sq_ft * 80
-    electrical_plumbing_cost = total_area_sq_ft * 250
-    total_estimated_cost = (
-        base_construction_cost
-        + flooring_cost
-        + paint_cost
-        + electrical_plumbing_cost
-    )
-
+    """Legacy fallback — used only when full analysis dict is unavailable."""
+    structure  = round(total_area_sq_ft * 950,  2)
+    finishes   = round(total_area_sq_ft * 420,  2)
+    services   = round(total_area_sq_ft * 340,  2)
+    external   = round(total_area_sq_ft * 180,  2)
+    contingency = round((structure + finishes + services + external) * 0.08, 2)
     return {
-        "Base Construction Cost": round(base_construction_cost, 2),
-        "Flooring Cost": round(flooring_cost, 2),
-        "Paint Cost": round(paint_cost, 2),
-        "Electrical & Plumbing Cost": round(electrical_plumbing_cost, 2),
-        "Total Estimated Cost": round(total_estimated_cost, 2),
+        "Structure (RCC + Brickwork)": structure,
+        "Finishes (Flooring + Plaster + Paint)": finishes,
+        "Services (Plumbing + Electrical)": services,
+        "External Works": external,
+        "Contingency @ 8%": contingency,
+        "Total Estimate": round(structure + finishes + services + external + contingency, 2),
     }
 
 
@@ -1313,13 +1323,39 @@ def analyze_blueprint(file_bytes: bytes, filename: str) -> dict[str, Any]:
     file_type = get_file_type(filename)
 
     if file_type == "pdf":
-        return analyze_pdf(file_bytes)
-    if file_type == "image":
-        return analyze_image(file_bytes)
-    if file_type == "dxf":
-        return analyze_dxf(file_bytes)
-    if file_type == "dwg":
-        return analyze_dwg(file_bytes)
+        result = analyze_pdf(file_bytes)
+    elif file_type == "image":
+        result = analyze_image(file_bytes)
+    elif file_type == "dxf":
+        result = analyze_dxf(file_bytes)
+    elif file_type == "dwg":
+        result = analyze_dwg(file_bytes)
+    else:
+        result = None
+
+    # ── Run full BOQ engine if available ──────────────────────────────────
+    if result is not None:
+        if BOQ_ENGINE_AVAILABLE and result.get("total_area", 0) > 0:
+            try:
+                boq = generate_boq(result)
+                result["boq_items"]      = boq.get("items", [])
+                result["boq_summary"]    = boq.get("summary", {})
+                result["boq_total"]      = boq.get("grand_total", 0)
+                result["cost_per_sqft"]  = boq.get("cost_per_sqft", 0)
+                result["rates_basis"]    = boq.get("rates_basis", "")
+                result["building_type"]  = boq.get("building_type", "")
+                result["area_statement_boq"] = boq.get("area_statement", {})
+                # Update legacy materials/costs for backward compat
+                result["materials"] = {
+                    it["description"][:40]: it["qty"]
+                    for it in boq.get("items", [])
+                    if it["category"] in ("B. RCC Framework", "C. Brickwork")
+                    and it["qty"] > 0
+                }
+                result["costs"] = boq.get("summary", {})
+            except Exception as e:
+                result["boq_error"] = str(e)
+        return result
 
     return {
         "source_type": "unknown",

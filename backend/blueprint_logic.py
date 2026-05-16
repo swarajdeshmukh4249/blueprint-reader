@@ -9,6 +9,12 @@ import cv2
 import ezdxf
 import numpy as np
 import pytesseract
+
+# Tell pytesseract where Nix installs tesseract on Railway
+import shutil
+_tess = shutil.which("tesseract")
+if _tess:
+    pytesseract.pytesseract.tesseract_cmd = _tess
 from pdf2image import convert_from_bytes
 from PIL import Image
 from pypdf import PdfReader

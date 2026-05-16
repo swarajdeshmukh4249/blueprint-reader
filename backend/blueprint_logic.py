@@ -12,7 +12,16 @@ import pytesseract
 
 # Tell pytesseract where Nix installs tesseract on Railway
 import shutil
+import subprocess
 _tess = shutil.which("tesseract")
+# Debug: find tesseract wherever it is
+try:
+    _tess_find = subprocess.run(["find", "/", "-name", "tesseract", "-type", "f"], 
+                                 capture_output=True, text=True, timeout=10)
+    print(f"DEBUG tesseract find: {_tess_find.stdout[:500]}", flush=True)
+except Exception as _e:
+    print(f"DEBUG find failed: {_e}", flush=True)
+print(f"DEBUG shutil.which tesseract: {_tess}", flush=True)
 if _tess:
     pytesseract.pytesseract.tesseract_cmd = _tess
 from pdf2image import convert_from_bytes

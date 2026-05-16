@@ -148,8 +148,6 @@ def _dxf_to_pil(file_bytes: bytes):
 
 def _call_gemini(parts: list) -> dict[str, Any]:
     client = _get_client()
-
-    # Build contents list for new SDK
     contents = []
     for part in parts:
         if isinstance(part, dict) and "mime_type" in part:
@@ -177,7 +175,6 @@ def _call_gemini(parts: list) -> dict[str, Any]:
     )
 
     raw = response.text.strip()
-
     if raw.startswith("```"):
         raw = raw.split("```")[1]
         if raw.startswith("json"):
@@ -192,15 +189,19 @@ def _call_gemini(parts: list) -> dict[str, Any]:
 
 
 # ─────────────────────────────────────────────
+# Quota / error helper
+# ─────────────────────────────────────────────
+
+def _is_quota_error(e: Exception) -> bool:
+    msg = str(e)
+    return "429" in msg or "RESOURCE_EXHAUSTED" in msg or "quota" in msg.lower()
+
+
+# ─────────────────────────────────────────────
 # Merge Gemini output with legacy parser data
 # ─────────────────────────────────────────────
 
 def _merge_with_legacy(gemini_data: dict, legacy_data: dict) -> dict:
-    """
-    Gemini is authoritative for rooms/features/openings/areas.
-    Legacy ezdxf data (layers, entity_counts, etc.) is preserved for DXF files.
-    Gracefully falls back to legacy_data if gemini_data is empty.
-    """
     merged = dict(legacy_data)
 
     if not gemini_data:
@@ -208,9 +209,9 @@ def _merge_with_legacy(gemini_data: dict, legacy_data: dict) -> dict:
         merged["vision_error"] = "Gemini returned no structured data"
         return merged
 
-    rooms    = gemini_data.get("rooms", [])
-    features = gemini_data.get("features", [])
-    openings = gemini_data.get("openings", {"doors": [], "windows": []})
+    rooms      = gemini_data.get("rooms", [])
+    features   = gemini_data.get("features", [])
+    openings   = gemini_data.get("openings", {"doors": [], "windows": []})
     total_area = gemini_data.get("total_area_sqft") or 0.0
 
     room_data = []
@@ -228,11 +229,9 @@ def _merge_with_legacy(gemini_data: dict, legacy_data: dict) -> dict:
         })
 
     if not total_area and room_data:
-        # Sum all rooms that have a real area (skip 0.0 which means Gemini returned null)
         rooms_with_area = [r for r in room_data if r.get("area") and r["area"] > 0]
         if rooms_with_area:
             total_area = round(sum(r["area"] for r in rooms_with_area), 2)
-            # If Gemini missed area for some rooms, flag it
             missing = len(room_data) - len(rooms_with_area)
             if missing > 0:
                 existing_notes = gemini_data.get("notes") or ""
@@ -241,7 +240,7 @@ def _merge_with_legacy(gemini_data: dict, legacy_data: dict) -> dict:
                     f" [Note: {missing} room(s) had no extractable dimensions — total area may be understated.]"
                 ).strip()
 
-    room_types    = list({r.get("name", "") for r in rooms if r.get("name")})
+    room_types     = list({r.get("name", "") for r in rooms if r.get("name")})
     room_instances = [r.get("instance_label") or r.get("name", "") for r in rooms]
 
     merged.update({
@@ -276,35 +275,42 @@ def _merge_with_legacy(gemini_data: dict, legacy_data: dict) -> dict:
 # ─────────────────────────────────────────────
 
 def analyze_pdf_with_vision(file_bytes: bytes, legacy_result: dict) -> dict:
-    """PDF → Gemini directly (native PDF support, no image conversion needed)."""
     try:
-        pdf_part  = {"mime_type": "application/pdf", "data": file_bytes}
+        pdf_part = {"mime_type": "application/pdf", "data": file_bytes}
         gemini_data = _call_gemini([pdf_part])
         return _merge_with_legacy(gemini_data, legacy_result)
     except Exception as e:
-        logger.error(f"Vision PDF analysis failed: {e}")
-        legacy_result["vision_used"]  = False
-        legacy_result["vision_error"] = str(e)
+        if _is_quota_error(e):
+            logger.warning("Gemini quota exhausted — returning legacy result for PDF")
+            legacy_result["vision_used"] = False
+            legacy_result["vision_error"] = "Gemini quota exhausted"
+        else:
+            logger.error(f"Vision PDF analysis failed: {e}")
+            legacy_result["vision_used"] = False
+            legacy_result["vision_error"] = str(e)
         return legacy_result
 
 
 def analyze_image_with_vision(file_bytes: bytes, legacy_result: dict) -> dict:
-    """Image → Gemini directly."""
     try:
         from PIL import Image as PILImage
-        img      = PILImage.open(BytesIO(file_bytes))
+        img = PILImage.open(BytesIO(file_bytes))
         img_part = {"mime_type": "image/jpeg", "data": _pil_to_bytes(img)}
         gemini_data = _call_gemini([img_part])
         return _merge_with_legacy(gemini_data, legacy_result)
     except Exception as e:
-        logger.error(f"Vision image analysis failed: {e}")
-        legacy_result["vision_used"]  = False
-        legacy_result["vision_error"] = str(e)
+        if _is_quota_error(e):
+            logger.warning("Gemini quota exhausted — returning legacy result for image")
+            legacy_result["vision_used"] = False
+            legacy_result["vision_error"] = "Gemini quota exhausted"
+        else:
+            logger.error(f"Vision image analysis failed: {e}")
+            legacy_result["vision_used"] = False
+            legacy_result["vision_error"] = str(e)
         return legacy_result
 
 
 def analyze_dxf_with_vision(file_bytes: bytes, legacy_result: dict) -> dict:
-    """DXF → render to image → Gemini. Legacy ezdxf metadata is preserved."""
     try:
         img = _dxf_to_pil(file_bytes)
         if img is None:
@@ -313,17 +319,18 @@ def analyze_dxf_with_vision(file_bytes: bytes, legacy_result: dict) -> dict:
         gemini_data = _call_gemini([img_part])
         return _merge_with_legacy(gemini_data, legacy_result)
     except Exception as e:
-        logger.error(f"Vision DXF analysis failed: {e}")
-        legacy_result["vision_used"]  = False
-        legacy_result["vision_error"] = str(e)
+        if _is_quota_error(e):
+            logger.warning("Gemini quota exhausted — returning legacy result for DXF")
+            legacy_result["vision_used"] = False
+            legacy_result["vision_error"] = "Gemini quota exhausted"
+        else:
+            logger.error(f"Vision DXF analysis failed: {e}")
+            legacy_result["vision_used"] = False
+            legacy_result["vision_error"] = str(e)
         return legacy_result
 
 
 def analyze_dwg_with_vision(file_bytes: bytes, legacy_result: dict) -> dict:
-    """
-    DWG → attempt ezdxf render → Gemini.
-    Some DWG files are readable by ezdxf. Others need ODA File Converter first.
-    """
     try:
         img = _dxf_to_pil(file_bytes)
         if img is None:
@@ -337,10 +344,13 @@ def analyze_dwg_with_vision(file_bytes: bytes, legacy_result: dict) -> dict:
         result["source_type"] = "dwg"
         return result
     except Exception as e:
-        logger.error(f"Vision DWG analysis failed: {e}")
-        legacy_result["vision_used"]  = False
-        legacy_result["vision_error"] = str(e)
-        legacy_result["note"] = (
-            "DWG could not be parsed. Convert to DXF for best results. Error: " + str(e)
-        )
+        if _is_quota_error(e):
+            logger.warning("Gemini quota exhausted — returning legacy result for DWG")
+            legacy_result["vision_used"] = False
+            legacy_result["vision_error"] = "Gemini quota exhausted"
+        else:
+            logger.error(f"Vision DWG analysis failed: {e}")
+            legacy_result["vision_used"] = False
+            legacy_result["vision_error"] = str(e)
+            legacy_result["note"] = "DWG could not be parsed. Convert to DXF for best results."
         return legacy_result

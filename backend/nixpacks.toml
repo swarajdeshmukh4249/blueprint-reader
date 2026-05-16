@@ -1,7 +1,6 @@
 [phases.setup]
 nixPkgs = [
   "python311",
-  "tesseract5",
   "poppler_utils",
   "libGL",
   "gcc",
@@ -14,6 +13,7 @@ nixPkgs = [
 
 [phases.install]
 cmds = [
+  "apt-get update -qq && apt-get install -y tesseract-ocr tesseract-ocr-eng || echo 'apt tesseract failed'",
   "pip3 install --break-system-packages -r requirements.txt"
 ]
 

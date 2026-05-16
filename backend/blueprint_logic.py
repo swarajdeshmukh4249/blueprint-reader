@@ -9,27 +9,51 @@ import cv2
 import ezdxf
 import numpy as np
 import pytesseract
-
-# Tell pytesseract where Nix installs tesseract on Railway
-import shutil
-import subprocess
-_tess = shutil.which("tesseract")
-# Debug: find tesseract wherever it is
-try:
-    _tess_find = subprocess.run(["find", "/", "-name", "tesseract", "-type", "f"], 
-                                 capture_output=True, text=True, timeout=10)
-    print(f"DEBUG tesseract find: {_tess_find.stdout[:500]}", flush=True)
-except Exception as _e:
-    print(f"DEBUG find failed: {_e}", flush=True)
-print(f"DEBUG shutil.which tesseract: {_tess}", flush=True)
-if _tess:
-    pytesseract.pytesseract.tesseract_cmd = _tess
 from pdf2image import convert_from_bytes
 from PIL import Image
 from pypdf import PdfReader
 from shapely.geometry import Polygon
 
-print("NEW BLUEPRINT LOGIC RUNNING")
+print("NEW BLUEPRINT LOGIC RUNNING", flush=True)
+
+# ─────────────────────────────────────────────
+# Tesseract: find binary across all possible paths
+# ─────────────────────────────────────────────
+import shutil
+
+def _find_and_set_tesseract() -> bool:
+    # Common locations on Debian/Ubuntu (apt-get install tesseract-ocr)
+    candidates = [
+        "/usr/bin/tesseract",
+        "/usr/local/bin/tesseract",
+        "/bin/tesseract",
+    ]
+    # Also try shutil.which
+    found = shutil.which("tesseract")
+    if found:
+        candidates.insert(0, found)
+
+    for path in candidates:
+        if os.path.isfile(path) and os.access(path, os.X_OK):
+            pytesseract.pytesseract.tesseract_cmd = path
+            print(f"Tesseract found at: {path}", flush=True)
+            return True
+
+    print("WARNING: Tesseract not found — OCR disabled, Vision-only mode active", flush=True)
+    return False
+
+TESSERACT_AVAILABLE = _find_and_set_tesseract()
+
+def _check_tesseract() -> bool:
+    if not TESSERACT_AVAILABLE:
+        return False
+    try:
+        pytesseract.get_tesseract_version()
+        return True
+    except Exception:
+        return False
+
+TESSERACT_AVAILABLE = _check_tesseract()
 
 try:
     from vision_analyzer import (
@@ -43,22 +67,12 @@ except ImportError:
     VISION_AVAILABLE = False
 
 VISION_ENABLED = os.environ.get("VISION_ENABLED", "true").lower() == "true"
-
 # ─────────────────────────────────────────────
 # Tesseract availability guard
 # If tesseract is not installed (e.g. Railway cold start before nixpacks rebuilds),
 # we fall through to Vision-only mode instead of crashing the job.
 # ─────────────────────────────────────────────
-def _check_tesseract() -> bool:
-    try:
-        pytesseract.get_tesseract_version()
-        return True
-    except Exception:
-        return False
 
-TESSERACT_AVAILABLE = _check_tesseract()
-if not TESSERACT_AVAILABLE:
-    print("WARNING: Tesseract not found — OCR disabled, Vision-only mode active", flush=True)
 
 ROOM_KEYWORDS = [
     "MASTER BEDROOM", "BED ROOM", "BEDROOM", "BEDRM", "LIVING ROOM", "LIVING",

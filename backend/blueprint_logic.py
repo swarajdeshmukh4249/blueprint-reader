@@ -901,6 +901,7 @@ def analyze_image(file_bytes: bytes) -> dict[str, Any]:
 
     if TESSERACT_AVAILABLE:
         ocr_lines, ocr_text = ocr_lines_from_images([image])
+        print(f"DEBUG OCR TEXT: {ocr_text[:3000]}", flush=True)
     else:
         print("Tesseract unavailable — Vision-only mode for image", flush=True)
         ocr_lines, ocr_text = [], ""

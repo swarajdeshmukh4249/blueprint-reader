@@ -860,6 +860,7 @@ def analyze_pdf(file_bytes: bytes) -> dict[str, Any]:
             except Exception as e:
                 return _empty_result("pdf", f"PDF to image conversion failed: {str(e)}")
             ocr_lines, ocr_text = ocr_lines_from_images(images)
+            print(f"DEBUG OCR TEXT: {ocr_text[:2000]}", flush=True)
             method_used = "OCR fallback with spatial preprocessing"
         final_text = ocr_text
         room_types_found, room_instances_found, room_counts = build_room_response(final_text)

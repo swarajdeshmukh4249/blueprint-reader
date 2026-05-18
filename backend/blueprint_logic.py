@@ -516,11 +516,22 @@ def extract_pdf_text(file_bytes: bytes) -> str:
 
 def preprocess_image_for_ocr(pil_image: Image.Image) -> np.ndarray:
     img = np.array(pil_image)
+    # Convert to grayscale
     gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY) if len(img.shape) == 3 else img
-    gray = cv2.resize(gray, None, fx=3, fy=3, interpolation=cv2.INTER_CUBIC)
-    gray = cv2.GaussianBlur(gray, (3, 3), 0)
-    return cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
-
+    # Only resize if image is small — don't over-enlarge
+    h, w = gray.shape[:2]
+    if max(h, w) < 2000:
+        gray = cv2.resize(gray, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
+    # Denoise
+    gray = cv2.fastNlMeansDenoising(gray, h=10)
+    # Adaptive threshold instead of Otsu — works better for blueprints
+    gray = cv2.adaptiveThreshold(
+        gray, 255,
+        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+        cv2.THRESH_BINARY,
+        11, 2
+    )
+    return gray
 
 def ocr_lines_from_images(images: list[Image.Image]) -> tuple[list[dict[str, Any]], str]:
     if not TESSERACT_AVAILABLE:
@@ -530,7 +541,7 @@ def ocr_lines_from_images(images: list[Image.Image]) -> tuple[list[dict[str, Any
     for page_index, image in enumerate(images):
         try:
             processed = preprocess_image_for_ocr(image)
-            ocr = pytesseract.image_to_data(processed, config="--oem 3 --psm 6",
+            ocr = pytesseract.image_to_data(processed, config="--oem 3 --psm 3",
                                              output_type=pytesseract.Output.DICT)
         except Exception as e:
             print(f"OCR failed on page {page_index}: {e}", flush=True)

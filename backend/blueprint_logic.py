@@ -517,7 +517,7 @@ def extract_pdf_text(file_bytes: bytes) -> str:
 def preprocess_image_for_ocr(pil_image: Image.Image) -> np.ndarray:
     img = np.array(pil_image)
     gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY) if len(img.shape) == 3 else img
-    gray = cv2.resize(gray, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
+    gray = cv2.resize(gray, None, fx=3, fy=3, interpolation=cv2.INTER_CUBIC)
     gray = cv2.GaussianBlur(gray, (3, 3), 0)
     return cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
 
@@ -856,7 +856,7 @@ def analyze_pdf(file_bytes: bytes) -> dict[str, Any]:
             method_used = "Vision-only (Tesseract unavailable)"
         else:
             try:
-                images = convert_from_bytes(file_bytes, dpi=300)
+                images = convert_from_bytes(file_bytes, dpi=400)
             except Exception as e:
                 return _empty_result("pdf", f"PDF to image conversion failed: {str(e)}")
             ocr_lines, ocr_text = ocr_lines_from_images(images)

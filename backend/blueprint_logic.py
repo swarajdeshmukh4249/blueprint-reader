@@ -85,15 +85,20 @@ ROOM_NAME_ALIASES = {
     "W.C.": "WC",
 }
 
-# DXF $INSUNITS → multiplier to convert drawing area to sq ft
+# DXF $INSUNITS → multiplier: polygon_area * scale = area in sq ft
+# https://help.autodesk.com/view/OARX/2024/en/?guid=GUID-5BE279D0-8E7B-4D8E-9B5E-8E5E5E5E5E5E
 INSUNITS_TO_SQFT = {
-    1: 1 / 144.0,          # inches
+    0: None,               # unitless — resolved via validate_unit_scale
+    1: 1 / 144.0,          # inches → sq ft
     2: 1.0,                # feet
-    3: 10.7639,            # meters (area in m² → sq ft)
-    4: 1 / 92903.04,       # mm
-    5: 10.7639 / 10000,    # cm
-    6: 10.7639,            # m
+    4: 1 / 92903.04,       # mm² → sq ft
+    5: 1 / 929.0304,       # cm² → sq ft
+    6: 10.7639,            # m² → sq ft
 }
+
+MIN_ROOM_SQFT = 15.0
+MAX_ROOM_SQFT = 15000.0
+MIN_TOTAL_SQFT = 80.0
 
 # =====================================================
 # TESSERACT
@@ -358,12 +363,11 @@ def match_rooms_to_areas(phrases, max_distance: float = 280):
 def extract_rooms_from_plain_text(text: str) -> list[dict]:
     """Parse embedded PDF text / OCR dump for room + area lines."""
     room_data = []
-    text = normalize_text(text)
-    if not text:
+    if not text or not str(text).strip():
         return room_data
 
-    for line in re.split(r"[\n;|]+", text):
-        line = normalize_text(line)
+    for raw_line in re.split(r"[\n\r;|]+", text):
+        line = normalize_text(raw_line.strip())
         if len(line) < 4:
             continue
         room = match_room(line)
@@ -382,14 +386,15 @@ def extract_rooms_from_plain_text(text: str) -> list[dict]:
                 "source": "text_extraction",
             })
 
-    # Patterns like "BEDROOM - 120 SQ FT" or "BEDROOM 10' x 12'"
+    # Patterns like "BEDROOM 10' x 12'" on full document blob
+    blob = fix_ocr_text(text.upper())
     dim_pat = re.compile(
         r"(MASTER\s+BEDROOM|BEDROOM|LIVING\s+ROOM|DINING\s+ROOM|KITCHEN|"
         r"BATHROOM|TOILET|LOBBY|HALL|BALCONY|UTILITY|PARKING)"
         r".{0,40}?(\d+(?:\.\d+)?)\s*['\u2032]?\s*[xX×]\s*(\d+(?:\.\d+)?)",
         re.IGNORECASE,
     )
-    for m in dim_pat.finditer(text):
+    for m in dim_pat.finditer(blob):
         room = match_room(m.group(1))
         if not room:
             continue
@@ -409,6 +414,59 @@ def extract_rooms_from_plain_text(text: str) -> list[dict]:
     return room_data
 
 
+def filter_sane_rooms(room_data: list[dict]) -> list[dict]:
+    """Drop impossible room areas and zero-area rows without a strong source."""
+    out = []
+    for r in room_data:
+        area = float(r.get("area") or 0)
+        conf = float(r.get("confidence") or 0)
+        source = r.get("source") or ""
+        if area <= 0:
+            if source in ("vision_ai", "ocr_inline", "text_extraction") and conf >= 0.7:
+                out.append(r)
+            continue
+        if area < MIN_ROOM_SQFT or area > MAX_ROOM_SQFT:
+            continue
+        out.append(r)
+    return out
+
+
+def compute_extraction_quality(result: dict) -> dict:
+    """Summary scores for UI / debugging reliability."""
+    rooms = result.get("room_data") or []
+    with_area = [r for r in rooms if float(r.get("area") or 0) > 0]
+    total = float(result.get("total_area") or 0)
+    avg_conf = (
+        sum(float(r.get("confidence") or 0) for r in with_area) / len(with_area)
+        if with_area else 0.0
+    )
+    sources = {r.get("source") for r in rooms if r.get("source")}
+    score = 0.0
+    if with_area:
+        score += 0.45
+    if len(with_area) >= 2:
+        score += 0.2
+    if total >= MIN_TOTAL_SQFT:
+        score += 0.2
+    if avg_conf >= 0.8:
+        score += 0.15
+    if result.get("vision_used"):
+        score = min(1.0, score + 0.1)
+    level = "low"
+    if score >= 0.75:
+        level = "high"
+    elif score >= 0.45:
+        level = "medium"
+    return {
+        "score": round(min(1.0, score), 2),
+        "level": level,
+        "rooms_with_area": len(with_area),
+        "total_rooms": len(rooms),
+        "avg_confidence": round(avg_conf, 2),
+        "sources": sorted(sources),
+    }
+
+
 def dedupe_room_data(room_data: list[dict]) -> list[dict]:
     seen = set()
     out = []
@@ -423,7 +481,7 @@ def dedupe_room_data(room_data: list[dict]) -> list[dict]:
         seen.add(key)
         r["room"] = normalize_room_name(r["room"])
         out.append(r)
-    return out
+    return filter_sane_rooms(out)
 
 
 def merge_room_lists(*sources: list[dict]) -> list[dict]:
@@ -473,18 +531,26 @@ def get_dxf_area_scale(doc) -> float:
     """Return multiplier: drawing_area * scale = sq ft."""
     try:
         ins = int(doc.header.get("$INSUNITS", 0))
-        if ins in INSUNITS_TO_SQFT:
-            return INSUNITS_TO_SQFT[ins]
+        factor = INSUNITS_TO_SQFT.get(ins)
+        if factor is not None:
+            return factor
     except Exception:
         pass
-    return 1 / 144.0  # default inches
+    return 1 / 144.0  # default inches when unitless/unknown
 
 
 def validate_unit_scale(polygons: list[dict], scale: float) -> float:
     """Pick scale so median 'room' area in sq ft is plausible (50–600 sq ft)."""
     if not polygons:
         return scale
-    candidates = [scale, 1 / 144.0, 1 / 92903.04, 10.7639]
+    candidates = [
+        scale,
+        1 / 144.0,
+        1.0,
+        1 / 92903.04,
+        1 / 929.0304,
+        10.7639,
+    ]
     best = scale
     best_err = 1e9
     for cand in candidates:
@@ -698,19 +764,44 @@ def attach_boq(result: dict) -> dict:
     return result
 
 
+def apply_vision_if_needed(file_bytes: bytes, result: dict, analyzer) -> dict:
+    """Run Vision when OCR/text found nothing and API key is configured."""
+    if not VISION_AVAILABLE or not GOOGLE_API_KEY:
+        return result
+    rooms = result.get("room_data") or []
+    has_area = any(float(r.get("area") or 0) > 0 for r in rooms)
+    if has_area:
+        return result
+    try:
+        merged = analyzer(file_bytes, result)
+        if merged.get("vision_used"):
+            merged["method_used"] = (result.get("method_used") or "") + " + Vision AI (fallback)"
+        return merged
+    except Exception:
+        return result
+
+
 def finalize_result(result: dict) -> dict:
     if result.get("error"):
         return result
     result = enrich_result(result)
+    result["extraction_quality"] = compute_extraction_quality(result)
     total_area = float(result.get("total_area") or 0)
     result["materials"] = estimate_materials(total_area)
     if not result.get("boq_items"):
         result["costs"] = estimate_costs(total_area)
     result = attach_boq(result)
+    q = result.get("extraction_quality") or {}
     if not result.get("room_data"):
         result["notes"] = (
             (result.get("notes") or "")
-            + " No rooms detected. Try a clearer scan, enable Vision API, or upload DXF."
+            + " No rooms detected. Try a clearer scan, enable Vision API (GOOGLE_API_KEY), or upload DXF."
+        ).strip()
+        result["error_code"] = result.get("error_code") or "NO_ROOMS_DETECTED"
+    elif q.get("level") == "low":
+        result["notes"] = (
+            (result.get("notes") or "")
+            + " Low confidence extraction — verify room areas before using BOQ."
         ).strip()
     return result
 
@@ -779,6 +870,7 @@ def analyze_pdf(file_bytes: bytes) -> dict:
         result = analyze_pdf_with_vision(file_bytes, result)
         if result.get("vision_used"):
             result["method_used"] += " + Vision AI"
+    result = apply_vision_if_needed(file_bytes, result, analyze_pdf_with_vision)
 
     return finalize_result(result)
 
@@ -805,6 +897,7 @@ def analyze_image(file_bytes: bytes) -> dict:
         result = analyze_image_with_vision(file_bytes, result)
         if result.get("vision_used"):
             result["method_used"] += " + Vision AI"
+    result = apply_vision_if_needed(file_bytes, result, analyze_image_with_vision)
 
     return finalize_result(result)
 

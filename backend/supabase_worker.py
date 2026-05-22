@@ -173,6 +173,39 @@ def process_job(project_url: str, service_role_key: str, job: dict[str, Any]) ->
         file_bytes = download_file(project_url, service_role_key, bucket, file_path)
         result = analyze_blueprint(file_bytes, file_name)
 
+        if result.get("error"):
+            update_job(
+                project_url,
+                service_role_key,
+                job_id,
+                {
+                    "status": "failed",
+                    "result": result,
+                    "error": result.get("error"),
+                },
+            )
+            print(f"Failed job {job_id}: {result.get('error')}", file=sys.stderr, flush=True)
+            return
+
+        quality = result.get("extraction_quality") or {}
+        rooms_with_area = quality.get("rooms_with_area", 0)
+        if rooms_with_area == 0:
+            update_job(
+                project_url,
+                service_role_key,
+                job_id,
+                {
+                    "status": "completed",
+                    "result": result,
+                    "error": (
+                        "Analysis completed but no room areas were detected. "
+                        "Upload a clearer file or set GOOGLE_API_KEY on Railway."
+                    ),
+                },
+            )
+            print(f"Completed job {job_id} with warnings (no areas)", flush=True)
+            return
+
         update_job(
             project_url,
             service_role_key,

@@ -31,6 +31,14 @@ Open http://localhost:3000
 - **Tesseract** — `brew install tesseract` (OCR)
 - **Poppler** — `brew install poppler` (PDF → images for OCR)
 
+### Reliability checks
+
+```bash
+cd backend && ../venv/bin/python -m unittest tests.test_blueprint_extraction -v
+```
+
+Set `GOOGLE_API_KEY` on Railway for scanned PDFs/JPGs when OCR finds no areas.
+
 ### Project layout
 
 - `backend/blueprint_logic.py` — extraction pipeline (PDF, image, DXF)

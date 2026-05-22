@@ -27,28 +27,23 @@ def get_client():
 # =====================================================
 
 PROMPT = """
-Analyze this architectural blueprint.
+Analyze this architectural floor plan image.
 
-Return ONLY valid JSON.
+Return ONLY valid JSON (no markdown).
 
-DO NOT hallucinate rooms.
-DO NOT estimate dimensions.
-ONLY return rooms clearly visible.
-If uncertain return null.
-
-Required JSON structure:
+Rules:
+- List ONLY rooms you can clearly read from labels or dimension text on the drawing.
+- For each room include area_sqft if written on the plan; otherwise omit area_sqft (do not guess).
+- Use standard names: MASTER BEDROOM, BEDROOM, LIVING ROOM, KITCHEN, BATHROOM, TOILET, BALCONY, etc.
+- total_area_sqft: sum of labeled room areas if shown, else null.
+- features: optional list from STAIR, BALCONY, PARKING, LIFT, TERRACE, CORRIDOR.
 
 {
   "rooms": [
-    {
-      "name": "ROOM NAME",
-      "area_sqft": 120,
-      "width_ft": 10,
-      "height_ft": 12
-    }
+    {"name": "BEDROOM", "area_sqft": 120, "width_ft": null, "height_ft": null}
   ],
-  "total_area_sqft": 1200,
-  "features": ["STAIR", "BALCONY"]
+  "total_area_sqft": null,
+  "features": []
 }
 """
 

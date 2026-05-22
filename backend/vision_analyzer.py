@@ -104,59 +104,81 @@ def call_gemini(image_bytes):
 # =====================================================
 
 
+def _norm_room(name: str) -> str:
+    if not name:
+        return ""
+    n = str(name).upper().strip()
+    aliases = {
+        "BED RM": "BEDROOM", "BED ROOM": "BEDROOM",
+        "LIVING": "LIVING ROOM", "DINING": "DINING ROOM",
+    }
+    return aliases.get(n, n)
+
+
 def merge_results(vision_data, legacy_data):
     if not vision_data:
         return legacy_data
 
-    legacy_rooms = legacy_data.get("room_data", [])
+    legacy_rooms = list(legacy_data.get("room_data") or [])
 
     vision_rooms = []
-
     for room in vision_data.get("rooms", []):
+        name = _norm_room(room.get("name") or "")
+        if not name:
+            continue
         vision_rooms.append({
-            "room": room.get("name"),
+            "room": name,
+            "label": name,
             "area": room.get("area_sqft"),
             "width": room.get("width_ft"),
             "height": room.get("height_ft"),
-            "confidence": 0.70,
+            "unit": "sq ft",
+            "floor": None,
+            "wall_type": None,
+            "confidence": 0.72,
             "source": "vision_ai",
         })
 
-    # IMPORTANT
-    # NEVER overwrite deterministic extraction
-
     if legacy_rooms:
-
         for legacy_room in legacy_rooms:
-
+            lr = _norm_room(legacy_room.get("room", ""))
+            legacy_room["room"] = lr
             for vision_room in vision_rooms:
-
-                if legacy_room["room"] == vision_room["room"]:
-
-                    if not legacy_room.get("area"):
-                        legacy_room["area"] = vision_room.get("area")
-
+                if lr == vision_room["room"]:
+                    if not legacy_room.get("area") and vision_room.get("area"):
+                        legacy_room["area"] = vision_room["area"]
+                        legacy_room["confidence"] = max(
+                            legacy_room.get("confidence", 0), 0.78,
+                        )
                     if not legacy_room.get("width"):
                         legacy_room["width"] = vision_room.get("width")
-
                     if not legacy_room.get("height"):
                         legacy_room["height"] = vision_room.get("height")
-
+        matched = {_norm_room(r.get("room", "")) for r in legacy_rooms}
+        for vr in vision_rooms:
+            if _norm_room(vr["room"]) not in matched and vr.get("area"):
+                legacy_rooms.append(vr)
         final_rooms = legacy_rooms
-
     else:
         final_rooms = vision_rooms
 
-    total_area = sum(
-        r.get("area", 0)
-        for r in final_rooms
-        if r.get("confidence", 0) >= 0.7
-    )
+    vision_total = vision_data.get("total_area_sqft")
+    legacy_sum = sum(float(r.get("area") or 0) for r in final_rooms)
+    if vision_total and (legacy_sum <= 0 or vision_total > legacy_sum * 1.1):
+        legacy_data["total_area"] = float(vision_total)
+    else:
+        legacy_data["total_area"] = legacy_sum
+
+    features = list(legacy_data.get("features_found") or [])
+    for f in vision_data.get("features") or []:
+        if f and str(f).upper() not in features:
+            features.append(str(f).upper())
+    legacy_data["features_found"] = features
 
     legacy_data["room_data"] = final_rooms
-    legacy_data["total_area"] = total_area
     legacy_data["vision_used"] = True
     legacy_data["vision_model"] = MODEL
+    legacy_data["vision_confidence"] = 0.72 if final_rooms else 0.0
 
     return legacy_data
 

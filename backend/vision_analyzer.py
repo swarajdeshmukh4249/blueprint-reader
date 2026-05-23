@@ -123,31 +123,18 @@ def merge_results(vision_data, legacy_data):
             "area": round(float(area), 2) if area else 0,
             "width": room.get("width_ft"),
             "height": room.get("height_ft"),
-            "confidence": 0.85,
+            "confidence": 0.95,
             "source": "vision_ai",
         })
 
-    legacy_rooms = legacy_data.get("room_data", [])
-    
-    # PRIORITY LOGIC
-    # If legacy/OCR found nothing or it's very messy, use AI results as primary
-    legacy_has_area = any(float(r.get("area") or 0) > 0 for r in legacy_rooms)
-    
-    if not legacy_rooms or not legacy_has_area or len(vision_rooms) > len(legacy_rooms):
+    # If AI found rooms, FORCE use them. We trust the AI more than OCR/Text patterns.
+    if vision_rooms:
         legacy_data["room_data"] = vision_rooms
-        legacy_data["method_used"] = legacy_data.get("method_used", "") + " (Vision AI Primary)"
-    else:
-        # Merge: Keep the OCR ones but add anything the AI found that OCR missed
-        existing_names = {r["room"].upper() for r in legacy_rooms}
-        for vr in vision_rooms:
-            if vr["room"].upper() not in existing_names:
-                legacy_rooms.append(vr)
-        legacy_data["room_data"] = legacy_rooms
-
-    # Recalculate total area from all rooms
-    total_area = sum(float(r.get("area") or 0) for r in legacy_data["room_data"])
+        legacy_data["method_used"] = "AI Vision Analysis"
+        legacy_data["vision_used"] = True
+    
+    total_area = sum(float(r.get("area") or 0) for r in legacy_data.get("room_data", []))
     legacy_data["total_area"] = round(total_area, 2)
-    legacy_data["vision_used"] = True
     
     return legacy_data
 

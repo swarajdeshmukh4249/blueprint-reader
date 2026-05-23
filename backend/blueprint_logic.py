@@ -1106,11 +1106,7 @@ def analyze_image(file_bytes: bytes) -> dict:
 
     if VISION_AVAILABLE and GOOGLE_API_KEY:
         result = analyze_image_with_vision(file_bytes, result)
-        if result.get("vision_used") and "Vision AI" not in result["method_used"]:
-            result["method_used"] += " + Vision AI"
-    
-    # Ensure fallback works
-    result = apply_vision_if_needed(file_bytes, result, analyze_image_with_vision)
+        result["method_used"] = "Vision AI (Image)"
     
     # Final cleanup of total area to make sure it matches the actual room list
     result["total_area"] = sum(float(r.get("area") or 0) for r in result.get("room_data", []))

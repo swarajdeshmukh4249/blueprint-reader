@@ -98,6 +98,7 @@ INSUNITS_TO_SQFT = {
 
 MIN_ROOM_SQFT = 5.0
 MAX_ROOM_SQFT = 15000.0
+MIN_TOTAL_SQFT = 80.0  # minimum plausible built-up area for quality scoring / BOQ
 PDF_OCR_DPI = 200
 MAX_PDF_PAGES_OCR = 6
 MAX_PDF_PAGES_VISION = 4

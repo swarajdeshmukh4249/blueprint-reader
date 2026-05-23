@@ -96,12 +96,23 @@ INSUNITS_TO_SQFT = {
     6: 10.7639,            # m² → sq ft
 }
 
-MIN_ROOM_SQFT = 15.0
+MIN_ROOM_SQFT = 5.0
 MAX_ROOM_SQFT = 15000.0
-MIN_TOTAL_SQFT = 80.0
 PDF_OCR_DPI = 200
 MAX_PDF_PAGES_OCR = 6
 MAX_PDF_PAGES_VISION = 4
+
+# Sanity bounds (sq ft) for validation
+ROOM_TYPE_BOUNDS = {
+    "TOILET": (20, 160),
+    "BATHROOM": (20, 160),
+    "KITCHEN": (40, 400),
+    "BEDROOM": (80, 800),
+    "MASTER BEDROOM": (120, 1000),
+    "LIVING ROOM": (140, 1500),
+    "BALCONY": (15, 300),
+    "STORE": (10, 150),
+}
 
 # =====================================================
 # TESSERACT
@@ -143,6 +154,16 @@ try:
     BOQ_AVAILABLE = True
 except Exception:
     BOQ_AVAILABLE = False
+
+try:
+    import aspose.cad as cad
+    from aspose.cad.imageoptions import DxfOptions
+    ASPOSE_CAD_AVAILABLE = True
+except ImportError:
+    ASPOSE_CAD_AVAILABLE = False
+
+import subprocess
+import tempfile
 
 # =====================================================
 # TEXT HELPERS
@@ -544,11 +565,19 @@ def extract_rooms_from_plain_text(text: str) -> list[dict]:
         if not room:
             continue
         w, h = float(m.group(2)), float(m.group(3))
+        # If values are large (e.g. 3800), assume they are mm
+        if w > 100 or h > 100:
+            area = round((w * h) / 92903.04, 2)
+            unit = "sq ft (from mm)"
+        else:
+            area = round(w * h, 2)
+            unit = "sq ft"
+            
         room_data.append({
             "room": room,
             "label": m.group(0),
-            "area": round(w * h, 2),
-            "unit": "sq ft",
+            "area": area,
+            "unit": unit,
             "width": w,
             "height": h,
             "floor": detect_floor(m.group(0)),
@@ -556,22 +585,49 @@ def extract_rooms_from_plain_text(text: str) -> list[dict]:
             "confidence": 0.8,
             "source": "text_dimensions",
         })
+
+    # Additional pattern for simple "3800 x 2500" without room name inside (nearby search)
+    mm_dim_pat = re.compile(r"(\d{3,5})\s*[xX×]\s*(\d{3,5})")
+    for m in mm_dim_pat.finditer(blob):
+        w, h = float(m.group(1)), float(m.group(2))
+        area = round((w * h) / 92903.04, 2)
+        room_data.append({
+            "room": "UNKNOWN",
+            "label": m.group(0),
+            "area": area,
+            "unit": "sq ft (from mm)",
+            "width": w, "height": h,
+            "confidence": 0.7,
+            "source": "text_dimensions_mm",
+        })
     return room_data
 
 
 def filter_sane_rooms(room_data: list[dict]) -> list[dict]:
-    """Drop impossible room areas and zero-area rows without a strong source."""
+    """Drop impossible room areas or those that violate room-type bounds."""
     out = []
     for r in room_data:
         area = float(r.get("area") or 0)
+        name = r.get("room", "").upper()
         conf = float(r.get("confidence") or 0)
         source = r.get("source") or ""
+        
         if area <= 0:
             if source in ("vision_ai", "ocr_inline", "text_extraction") and conf >= 0.7:
                 out.append(r)
             continue
+            
         if area < MIN_ROOM_SQFT or area > MAX_ROOM_SQFT:
             continue
+            
+        # Optional: check type-specific bounds
+        for room_type, (min_sqft, max_sqft) in ROOM_TYPE_BOUNDS.items():
+            if room_type in name:
+                if area < min_sqft * 0.5 or area > max_sqft * 1.5:
+                    # Too far off from sanity, likely a scaling error
+                    continue
+                break
+                
         out.append(r)
     return out
 
@@ -736,6 +792,15 @@ def resolve_dxf_scale(polygons: list[dict], header_scale: float) -> float:
             best_score = score
             best_scale = cand
 
+    # NEW: Fallback for huge raw areas (mm) if nothing was 'room-like'
+    if best_score < 0:
+        raw_areas = [p["area"] for p in polygons]
+        if raw_areas:
+            med_raw = float(np.median(raw_areas))
+            if med_raw > 1000000: # millions of mm2
+                best_scale = 1 / 92903.04
+                print(f"Fallback to mm-scale (med_raw={med_raw})", flush=True)
+
     return best_scale
 
 
@@ -822,14 +887,26 @@ def extract_closed_room_polygons(msp) -> list[dict]:
         if entity.dxftype() not in ("LWPOLYLINE", "POLYLINE"):
             continue
         try:
-            closed = getattr(entity, "closed", False) or getattr(entity.dxf, "flags", 0) & 1
-            if not closed:
-                continue
             points = polyline_points(entity)
-            if len(points) < 4:
+            if not points or len(points) < 3:
                 continue
+            
+            # Check if technically closed or visually closed (start == end)
+            is_closed = getattr(entity, "closed", False) or getattr(entity.dxf, "flags", 0) & 1
+            if not is_closed:
+                # Check for visual closure with small tolerance
+                d = ((points[0][0] - points[-1][0])**2 + (points[0][1] - points[-1][1])**2)**0.5
+                if d < 10.0: # Close enough to be a room
+                    is_closed = True
+            
+            if not is_closed:
+                continue
+                
             poly = Polygon(points)
-            if not poly.is_valid or poly.area <= 0:
+            if not poly.is_valid:
+                poly = poly.buffer(0) # Attempt to fix self-intersections
+            
+            if poly.is_empty or poly.area <= 0:
                 continue
             if poly.area < 10:
                 continue
@@ -867,25 +944,38 @@ def match_dxf_polygons_to_labels(polygons: list[dict], labels: list[dict], scale
 
         best_label = None
         best_dist = 1e9
+        is_inside = False
+
         for i, lbl in enumerate(labels):
             if i in used_labels:
                 continue
             room = match_room(lbl["text"])
             if not room:
                 continue
-            dist = ((poly["cx"] - lbl["cx"]) ** 2 + (poly["cy"] - lbl["cy"]) ** 2) ** 0.5
-            if dist < best_dist:
-                best_dist = dist
-                best_label = (i, room, lbl)
 
+            from shapely.geometry import Point
+            p = Point(lbl["cx"], lbl["cy"])
+            inside = poly["polygon"].contains(p)
+            
+            d = ((poly["cx"] - lbl["cx"])**2 + (poly["cy"] - lbl["cy"])**2)**0.5
+            
+            # Label inside polygon is top priority
+            if inside:
+                if not is_inside or d < best_dist:
+                    best_label = (i, room, lbl)
+                    best_dist = d
+                    is_inside = True
+            elif not is_inside and d < best_dist and d < max_dist:
+                best_label = (i, room, lbl)
         text_area = None
-        for lbl in labels:
+        for i, lbl in enumerate(labels):
             a = parse_area(lbl["text"])
-            if a and ((poly["cx"] - lbl["cx"]) ** 2 + (poly["cy"] - lbl["cy"]) ** 2) ** 0.5 < best_dist * 1.5:
+            dist = ((poly["cx"] - lbl["cx"])**2 + (poly["cy"] - lbl["cy"])**2)**0.5
+            if a and dist < max_dist:
                 text_area = a
                 break
 
-        if best_label and best_dist <= max_dist:
+        if best_label:
             idx, room, lbl = best_label
             used_labels.add(idx)
             final_area = text_area if text_area else area_sqft
@@ -1293,6 +1383,96 @@ def analyze_dxf(file_bytes: bytes) -> dict:
             except OSError:
                 pass
 
+def analyze_dwg(file_bytes: bytes) -> dict:
+    """
+    Handle DWG by converting to DXF. 
+    Prioritizes ODA File Converter (Industry Standard) 
+    then fallback to LibreDWG or Aspose.CAD.
+    """
+    import tempfile
+    import subprocess
+    
+    # 1. Try ODA File Converter (Industry Standard for Mac)
+    oda_path = "/Applications/ODAFileConverter.app/Contents/MacOS/ODAFileConverter"
+    if os.path.exists(oda_path):
+        try:
+            with tempfile.TemporaryDirectory() as tmp_root:
+                input_dir = os.path.join(tmp_root, "in")
+                output_dir = os.path.join(tmp_root, "out")
+                os.makedirs(input_dir)
+                os.makedirs(output_dir)
+                
+                dwg_file = os.path.join(input_dir, "input.dwg")
+                with open(dwg_file, "wb") as f:
+                    f.write(file_bytes)
+                
+                # ODA Arguments: InputDir OutputDir OutVer OutFormat Recurse Audit
+                subprocess.run([
+                    oda_path, input_dir, output_dir, "ACAD2018", "DXF", "0", "1"
+                ], check=True, capture_output=True)
+                
+                dxf_file = os.path.join(output_dir, "input.dxf")
+                if os.path.exists(dxf_file):
+                    with open(dxf_file, "rb") as f:
+                        dxf_bytes = f.read()
+                    res = analyze_dxf(dxf_bytes)
+                    res["method_used"] = "dwg_to_dxf_oda"
+                    res["notes"] = (res.get("notes") or "") + " (Converted via ODA Engine)"
+                    return res
+        except Exception as e:
+            print(f"ODA Conversion failed: {e}")
+
+    # 2. Try Aspose.CAD (if installed)
+    if ASPOSE_CAD_AVAILABLE:
+        try:
+            with tempfile.NamedTemporaryFile(suffix=".dwg", delete=False) as tf:
+                tf.write(file_bytes)
+                dwg_path = tf.name
+            
+            dxf_path = dwg_path.replace(".dwg", ".dxf")
+            image = cad.Image.load(dwg_path)
+            image.save(dxf_path, DxfOptions())
+            
+            with open(dxf_path, "rb") as f:
+                dxf_bytes = f.read()
+            
+            os.remove(dwg_path)
+            if os.path.exists(dxf_path): os.remove(dxf_path)
+            
+            res = analyze_dxf(dxf_bytes)
+            res["method_used"] = "dwg_to_dxf_aspose"
+            return res
+        except Exception:
+            pass
+    
+    # 3. Try LibreDWG (installed via Option 1)
+    if shutil.which("dwg2dxf"):
+        try:
+            with tempfile.NamedTemporaryFile(suffix=".dwg", delete=False) as tf:
+                tf.write(file_bytes)
+                dwg_path = tf.name
+            
+            dxf_path = dwg_path.replace(".dwg", ".dxf")
+            subprocess.run(["dwg2dxf", "-o", dxf_path, dwg_path], check=True, capture_output=True)
+            
+            with open(dxf_path, "rb") as f:
+                dxf_bytes = f.read()
+            
+            os.remove(dwg_path)
+            if os.path.exists(dxf_path): os.remove(dxf_path)
+            
+            res = analyze_dxf(dxf_bytes)
+            res["method_used"] = "dwg_to_dxf_libredwg"
+            return res
+        except Exception:
+            pass
+
+    return {
+        "error": "DWG converter not found",
+        "error_code": "DEPENDENCY_MISSING",
+        "notes": "Please install LibreDWG (Option 1) or ODA File Converter (Option 2) for DWG support.",
+    }
+
 
 def analyze_blueprint(file_bytes: bytes, filename: str) -> dict:
     file_type = get_file_type(filename)
@@ -1305,11 +1485,7 @@ def analyze_blueprint(file_bytes: bytes, filename: str) -> dict:
         if file_type == "dxf":
             return analyze_dxf(file_bytes)
         if file_type == "dwg":
-            return {
-                "error": "DWG not supported yet",
-                "error_code": "UNSUPPORTED_FORMAT",
-                "notes": "Export the drawing as DXF from AutoCAD/Revit, or upload PDF/PNG.",
-            }
+            return analyze_dwg(file_bytes)
         return {
             "error": "Unsupported file type",
             "error_code": "UNSUPPORTED_FORMAT",

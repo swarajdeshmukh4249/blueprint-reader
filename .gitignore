@@ -1,2 +1,16 @@
 .vercel
-.env*.local
+.env
+.env.*
+!.env.example
+backend/.env
+frontend/.env.local
+venv/
+node_modules/
+frontend/.next/
+__pycache__/
+**/__pycache__/
+*.pyc
+backend.zip
+frontend/app.zip
+.DS_Store
+.agent/

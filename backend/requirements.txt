@@ -19,6 +19,7 @@ numpy
 # ── CAD parsing ────────────────────────────────────────────────────────────
 ezdxf
 shapely
+aspose-cad
 
 # ── DXF rendering for Vision ───────────────────────────────────────────────
 matplotlib

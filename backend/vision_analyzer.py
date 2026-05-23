@@ -21,7 +21,7 @@ if not os.environ.get("GOOGLE_API_KEY") and os.path.exists(".env"):
 
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
 
-MODEL = "gemini-1.5-flash"
+MODEL = "gemini-1.5-flash-latest"
 
 # =====================================================
 # CLIENT
@@ -95,12 +95,11 @@ def call_gemini(image_bytes):
             ),
         )
         raw = response.text.strip()
-        print(f"VISION RESPONSE: {raw[:200]}...") # Log first bit for debug
-        data = json.loads(raw)
-        return data
+        return json.loads(raw)
     except Exception as e:
         print(f"VISION ERROR: {str(e)}")
-        return {}
+        # Return the error so it shows up in legacy_data
+        return {"error": str(e), "rooms": []}
 
 
 # =====================================================

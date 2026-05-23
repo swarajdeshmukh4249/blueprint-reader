@@ -9,6 +9,16 @@ from PIL import Image
 
 logger = logging.getLogger(__name__)
 
+# Manual .env loading fallback
+if not os.environ.get("GOOGLE_API_KEY") and os.path.exists(".env"):
+    try:
+        with open(".env", "r") as f:
+            for line in f:
+                if "GOOGLE_API_KEY=" in line:
+                    os.environ["GOOGLE_API_KEY"] = line.strip().split("=", 1)[1].strip().strip('"').strip("'")
+    except Exception:
+        pass
+
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
 
 MODEL = "gemini-2.0-flash"
@@ -27,29 +37,23 @@ def get_client():
 # =====================================================
 
 PROMPT = """
-Analyze this architectural blueprint.
+Analyze this architectural blueprint carefully.
+Your task is to extract every room, its name, and its area (sq ft).
 
-Return ONLY valid JSON.
+Look for labels like "BEDROOM 120 SQ FT" or "KITCHEN 10' x 12'".
+If you see dimensions (like 10' x 12'), multiply them to get the square footage.
 
-DO NOT hallucinate rooms.
-DO NOT estimate dimensions.
-ONLY return rooms clearly visible.
-If uncertain return null.
-
-Required JSON structure:
-
+Return a valid JSON object:
 {
   "rooms": [
-    {
-      "name": "ROOM NAME",
-      "area_sqft": 120,
-      "width_ft": 10,
-      "height_ft": 12
-    }
+    {"name": "Master Bedroom", "area_sqft": 144, "width_ft": 12, "height_ft": 12},
+    ...
   ],
-  "total_area_sqft": 1200,
-  "features": ["STAIR", "BALCONY"]
+  "total_area_sqft": 1250,
+  "features": ["Balcony", "Kitchen Sink"]
 }
+
+Be thorough. Even if a room area is small, include it.
 """
 
 
@@ -155,7 +159,7 @@ def analyze_pdf_with_vision(file_bytes, legacy_result):
 
         images = convert_from_bytes(
             file_bytes,
-            dpi=150,
+            dpi=300,
             first_page=1,
             last_page=1,
         )

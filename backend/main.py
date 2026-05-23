@@ -1,5 +1,12 @@
-from dotenv import load_dotenv
-load_dotenv()  # Must be first — loads GOOGLE_API_KEY before blueprint_logic reads it
+import os
+
+# Manual .env loading to avoid crash in certain Python environments
+if os.path.exists(".env"):
+    with open(".env", "r") as f:
+        for line in f:
+            if "=" in line:
+                k, v = line.strip().split("=", 1)
+                os.environ[k] = v
 
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware

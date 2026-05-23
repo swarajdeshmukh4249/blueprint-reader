@@ -1002,14 +1002,9 @@ def finalize_result(result: dict) -> dict:
     if not result.get("room_data"):
         result["notes"] = (
             (result.get("notes") or "")
-            + " No rooms detected. Try a clearer scan, enable Vision API (GOOGLE_API_KEY), or upload DXF."
+            + " No rooms detected. The AI couldn't clearly read the room labels or areas. Try a clearer upload."
         ).strip()
-        result["error_code"] = result.get("error_code") or "NO_ROOMS_DETECTED"
-    elif q.get("level") == "low":
-        result["notes"] = (
-            (result.get("notes") or "")
-            + " Low confidence extraction — verify room areas before using BOQ."
-        ).strip()
+        result["total_area"] = 0
     return result
 
 

@@ -49,9 +49,14 @@ If Railway logs show `429 RESOURCE_EXHAUSTED` for `gemini-2.0-flash`:
 
 DXF does not use Gemini; PDF/JPG scans depend on Vision when OCR alone is insufficient.
 
-### Upload size (150 MB)
+### Upload size (150 MB) — fix “object exceeded the maximum upload size”
 
-The app allows files up to **150 MB**. In Supabase Dashboard → **Storage** → **Settings**, set **Global file size limit** to at least **150 MB** (default is often 50 MB).
+Supabase defaults to **50 MB** per file. A 51 MB DXF will fail until you raise the limit:
+
+1. **Dashboard** → **Storage** → **Settings** → **Global file size limit** → **150** MB (or higher) → Save  
+2. **SQL Editor** → run [`supabase/storage_bucket_limits.sql`](supabase/storage_bucket_limits.sql)
+
+The app UI allows up to **150 MB** (`frontend/lib/upload-limits.ts`). Both steps are required.
 
 ### Project layout
 

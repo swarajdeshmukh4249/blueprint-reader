@@ -63,10 +63,10 @@ on public.analysis_jobs for update
 to service_role
 using (true) with check (true);
 
--- Storage bucket
-insert into storage.buckets (id, name, public)
-values ('blueprints', 'blueprints', false)
-on conflict (id) do nothing;
+-- Storage bucket (150 MB per file — also raise global limit in Dashboard → Storage → Settings)
+insert into storage.buckets (id, name, public, file_size_limit)
+values ('blueprints', 'blueprints', false, 157286400)
+on conflict (id) do update set file_size_limit = excluded.file_size_limit;
 
 create policy "Allow uploads into blueprints bucket"
 on storage.objects for insert

@@ -105,59 +105,42 @@ def call_gemini(image_bytes):
 
 
 def merge_results(vision_data, legacy_data):
-    if not vision_data:
+    if not vision_data or not vision_data.get("rooms"):
         return legacy_data
 
-    legacy_rooms = legacy_data.get("room_data", [])
-
     vision_rooms = []
-
     for room in vision_data.get("rooms", []):
+        area = room.get("area_sqft") or 0
+        if not area and room.get("width_ft") and room.get("height_ft"):
+            area = room["width_ft"] * room["height_ft"]
+        
         vision_rooms.append({
-            "room": room.get("name"),
-            "area": room.get("area_sqft"),
+            "room": room.get("name") or "Unnamed Room",
+            "area": round(float(area), 2) if area else 0,
             "width": room.get("width_ft"),
             "height": room.get("height_ft"),
-            "confidence": 0.70,
+            "confidence": 0.85,
             "source": "vision_ai",
         })
 
-    # IMPORTANT
-    # NEVER overwrite deterministic extraction
-
-    if legacy_rooms:
-
-        for legacy_room in legacy_rooms:
-
-            for vision_room in vision_rooms:
-
-                if legacy_room["room"] == vision_room["room"]:
-
-                    if not legacy_room.get("area"):
-                        legacy_room["area"] = vision_room.get("area")
-
-                    if not legacy_room.get("width"):
-                        legacy_room["width"] = vision_room.get("width")
-
-                    if not legacy_room.get("height"):
-                        legacy_room["height"] = vision_room.get("height")
-
-        final_rooms = legacy_rooms
-
+    legacy_rooms = legacy_data.get("room_data", [])
+    
+    if not legacy_rooms:
+        legacy_data["room_data"] = vision_rooms
+        legacy_data["method_used"] = legacy_data.get("method_used", "") + " (Vision AI Primary)"
     else:
-        final_rooms = vision_rooms
+        # If we have OCR rooms, only add AI rooms that aren't already found
+        existing_names = {r["room"].upper() for r in legacy_rooms}
+        for vr in vision_rooms:
+            if vr["room"].upper() not in existing_names:
+                legacy_rooms.append(vr)
+        legacy_data["room_data"] = legacy_rooms
 
-    total_area = sum(
-        r.get("area", 0)
-        for r in final_rooms
-        if r.get("confidence", 0) >= 0.7
-    )
-
-    legacy_data["room_data"] = final_rooms
-    legacy_data["total_area"] = total_area
+    # Recalculate total area from all rooms
+    total_area = sum(float(r.get("area") or 0) for r in legacy_data["room_data"])
+    legacy_data["total_area"] = round(total_area, 2)
     legacy_data["vision_used"] = True
-    legacy_data["vision_model"] = MODEL
-
+    
     return legacy_data
 
 

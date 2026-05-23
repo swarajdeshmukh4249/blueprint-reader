@@ -1098,21 +1098,25 @@ def analyze_image(file_bytes: bytes) -> dict:
     raw = "\n".join(p["text"] for p in phrases)
     text_rooms = extract_rooms_from_plain_text(raw)
     room_data = merge_room_lists(text_rooms, ocr_rooms)
-    total_area = sum(float(r.get("area") or 0) for r in room_data)
-
+    
     result = {
         "source_type": "image",
         "method_used": "Image OCR + spatial matching",
         "room_data": room_data,
-        "total_area": total_area,
+        "total_area": sum(float(r.get("area") or 0) for r in room_data),
         "raw_text": raw,
     }
 
     if VISION_AVAILABLE and GOOGLE_API_KEY:
         result = analyze_image_with_vision(file_bytes, result)
-        if result.get("vision_used"):
+        if result.get("vision_used") and "Vision AI" not in result["method_used"]:
             result["method_used"] += " + Vision AI"
+    
+    # Ensure fallback works
     result = apply_vision_if_needed(file_bytes, result, analyze_image_with_vision)
+    
+    # Final cleanup of total area to make sure it matches the actual room list
+    result["total_area"] = sum(float(r.get("area") or 0) for r in result.get("room_data", []))
 
     return finalize_result(result)
 

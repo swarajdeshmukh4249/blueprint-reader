@@ -14,7 +14,7 @@ import {
 
 const BUCKET = "blueprints";
 const POLL = 3000;
-const ACCEPT = ".dxf,.ifc,.ifczip,.pdf,.png,.jpg,.jpeg";
+const ACCEPT = ".dxf,.dwg,.ifc,.ifczip,.pdf,.png,.jpg,.jpeg";
 
 function storagePath(file: File) {
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
@@ -92,7 +92,7 @@ export default function UploadWorkspace({ isOrg }: { isOrg: boolean }) {
     if (err) { setError(err); setFile(null); return; }
     const ft = detectFileType(f.name);
     if (!ft) {
-      setError("Supported: DXF, IFC, PDF, PNG, JPG");
+      setError("Supported: DXF, DWG, IFC, PDF, PNG, JPG");
       return;
     }
     setFile(f);
@@ -139,7 +139,7 @@ export default function UploadWorkspace({ isOrg }: { isOrg: boolean }) {
       <div>
         <h2 className="page-title">New blueprint analysis</h2>
         <p className="page-subtitle">
-          Upload DXF, IFC, PDF, or site photos. Results open on a dedicated report page when processing finishes.
+          Upload DXF, DWG, IFC, PDF, or site photos. Results open on a dedicated report page when processing finishes.
         </p>
       </div>
 
@@ -164,7 +164,7 @@ export default function UploadWorkspace({ isOrg }: { isOrg: boolean }) {
             >
               <p style={{ fontWeight: 600, marginBottom: 6 }}>Drop file or click to browse</p>
               <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                DXF · IFC · PDF · PNG · JPG
+                DXF · DWG · IFC · PDF · PNG · JPG
               </p>
             </div>
             <input

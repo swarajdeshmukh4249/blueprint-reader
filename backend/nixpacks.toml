@@ -12,6 +12,7 @@ nixPkgs = [
   "freetype",
   "pkg-config",
   "tesseract",
+  "libredwg",
 ]
 
 [phases.install]

@@ -184,7 +184,9 @@ def format_user_error(result: dict[str, Any]) -> str:
     elif code == "QUOTA_EXCEEDED" or "429" in str(msg):
         hint = " Enable Google AI billing or set GEMINI_MODEL=gemini-1.5-flash."
     elif code == "UNSUPPORTED_FORMAT":
-        hint = " Use DXF, IFC, PDF, or PNG."
+        hint = " Use DXF, DWG, IFC, PDF, or PNG."
+    elif code == "DEPENDENCY_MISSING":
+        hint = " Export DWG as DXF from AutoCAD, or install LibreDWG (dwg2dxf) on the worker."
     return f"[{code}] {msg}{hint}"
 
 

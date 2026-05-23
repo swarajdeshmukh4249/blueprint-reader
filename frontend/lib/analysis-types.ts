@@ -76,6 +76,7 @@ export function detectFileType(filename: string): string | null {
   const n = filename.toLowerCase();
   if (n.endsWith(".pdf")) return "pdf";
   if (n.endsWith(".dxf")) return "dxf";
+  if (n.endsWith(".dwg")) return "dwg";
   if (n.endsWith(".ifc") || n.endsWith(".ifczip")) return "ifc";
   if (n.endsWith(".png") || n.endsWith(".jpg") || n.endsWith(".jpeg")) return "image";
   return null;

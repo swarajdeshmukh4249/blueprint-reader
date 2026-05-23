@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()  # Must be first — loads GOOGLE_API_KEY before blueprint_logic reads it
+
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from blueprint_logic import analyze_blueprint

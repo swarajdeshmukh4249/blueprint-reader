@@ -129,11 +129,15 @@ def merge_results(vision_data, legacy_data):
 
     legacy_rooms = legacy_data.get("room_data", [])
     
-    if not legacy_rooms:
+    # PRIORITY LOGIC
+    # If legacy/OCR found nothing or it's very messy, use AI results as primary
+    legacy_has_area = any(float(r.get("area") or 0) > 0 for r in legacy_rooms)
+    
+    if not legacy_rooms or not legacy_has_area or len(vision_rooms) > len(legacy_rooms):
         legacy_data["room_data"] = vision_rooms
         legacy_data["method_used"] = legacy_data.get("method_used", "") + " (Vision AI Primary)"
     else:
-        # If we have OCR rooms, only add AI rooms that aren't already found
+        # Merge: Keep the OCR ones but add anything the AI found that OCR missed
         existing_names = {r["room"].upper() for r in legacy_rooms}
         for vr in vision_rooms:
             if vr["room"].upper() not in existing_names:
@@ -161,17 +165,21 @@ def analyze_pdf_with_vision(file_bytes, legacy_result):
             file_bytes,
             dpi=300,
             first_page=1,
-            last_page=1,
+            last_page=3, # Check first 3 pages in case page 1 is a cover
         )
 
         if not images:
             return legacy_result
 
-        image_bytes = pil_to_bytes(images[0])
-
-        vision_data = call_gemini(image_bytes)
-
-        return merge_results(vision_data, legacy_result)
+        # Loop through pages until we find one with content
+        for img in images:
+            image_bytes = pil_to_bytes(img)
+            vision_data = call_gemini(image_bytes)
+            
+            if vision_data and vision_data.get("rooms"):
+                return merge_results(vision_data, legacy_result)
+        
+        return legacy_result
 
     except Exception as e:
         logger.error(e)

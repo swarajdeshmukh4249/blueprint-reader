@@ -208,11 +208,17 @@ def process_job(project_url: str, service_role_key: str, job: dict[str, Any]) ->
         rooms_with_area = (result.get("extraction_quality") or {}).get(
             "rooms_with_area", 0,
         )
-        warning = None
-        if total_area <= 0 and rooms_with_area == 0:
+        warning = result.get("vision_error")
+        if result.get("vision_error_code") == "QUOTA_EXCEEDED":
+            warning = result.get("vision_error") or (
+                "Gemini API quota exceeded (429). Use gemini-1.5-flash, enable billing "
+                "in Google AI Studio, or wait and retry."
+            )
+        if not warning and total_area <= 0 and rooms_with_area == 0:
             warning = (
-                "No rooms or areas detected. For PDF/JPG set GOOGLE_API_KEY on Railway "
-                "(Vision) and ensure poppler + tesseract are installed."
+                "No rooms or areas detected. For scanned PDF/JPG enable Gemini billing "
+                "or upload DXF. OCR ran: "
+                f"tesseract={result.get('tesseract_available')}."
             )
 
         update_job(

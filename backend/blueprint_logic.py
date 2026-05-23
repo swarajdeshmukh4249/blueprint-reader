@@ -258,18 +258,31 @@ def extract_ocr_document_text(images) -> str:
     if not TESSERACT_AVAILABLE or not images:
         return ""
     parts = []
+    configs = ("--oem 3 --psm 6", "--oem 3 --psm 4", "--oem 3 --psm 11")
     for image in images:
         try:
             processed = preprocess_image_for_ocr(image)
-            parts.append(
-                pytesseract.image_to_string(
-                    processed,
-                    config="--oem 3 --psm 6",
-                )
-            )
+            for cfg in configs:
+                text = pytesseract.image_to_string(processed, config=cfg)
+                if text and len(text.strip()) > 20:
+                    parts.append(text)
+                    break
         except Exception:
             continue
     return "\n".join(parts)
+
+
+def ocr_pdf_first_page_hidpi(file_bytes: bytes) -> str:
+    """Extra high-DPI pass on page 1 when standard OCR finds little text."""
+    if not TESSERACT_AVAILABLE:
+        return ""
+    try:
+        pages = convert_from_bytes(file_bytes, dpi=300, first_page=1, last_page=1)
+        if not pages:
+            return ""
+        return extract_ocr_document_text(pages)
+    except Exception:
+        return ""
 
 
 def extract_ocr_words(images):
@@ -1112,21 +1125,27 @@ def _finalize_raster_result(
 
     has_areas = any(float(r.get("area") or 0) > 0 for r in room_data)
     result["google_api_key_configured"] = bool(google_api_key())
+    quota_hit = result.get("vision_error_code") == "QUOTA_EXCEEDED"
 
-    # PDF/JPG/PNG rely on Vision for scanned plans — always run when key is set
-    if VISION_AVAILABLE and google_api_key():
+    # Vision uses API quota — run when OCR/text found no areas, or always for images
+    need_vision = (
+        VISION_AVAILABLE
+        and google_api_key()
+        and not quota_hit
+        and (not has_areas or source_type == "image")
+    )
+    if need_vision:
         result = vision_analyzer(file_bytes, result)
+        quota_hit = result.get("vision_error_code") == "QUOTA_EXCEEDED"
         if result.get("vision_used"):
             result["method_used"] += " + Vision AI"
-        elif result.get("notes"):
-            pass
-        else:
-            result["notes"] = (
-                (result.get("notes") or "")
-                + " Vision ran but returned no rooms — check GOOGLE_API_KEY quota/model."
-            ).strip()
-    if VISION_AVAILABLE and google_api_key():
+        elif result.get("vision_error"):
+            result["method_used"] += " + Vision AI (failed)"
+    if VISION_AVAILABLE and google_api_key() and not quota_hit:
         result = apply_vision_if_needed(file_bytes, result, vision_analyzer)
+
+    if result.get("vision_error_code") == "QUOTA_EXCEEDED":
+        result["error_code"] = "VISION_QUOTA_EXCEEDED"
 
     if not TESSERACT_AVAILABLE and not result.get("vision_used"):
         result["notes"] = (
@@ -1174,6 +1193,8 @@ def analyze_pdf(file_bytes: bytes) -> dict:
         })
 
     ocr_blob = extract_ocr_document_text(images)
+    if len(ocr_blob.strip()) < 80:
+        ocr_blob = (ocr_blob + "\n" + ocr_pdf_first_page_hidpi(file_bytes)).strip()
     words = extract_ocr_words(images)
     phrases = build_phrases(words)
     ocr_rooms = match_rooms_to_areas(phrases)

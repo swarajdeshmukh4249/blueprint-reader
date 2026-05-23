@@ -13,7 +13,15 @@ def google_api_key() -> str:
     return (os.environ.get("GOOGLE_API_KEY") or "").strip()
 
 
-MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+# 2.0-flash free tier exhausts quickly; 1.5-flash often has separate quota
+# gemini-2.0-flash often has 0 free-tier quota — prefer 1.5-flash unless overridden
+MODEL = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash")
+PDF_VISION_MAX_PAGES = int(os.environ.get("PDF_VISION_MAX_PAGES", "1"))
+VISION_MODEL_FALLBACKS = (
+    "gemini-1.5-flash",
+    "gemini-2.0-flash-lite",
+    "gemini-1.5-flash-8b",
+)
 
 # =====================================================
 # CLIENT
@@ -102,37 +110,72 @@ def pil_to_bytes(img):
 # =====================================================
 
 
+def _quota_exceeded(exc: BaseException) -> bool:
+    text = str(exc).upper()
+    return "429" in text or "RESOURCE_EXHAUSTED" in text or "QUOTA" in text
+
+
+def _friendly_vision_error(exc: BaseException) -> str:
+    if _quota_exceeded(exc):
+        return (
+            "Gemini API quota exceeded (429). Enable billing in Google AI Studio or wait "
+            "~1 minute and retry. PDF/image analysis needs Vision when OCR finds no areas."
+        )
+    return f"Vision API error: {exc}"
+
+
+def _models_to_try() -> list[str]:
+    primary = MODEL
+    models = [primary]
+    for m in VISION_MODEL_FALLBACKS:
+        if m not in models:
+            models.append(m)
+    return models
+
+
 def call_gemini(image_bytes):
     if not google_api_key():
         logger.warning("GOOGLE_API_KEY not set — Vision analysis skipped")
         return {}
 
     client = get_client()
+    last_exc: Exception | None = None
 
-    response = client.models.generate_content(
-        model=MODEL,
-        contents=[
-            types.Part.from_bytes(
-                data=image_bytes,
-                mime_type="image/jpeg",
-            ),
-            PROMPT,
-        ],
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            temperature=0.1,
-        ),
-    )
+    for model_name in _models_to_try():
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=[
+                    types.Part.from_bytes(
+                        data=image_bytes,
+                        mime_type="image/jpeg",
+                    ),
+                    PROMPT,
+                ],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    temperature=0.1,
+                ),
+            )
+            raw = response.text.strip()
+            data = json.loads(raw)
+            data["_model_used"] = model_name
+            return data
+        except json.JSONDecodeError:
+            return {}
+        except Exception as e:
+            last_exc = e
+            logger.warning("Vision model %s failed: %s", model_name, e)
+            if not _quota_exceeded(e):
+                break
 
-    raw = response.text.strip()
-
-    try:
-        return json.loads(raw)
-    except json.JSONDecodeError:
-        return {}
-    except Exception as e:
-        logger.error("Vision API error: %s", e)
-        return {"error": str(e), "rooms": []}
+    e = last_exc or RuntimeError("Vision API failed")
+    code = "QUOTA_EXCEEDED" if _quota_exceeded(e) else "VISION_ERROR"
+    return {
+        "error": _friendly_vision_error(e),
+        "error_code": code,
+        "rooms": [],
+    }
 
 
 # =====================================================
@@ -152,9 +195,15 @@ def _norm_room(name: str) -> str:
 
 
 def merge_results(vision_data, legacy_data):
+    if vision_data.get("_model_used"):
+        legacy_data["vision_model"] = vision_data["_model_used"]
+
     if vision_data.get("error"):
+        legacy_data["vision_error"] = vision_data["error"]
+        if vision_data.get("error_code"):
+            legacy_data["vision_error_code"] = vision_data["error_code"]
         legacy_data["notes"] = (
-            (legacy_data.get("notes") or "") + f" AI Error: {vision_data['error']}"
+            (legacy_data.get("notes") or "") + " " + str(vision_data["error"])
         ).strip()
 
     if not vision_data or not vision_data.get("rooms"):
@@ -235,39 +284,48 @@ def merge_results(vision_data, legacy_data):
 # =====================================================
 
 
-def analyze_pdf_with_vision(file_bytes, legacy_result, max_pages: int = 4):
+def analyze_pdf_with_vision(file_bytes, legacy_result, max_pages: int | None = None):
     try:
         from pdf2image import convert_from_bytes
 
+        page_limit = max_pages if max_pages is not None else PDF_VISION_MAX_PAGES
         images = convert_from_bytes(
             file_bytes,
             dpi=175,
             first_page=1,
-            last_page=max_pages,
+            last_page=page_limit,
         )
 
         if not images:
             return legacy_result
 
-        import time
-
         page_results = []
-        for i, img in enumerate(images[:max_pages]):
-            page_results.append(call_gemini(pil_to_bytes(img)))
-            if i < len(images[:max_pages]) - 1:
-                time.sleep(2)  # reduce Gemini 429 rate limits
+        for img in images[:page_limit]:
+            page_result = call_gemini(pil_to_bytes(img))
+            page_results.append(page_result)
+            if page_result.get("error_code") == "QUOTA_EXCEEDED":
+                merged = merge_results(page_result, legacy_result)
+                merged["vision_model"] = page_result.get("_model_used") or MODEL
+                return merged
 
         vision_data = merge_vision_pages(page_results)
         if not vision_data.get("rooms"):
+            for pr in page_results:
+                if pr.get("error"):
+                    return merge_results(pr, legacy_result)
             return legacy_result
 
         merged = merge_results(vision_data, legacy_result)
         merged["vision_pages_analyzed"] = len(page_results)
+        merged["vision_model"] = MODEL
         return merged
 
     except Exception as e:
         logger.error("PDF vision failed: %s", e)
-        return legacy_result
+        err = {"error": _friendly_vision_error(e), "rooms": []}
+        if _quota_exceeded(e):
+            err["error_code"] = "QUOTA_EXCEEDED"
+        return merge_results(err, legacy_result)
 
 
 
@@ -289,7 +347,10 @@ def analyze_image_with_vision(file_bytes, legacy_result):
 
     except Exception as e:
         logger.error("Image vision failed: %s", e)
-        return legacy_result
+        err = {"error": _friendly_vision_error(e), "rooms": []}
+        if _quota_exceeded(e):
+            err["error_code"] = "QUOTA_EXCEEDED"
+        return merge_results(err, legacy_result)
 
 
 

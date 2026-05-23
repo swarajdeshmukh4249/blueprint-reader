@@ -99,6 +99,9 @@ INSUNITS_TO_SQFT = {
 MIN_ROOM_SQFT = 15.0
 MAX_ROOM_SQFT = 15000.0
 MIN_TOTAL_SQFT = 80.0
+PDF_OCR_DPI = 200
+MAX_PDF_PAGES_OCR = 6
+MAX_PDF_PAGES_VISION = 4
 
 # =====================================================
 # TESSERACT
@@ -232,6 +235,35 @@ def preprocess_image_for_ocr(image: Image.Image):
         gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 31, 2,
     )
     return gray
+
+
+def convert_pdf_to_images(file_bytes: bytes, max_pages: int = MAX_PDF_PAGES_OCR):
+    """Rasterize PDF for OCR / Vision (requires poppler on server)."""
+    return convert_from_bytes(
+        file_bytes,
+        dpi=PDF_OCR_DPI,
+        first_page=1,
+        last_page=max_pages,
+    )
+
+
+def extract_ocr_document_text(images) -> str:
+    """Full-page OCR text — catches AREA STATEMENT tables on scanned PDFs."""
+    if not TESSERACT_AVAILABLE or not images:
+        return ""
+    parts = []
+    for image in images:
+        try:
+            processed = preprocess_image_for_ocr(image)
+            parts.append(
+                pytesseract.image_to_string(
+                    processed,
+                    config="--oem 3 --psm 6",
+                )
+            )
+        except Exception:
+            continue
+    return "\n".join(parts)
 
 
 def extract_ocr_words(images):
@@ -1002,9 +1034,14 @@ def finalize_result(result: dict) -> dict:
     if not result.get("room_data"):
         result["notes"] = (
             (result.get("notes") or "")
-            + " No rooms detected. The AI couldn't clearly read the room labels or areas. Try a clearer upload."
+            + " No rooms detected. Try a clearer scan, enable Vision API (GOOGLE_API_KEY), or upload DXF."
         ).strip()
-        result["total_area"] = 0
+        result["error_code"] = result.get("error_code") or "NO_ROOMS_DETECTED"
+    elif q.get("level") == "low":
+        result["notes"] = (
+            (result.get("notes") or "")
+            + " Low confidence extraction — verify room areas before using BOQ."
+        ).strip()
     return result
 
 
@@ -1038,80 +1075,129 @@ def estimate_costs(total_area: float) -> dict:
 # =====================================================
 
 
+def _finalize_raster_result(
+    file_bytes: bytes,
+    *,
+    source_type: str,
+    method_parts: list[str],
+    room_data: list[dict],
+    raw_text: str,
+    vision_analyzer,
+    notes: str = "",
+) -> dict:
+    room_sum = sum(float(r.get("area") or 0) for r in room_data)
+    room_data, total_area, statement, stmt_note = reconcile_total_with_statement(
+        room_data, room_sum, raw_text,
+    )
+    method = " + ".join(method_parts)
+    if statement.get("net_built_up_sqft"):
+        method += " + AREA STATEMENT"
+
+    result = {
+        "source_type": source_type,
+        "method_used": method,
+        "room_data": room_data,
+        "total_area": total_area,
+        "area_statement": statement,
+        "raw_text": raw_text,
+        "notes": " ".join(x for x in (notes, stmt_note) if x).strip(),
+        "tesseract_available": TESSERACT_AVAILABLE,
+    }
+
+    has_areas = any(float(r.get("area") or 0) > 0 for r in room_data)
+    if VISION_AVAILABLE and GOOGLE_API_KEY and (not has_areas or source_type == "image"):
+        result = vision_analyzer(file_bytes, result)
+        if result.get("vision_used"):
+            result["method_used"] += " + Vision AI"
+    if VISION_AVAILABLE and GOOGLE_API_KEY:
+        result = apply_vision_if_needed(file_bytes, result, vision_analyzer)
+
+    if not TESSERACT_AVAILABLE and not result.get("vision_used"):
+        result["notes"] = (
+            (result.get("notes") or "")
+            + " OCR unavailable on server. Set GOOGLE_API_KEY for Vision analysis."
+        ).strip()
+
+    return finalize_result(result)
+
+
 def analyze_pdf(file_bytes: bytes) -> dict:
     pdf_text = extract_pdf_text(file_bytes)
     text_rooms = extract_rooms_from_plain_text(pdf_text)
+    method_parts = ["PDF extraction"]
+    notes = ""
 
     try:
-        images = convert_from_bytes(file_bytes, dpi=300)
+        images = convert_pdf_to_images(file_bytes)
+        method_parts.append(f"OCR ({len(images)} page(s))")
     except Exception as exc:
+        notes = f"PDF rasterization failed (install poppler): {exc}"
+        images = []
+        if VISION_AVAILABLE and GOOGLE_API_KEY:
+            return _finalize_raster_result(
+                file_bytes,
+                source_type="pdf",
+                method_parts=["PDF text", "Vision AI"],
+                room_data=text_rooms,
+                raw_text=normalize_text(pdf_text),
+                vision_analyzer=analyze_pdf_with_vision,
+                notes=notes,
+            )
         return finalize_result({
             "source_type": "pdf",
             "method_used": "PDF text only",
             "room_data": text_rooms,
-            "total_area": sum(r["area"] for r in text_rooms),
+            "total_area": sum(float(r.get("area") or 0) for r in text_rooms),
             "raw_text": normalize_text(pdf_text),
-            "notes": f"Image conversion failed: {str(exc)}",
+            "notes": notes,
         })
 
+    ocr_blob = extract_ocr_document_text(images)
     words = extract_ocr_words(images)
     phrases = build_phrases(words)
     ocr_rooms = match_rooms_to_areas(phrases)
-    room_data = merge_room_lists(text_rooms, ocr_rooms)
-    
-    raw_text = normalize_text(pdf_text + "\n" + "\n".join(p["text"] for p in phrases))
-    room_sum = sum(float(r.get("area") or 0) for r in room_data)
-    
-    # Try reconciling but keep the room sum as a fallback
-    room_data, total_area, statement, stmt_note = reconcile_total_with_statement(
-        room_data, room_sum, raw_text,
+    text_from_ocr = extract_rooms_from_plain_text(ocr_blob)
+    room_data = merge_room_lists(text_rooms, text_from_ocr, ocr_rooms)
+    raw_text = normalize_text(
+        pdf_text + "\n" + ocr_blob + "\n" + "\n".join(p["text"] for p in phrases),
     )
 
-    result = {
-        "source_type": "pdf",
-        "method_used": "PDF text + OCR",
-        "room_data": room_data,
-        "total_area": max(total_area, room_sum),
-        "area_statement": statement,
-        "raw_text": raw_text,
-        "notes": stmt_note,
-    }
-
-    # Step 3: Run Vision if OCR was weak or empty
-    if apply_vision_if_needed.__name__: # Just a check to allow fallback
-        result = apply_vision_if_needed(file_bytes, result, analyze_pdf_with_vision)
-    
-    # Ensure total area is recalculated one last time from all rooms found
-    result["total_area"] = sum(float(r.get("area") or 0) for r in result.get("room_data", []))
-    
-    return finalize_result(result)
+    return _finalize_raster_result(
+        file_bytes,
+        source_type="pdf",
+        method_parts=method_parts,
+        room_data=room_data,
+        raw_text=raw_text,
+        vision_analyzer=analyze_pdf_with_vision,
+        notes=notes,
+    )
 
 
 def analyze_image(file_bytes: bytes) -> dict:
     image = Image.open(BytesIO(file_bytes)).convert("RGB")
-    words = extract_ocr_words([image])
+    ocr_blob = ""
+    words: list[dict] = []
+    method_parts = ["Image"]
+
+    if TESSERACT_AVAILABLE:
+        method_parts.append("OCR")
+        ocr_blob = extract_ocr_document_text([image])
+        words = extract_ocr_words([image])
+
     phrases = build_phrases(words)
     ocr_rooms = match_rooms_to_areas(phrases)
-    raw = "\n".join(p["text"] for p in phrases)
+    raw = normalize_text(ocr_blob + "\n" + "\n".join(p["text"] for p in phrases))
     text_rooms = extract_rooms_from_plain_text(raw)
     room_data = merge_room_lists(text_rooms, ocr_rooms)
-    
-    result = {
-        "source_type": "image",
-        "method_used": "Image OCR + spatial matching",
-        "room_data": room_data,
-        "total_area": sum(float(r.get("area") or 0) for r in room_data),
-        "raw_text": raw,
-    }
 
-    if VISION_AVAILABLE and GOOGLE_API_KEY:
-        result = analyze_image_with_vision(file_bytes, result)
-        result["method_used"] = "Vision AI (Image)"
-    
-    # Final cleanup of total area to make sure it matches the actual room list
-    result["total_area"] = sum(float(r.get("area") or 0) for r in result.get("room_data", []))
-
-    return finalize_result(result)
+    return _finalize_raster_result(
+        file_bytes,
+        source_type="image",
+        method_parts=method_parts,
+        room_data=room_data,
+        raw_text=raw,
+        vision_analyzer=analyze_image_with_vision,
+    )
 
 
 def analyze_dxf(file_bytes: bytes) -> dict:

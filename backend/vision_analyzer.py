@@ -21,7 +21,7 @@ if not os.environ.get("GOOGLE_API_KEY") and os.path.exists(".env"):
 
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
 
-MODEL = "gemini-1.5-flash-latest"
+MODEL = "gemini-1.5-flash"
 
 # =====================================================
 # CLIENT
@@ -147,23 +147,26 @@ def analyze_pdf_with_vision(file_bytes, legacy_result):
     try:
         from pdf2image import convert_from_bytes
 
+        import time
         images = convert_from_bytes(
             file_bytes,
             dpi=300,
             first_page=1,
-            last_page=3, # Check first 3 pages in case page 1 is a cover
+            last_page=2, # Reduced to 2 pages to save your API quota
         )
 
         if not images:
             return legacy_result
 
-        # Loop through pages until we find one with content
         for img in images:
             image_bytes = pil_to_bytes(img)
             vision_data = call_gemini(image_bytes)
             
             if vision_data and vision_data.get("rooms"):
                 return merge_results(vision_data, legacy_result)
+            
+            # Wait 2 seconds before checking next page to avoid 429 limit
+            time.sleep(2)
         
         return legacy_result
 

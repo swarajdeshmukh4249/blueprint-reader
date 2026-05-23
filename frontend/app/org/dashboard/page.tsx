@@ -1,5 +1,5 @@
-import Navbar from "@/components/Navbar";
-import BlueprintAnalyzer from "@/components/BlueprintAnalyzer";
+import AppShell from "@/components/layout/AppShell";
+import UploadWorkspace from "@/components/workspace/UploadWorkspace";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 
@@ -9,9 +9,8 @@ export default async function OrgDashboardPage() {
   if (!orgId) redirect("/dashboard");
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--cad-bg-app)" }}>
-      <Navbar />
-      <BlueprintAnalyzer isOrg={true} />
-    </div>
+    <AppShell title="Team workspace" subtitle="Shared blueprint analyses for your organisation">
+      <UploadWorkspace isOrg={true} />
+    </AppShell>
   );
 }

@@ -24,6 +24,12 @@ Usage:
 from __future__ import annotations
 from typing import Any
 
+try:
+    from rates.dsr_registry import get_schedule
+except ImportError:
+    def get_schedule(schedule_id: str | None = None) -> dict[str, Any]:  # type: ignore
+        return {"label": "Maharashtra PWD DSR 2023-24", "gst_pct": 18.0, "labour_pct_of_subtotal": 0.35, "rates": {}}
+
 # ─────────────────────────────────────────────────────────────────
 # Maharashtra PWD DSR 2023-24 rates (₹)
 # Source: Maharashtra PWD DSR Pune Division 2023-24
@@ -179,6 +185,50 @@ def item(
 # Main BOQ generator
 # ─────────────────────────────────────────────────────────────────
 
+def _effective_rates(analysis: dict[str, Any]) -> tuple[dict[str, float], dict[str, Any]]:
+    """Merge DSR schedule overrides into default RATES."""
+    schedule = get_schedule(analysis.get("rate_schedule"))
+    rates = dict(RATES)
+    for key, val in (schedule.get("rates") or {}).items():
+        if key in rates:
+            rates[key] = float(val)
+    return rates, schedule
+
+
+def apply_gst_breakdown(
+    items: list[dict],
+    schedule: dict[str, Any],
+    *,
+    contingency_amount: float = 0.0,
+) -> dict[str, Any]:
+    """
+    GST-ready split: material + labour + GST (Indian construction invoicing).
+    Labour share is estimated from schedule; GST applied on taxable subtotal.
+    """
+    construction_subtotal = sum(
+        float(it.get("amount") or 0)
+        for it in items
+        if "Contingenc" not in (it.get("category") or "")
+        and "supervision" not in (it.get("description") or "").lower()
+    )
+    labour_pct = float(schedule.get("labour_pct_of_subtotal") or 0.35)
+    labour_subtotal = round(construction_subtotal * labour_pct, 2)
+    material_subtotal = round(construction_subtotal - labour_subtotal, 2)
+    taxable = round(construction_subtotal + contingency_amount, 2)
+    gst_pct = float(schedule.get("gst_pct") or 18.0)
+    gst_amount = round(taxable * gst_pct / 100.0, 2)
+    grand_total = round(taxable + gst_amount, 2)
+    return {
+        "material_subtotal": material_subtotal,
+        "labour_subtotal": labour_subtotal,
+        "taxable_subtotal": taxable,
+        "gst_pct": gst_pct,
+        "gst_amount": gst_amount,
+        "grand_total_with_gst": grand_total,
+        "currency": schedule.get("currency") or "INR",
+    }
+
+
 def generate_boq(analysis: dict[str, Any]) -> dict[str, Any]:
     """
     Generate a full itemised BOQ from blueprint analysis output.
@@ -198,8 +248,13 @@ def generate_boq(analysis: dict[str, Any]) -> dict[str, Any]:
         area_statement — key areas used for calculation
         rates_basis — "Maharashtra PWD DSR 2023-24"
     """
+    rates, schedule = _effective_rates(analysis)
     items: list[dict] = []
     sno = [0]
+
+    wall_meta = analysis.get("wall_thickness") or {}
+    ext_mm = int(wall_meta.get("external_mm") or 230)
+    int_mm = int(wall_meta.get("internal_mm") or 115)
 
     def add(description, unit, qty, rate, category, notes=""):
         if qty <= 0:
@@ -276,18 +331,18 @@ def generate_boq(analysis: dict[str, Any]) -> dict[str, Any]:
     pcc_vol    = sqft_to_cum(footprint_sqft * 1.1, 0.075) # 75mm PCC bed
     footing_vol = sqft_to_cum(footprint_sqft * 0.15, 0.6) # RCC footings
 
-    add("Excavation for foundation including disposal", "Cum", excav_vol, RATES["excavation_cum"], "A. Substructure")
-    add("Plain Cement Concrete M10 in foundation bed", "Cum", pcc_vol, RATES["pcc_cum"], "A. Substructure")
-    add("RCC M20 for isolated/combined footings", "Cum", footing_vol, RATES["rcc_footing_cum"], "A. Substructure")
-    add("Shuttering for footing formwork", "Sqm", footing_vol * 4, RATES["footing_formwork_sqm"], "A. Substructure")
+    add("Excavation for foundation including disposal", "Cum", excav_vol, rates["excavation_cum"], "A. Substructure")
+    add("Plain Cement Concrete M10 in foundation bed", "Cum", pcc_vol, rates["pcc_cum"], "A. Substructure")
+    add("RCC M20 for isolated/combined footings", "Cum", footing_vol, rates["rcc_footing_cum"], "A. Substructure")
+    add("Shuttering for footing formwork", "Sqm", footing_vol * 4, rates["footing_formwork_sqm"], "A. Substructure")
 
     # ── SECTION B: RCC FRAMEWORK ────────────────────────────────────────────
     col_vol  = round(total_area_sqm * 0.025 * floor_count, 2)  # ~2.5% of floor area per floor
     slab_vol = sqft_to_cum(total_area, 0.125)                   # 125mm slab thickness
 
-    add("RCC M20 for columns including reinforcement & formwork", "Cum", col_vol, RATES["rcc_column_cum"], "B. RCC Framework",
+    add("RCC M20 for columns including reinforcement & formwork", "Cum", col_vol, rates["rcc_column_cum"], "B. RCC Framework",
         "Fe500 steel @ 120 kg/cum included in rate")
-    add("RCC M20 for beams & slabs including reinforcement & formwork", "Cum", slab_vol, RATES["rcc_beam_slab_cum"], "B. RCC Framework",
+    add("RCC M20 for beams & slabs including reinforcement & formwork", "Cum", slab_vol, rates["rcc_beam_slab_cum"], "B. RCC Framework",
         "Fe500 steel @ 150 kg/cum included in rate")
 
     # Separate steel BOQ for client reference
@@ -301,11 +356,12 @@ def generate_boq(analysis: dict[str, Any]) -> dict[str, Any]:
         "For reference only — included in respective item rates")
 
     # ── SECTION C: BRICKWORK ─────────────────────────────────────────────────
-    add("230mm thick brickwork in CM 1:5 for external walls", "Sqm",
-        ext_wall_area_sqm, RATES["brickwork_sqm_230mm"], "C. Brickwork",
-        "Modular bricks, first class")
-    add("115mm thick brickwork in CM 1:6 for internal partition walls", "Sqm",
-        int_wall_area_sqm * 0.6, RATES["brickwork_sqm_115mm"], "C. Brickwork")
+    ext_note = f"Detected external wall ~{ext_mm}mm" if wall_meta else "Modular bricks, first class"
+    int_note = f"Detected partition ~{int_mm}mm" if wall_meta else ""
+    add(f"{ext_mm}mm thick brickwork in CM 1:5 for external walls", "Sqm",
+        ext_wall_area_sqm, rates["brickwork_sqm_230mm"], "C. Brickwork", ext_note)
+    add(f"{int_mm}mm thick brickwork in CM 1:6 for internal partition walls", "Sqm",
+        int_wall_area_sqm * 0.6, rates["brickwork_sqm_115mm"], "C. Brickwork", int_note)
 
     # Brick count for reference
     total_bricks = int((ext_wall_area_sqm * 60) + (int_wall_area_sqm * 0.6 * 55))
@@ -314,11 +370,11 @@ def generate_boq(analysis: dict[str, Any]) -> dict[str, Any]:
 
     # ── SECTION D: PLASTERING ────────────────────────────────────────────────
     add("20mm external cement plaster CM 1:4 including sponge finish", "Sqm",
-        ext_wall_area_sqm, RATES["plaster_external_sqm"], "D. Plastering")
+        ext_wall_area_sqm, rates["plaster_external_sqm"], "D. Plastering")
     add("12mm internal cement plaster CM 1:6 including smooth finish", "Sqm",
-        int_wall_area_sqm, RATES["plaster_internal_sqm"], "D. Plastering")
+        int_wall_area_sqm, rates["plaster_internal_sqm"], "D. Plastering")
     add("Ceiling plaster 6mm CM 1:4", "Sqm",
-        total_area_sqm, RATES["ceiling_plaster_sqm"], "D. Plastering")
+        total_area_sqm, rates["ceiling_plaster_sqm"], "D. Plastering")
 
     # ── SECTION E: FLOORING ──────────────────────────────────────────────────
     # Room-type specific flooring
@@ -334,130 +390,130 @@ def generate_boq(analysis: dict[str, Any]) -> dict[str, Any]:
 
     if premium_area > 0:
         add("Italian Marble / Granite flooring for Living, Dining & Master Bedroom", "Sqft",
-            premium_area, RATES["floor_marble_sqft"], "E. Flooring",
+            premium_area, rates["floor_marble_sqft"], "E. Flooring",
             "18mm thick, machine polished")
     if standard_area > 0:
         add("Vitrified tile flooring 600x600mm for Bedrooms & Hall", "Sqft",
-            standard_area, RATES["floor_vitrified_sqft"], "E. Flooring",
+            standard_area, rates["floor_vitrified_sqft"], "E. Flooring",
             "Double charged vitrified tiles")
     if utility_area > 0:
         add("Ceramic tile flooring 300x300mm for Kitchen & Utility", "Sqft",
-            utility_area, RATES["floor_ceramic_sqft"], "E. Flooring")
+            utility_area, rates["floor_ceramic_sqft"], "E. Flooring")
     if wet_area > 0:
         add("Anti-skid ceramic tile flooring for Bathrooms & Toilets", "Sqft",
-            wet_area, RATES["floor_antiskid_sqft"], "E. Flooring",
+            wet_area, rates["floor_antiskid_sqft"], "E. Flooring",
             "300x300mm anti-skid")
     if parking_area > 0:
         add("PCC flooring with hardener for Parking / Car Porch", "Sqft",
-            parking_area, RATES["floor_parking_sqft"], "E. Flooring")
+            parking_area, rates["floor_parking_sqft"], "E. Flooring")
     if terrace_area > 0:
         add("IPS flooring with slope for Terrace", "Sqft",
-            terrace_area, RATES["floor_terrace_sqft"], "E. Flooring",
+            terrace_area, rates["floor_terrace_sqft"], "E. Flooring",
             "50mm IPS with water proofing compound")
 
     # Dado (wall tiles)
     if wet_area > 0:
         add("Ceramic dado tiles for Bathrooms — full height 7ft", "Sqft",
-            wet_area * 3.5, RATES["dado_bathroom_sqft"], "E. Flooring",
+            wet_area * 3.5, rates["dado_bathroom_sqft"], "E. Flooring",
             "300x450mm glazed ceramic tiles")
         add("Kitchen dado tiles above counter — 2ft height", "Sqft",
-            utility_area * 0.5, RATES["dado_kitchen_sqft"], "E. Flooring")
+            utility_area * 0.5, rates["dado_kitchen_sqft"], "E. Flooring")
 
     # ── SECTION F: DOORS & WINDOWS ───────────────────────────────────────────
     if main_doors > 0:
         add("Main entrance door — Teak wood frame with decorative panel", "Nos",
-            main_doors, RATES["door_main_unit"], "F. Doors & Windows",
+            main_doors, rates["door_main_unit"], "F. Doors & Windows",
             "100x75mm frame, 38mm thick flush door with teak veneer")
     if bedroom_doors > 0:
         add("Bedroom doors — Sal wood frame with flush door shutter", "Nos",
-            bedroom_doors, RATES["door_bedroom_unit"], "F. Doors & Windows",
+            bedroom_doors, rates["door_bedroom_unit"], "F. Doors & Windows",
             "100x65mm frame, 35mm flush door")
     if toilet_doors > 0:
         add("Toilet / Bathroom doors — WPC frame with WPC shutter", "Nos",
-            toilet_doors, RATES["door_toilet_unit"], "F. Doors & Windows",
+            toilet_doors, rates["door_toilet_unit"], "F. Doors & Windows",
             "Waterproof WPC — moisture resistant")
     if other_doors > 0:
         add("Other doors — Sal wood frame with flush door shutter", "Nos",
-            other_doors, RATES["door_bedroom_unit"], "F. Doors & Windows")
+            other_doors, rates["door_bedroom_unit"], "F. Doors & Windows")
     if total_windows > 0:
         avg_window_sqft = 12.0  # standard 3x4ft window
         add("UPVC sliding windows with glass — 3 track", "Sqft",
-            total_windows * avg_window_sqft, RATES["window_sliding_sqft"], "F. Doors & Windows",
+            total_windows * avg_window_sqft, rates["window_sliding_sqft"], "F. Doors & Windows",
             "5mm clear float glass, white UPVC sections")
         add("Ventilators — louvre type aluminium", "Nos",
-            max(toilet_count, 2), RATES["ventilator_unit"], "F. Doors & Windows")
+            max(toilet_count, 2), rates["ventilator_unit"], "F. Doors & Windows")
 
     # ── SECTION G: PAINTING ──────────────────────────────────────────────────
     add("Exterior wall painting — 2 coats weather shield emulsion", "Sqft",
-        ext_wall_area_sqm * 10.7639, RATES["paint_exterior_sqft"], "G. Painting",
+        ext_wall_area_sqm * 10.7639, rates["paint_exterior_sqft"], "G. Painting",
         "Asian Paints Apex / equivalent, after primer")
     add("Interior wall painting — 2 coats interior emulsion", "Sqft",
-        int_wall_area_sqm * 10.7639, RATES["paint_interior_sqft"], "G. Painting",
+        int_wall_area_sqm * 10.7639, rates["paint_interior_sqft"], "G. Painting",
         "Asian Paints Tractor / equivalent, after putty & primer")
     add("Ceiling painting — white distemper / OBD", "Sqft",
-        total_area, RATES["paint_ceiling_sqft"], "G. Painting")
+        total_area, rates["paint_ceiling_sqft"], "G. Painting")
 
     # ── SECTION H: PLUMBING & SANITARY ───────────────────────────────────────
     add("Complete internal plumbing — CPVC pipes, CP fittings, valves", "Sqft",
-        interior_area, RATES["plumbing_rate_sqft"], "H. Plumbing & Sanitary",
+        interior_area, rates["plumbing_rate_sqft"], "H. Plumbing & Sanitary",
         "Hot & cold water supply, waste water drainage")
     add("Sanitary fixtures per toilet — EWC, wash basin, shower, CP fittings", "Nos",
-        toilet_count, RATES["sanitary_per_toilet"], "H. Plumbing & Sanitary",
+        toilet_count, rates["sanitary_per_toilet"], "H. Plumbing & Sanitary",
         "Parryware / Hindware or equivalent")
 
     # Water tank
     water_tank_litres = max(1000, total_area * 0.8)  # ~0.8L per sqft
     add("HDPE overhead water storage tank", "Litres",
-        water_tank_litres, RATES["water_tank_litre"], "H. Plumbing & Sanitary",
+        water_tank_litres, rates["water_tank_litre"], "H. Plumbing & Sanitary",
         "ISI marked, UV stabilised")
 
     # Septic tank if no municipal sewage
     has_septic = any("SEPTIC" in f for f in features)
     if has_septic or floor_count <= 2:
         add("Brick masonry septic tank with inlet/outlet arrangements", "Nos",
-            1, RATES["septic_tank_unit"], "H. Plumbing & Sanitary",
+            1, rates["septic_tank_unit"], "H. Plumbing & Sanitary",
             "Designed for occupancy based on floor count")
 
     # ── SECTION I: ELECTRICAL ────────────────────────────────────────────────
     add("Complete electrical wiring — FR cables, modular switches, DB, MCB", "Sqft",
-        interior_area, RATES["electrical_rate_sqft"], "I. Electrical",
+        interior_area, rates["electrical_rate_sqft"], "I. Electrical",
         "Finolex / Havells wires, Anchor/Legrand switches")
     add("Light & fan points including wiring & accessories", "Nos",
-        room_count * 3, RATES["electrical_light_point"], "I. Electrical")
+        room_count * 3, rates["electrical_light_point"], "I. Electrical")
     add("AC points including wiring, isolator & copper pipe provision", "Nos",
-        max(2, room_count - toilet_count), RATES["electrical_ac_point"], "I. Electrical")
+        max(2, room_count - toilet_count), rates["electrical_ac_point"], "I. Electrical")
 
     # ── SECTION J: WATERPROOFING ─────────────────────────────────────────────
     if terrace_area > 0:
         add("Terrace waterproofing — 4-coat crystalline + IPS finishing", "Sqft",
-            terrace_area, RATES["waterproofing_terrace_sqft"], "J. Waterproofing",
+            terrace_area, rates["waterproofing_terrace_sqft"], "J. Waterproofing",
             "Roff / Dr. Fixit crystalline waterproofing")
     if wet_area > 0:
         add("Bathroom & toilet waterproofing — crystalline treatment", "Sqft",
-            wet_area, RATES["waterproofing_bathroom_sqft"], "J. Waterproofing",
+            wet_area, rates["waterproofing_bathroom_sqft"], "J. Waterproofing",
             "300mm upstand on walls, 2 coats")
 
     # ── SECTION K: FALSE CEILING ─────────────────────────────────────────────
     false_ceiling_area = premium_area + standard_area * 0.5
     if false_ceiling_area > 0:
         add("Gypsum board false ceiling for Living, Dining & Master Bedroom", "Sqft",
-            false_ceiling_area * 0.6, RATES["false_ceiling_gypsum_sqft"], "K. False Ceiling",
+            false_ceiling_area * 0.6, rates["false_ceiling_gypsum_sqft"], "K. False Ceiling",
             "12.5mm gypsum board on MS framework, including cove")
         add("POP false ceiling for other rooms", "Sqft",
-            false_ceiling_area * 0.4, RATES["false_ceiling_pop_sqft"], "K. False Ceiling")
+            false_ceiling_area * 0.4, rates["false_ceiling_pop_sqft"], "K. False Ceiling")
 
     # ── SECTION L: EXTERNAL WORKS ─────────────────────────────────────────────
     has_boundary = any("BOUNDARY" in f or "COMPOUND" in f for f in features)
     boundary_rmt = perimeter_m * 1.2  # slightly larger than building perimeter
 
     add("Boundary wall — brick masonry 230mm x 1.5m height with plaster & coping", "Rmt",
-        boundary_rmt, RATES["boundary_wall_rmt"], "L. External Works",
+        boundary_rmt, rates["boundary_wall_rmt"], "L. External Works",
         "Including MS grille on top")
     add("Main gate — MS fabricated with enamel paint", "Nos",
-        1, RATES["gate_main_unit"], "L. External Works",
+        1, rates["gate_main_unit"], "L. External Works",
         "Double leaf, 12ft wide x 6ft height")
     add("Compound flooring — interlocking paver blocks 60mm", "Sqft",
-        footprint_sqft * 0.4, RATES["compound_flooring_sqft"], "L. External Works",
+        footprint_sqft * 0.4, rates["compound_flooring_sqft"], "L. External Works",
         "Grey / red paver blocks")
 
     # Staircase
@@ -465,13 +521,13 @@ def generate_boq(analysis: dict[str, Any]) -> dict[str, Any]:
     if has_stair:
         stair_rmt = floor_count * 3.2  # ~3.2m per floor
         add("RCC staircase with MS/SS railing and nosing", "Rmt",
-            stair_rmt, RATES["staircase_rmt"], "L. External Works",
+            stair_rmt, rates["staircase_rmt"], "L. External Works",
             "Including anti-skid nosing tiles")
 
     # Lift — for buildings > 4 floors
     if floor_count >= 4 or any("LIFT" in f for f in features):
         add("Passenger lift — 6 person capacity, automatic doors", "Nos",
-            1, RATES["lift_unit"], "L. External Works",
+            1, rates["lift_unit"], "L. External Works",
             "Including civil shaft, machine room, AMC for 1 year")
 
     # ── SECTION M: CONTINGENCIES & SUPERVISION ────────────────────────────────
@@ -501,14 +557,18 @@ def generate_boq(analysis: dict[str, Any]) -> dict[str, Any]:
         categories[cat] = round(categories.get(cat, 0) + it["amount"], 2)
 
     grand_total = round(sum(it["amount"] for it in items), 2)
-    cost_per_sqft = round(grand_total / total_area, 2) if total_area > 0 else 0
+    gst_breakdown = apply_gst_breakdown(items, schedule, contingency_amount=contingency + supervision)
+    cost_per_sqft = round(gst_breakdown["grand_total_with_gst"] / total_area, 2) if total_area > 0 else 0
 
     return {
         "items": items,
         "summary": categories,
         "grand_total": grand_total,
+        "grand_total_with_gst": gst_breakdown["grand_total_with_gst"],
+        "gst_breakdown": gst_breakdown,
         "cost_per_sqft": cost_per_sqft,
-        "rates_basis": "Maharashtra PWD DSR 2023-24 (Pune Division)",
+        "rate_schedule": analysis.get("rate_schedule") or "maharashtra_pwd_2023_24",
+        "rates_basis": schedule.get("label") or "Maharashtra PWD DSR 2023-24 (Pune Division)",
         "area_statement": {
             "total_area_sqft": total_area,
             "total_area_sqm": total_area_sqm,

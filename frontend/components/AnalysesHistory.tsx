@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { useUser, useOrganization } from "@clerk/nextjs";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 
@@ -22,7 +23,7 @@ type Job = {
 };
 
 const COLS = "id,file_name,file_path,file_type,status,result,error,created_at,user_id,org_id";
-const mono: React.CSSProperties = { fontFamily: 'var(--font-mono-cad)' };
+const mono: React.CSSProperties = { fontFamily: "var(--font-mono)" };
 
 function fileIcon(name: string) {
   const n = name.toLowerCase();
@@ -33,18 +34,15 @@ function fileIcon(name: string) {
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const colors = {
-    completed: { bg: 'rgba(78,201,176,0.12)', color: 'var(--cad-green)', border: 'rgba(78,201,176,0.3)' },
-    failed:    { bg: 'rgba(229,25,55,0.12)', color: '#ff8a96', border: 'rgba(229,25,55,0.35)' },
-    processing:{ bg: 'rgba(0,120,212,0.15)', color: '#6cb6ff', border: 'rgba(0,120,212,0.35)' },
-    queued:    { bg: 'rgba(206,145,120,0.12)', color: 'var(--cad-orange)', border: 'rgba(206,145,120,0.3)' },
-  }[status] ?? { bg: 'var(--cad-bg-input)', color: 'var(--cad-text-dim)', border: 'var(--cad-border)' };
-
-  return (
-    <span style={{ ...mono, fontSize: 10, fontWeight: 700, padding: '4px 10px', borderRadius: 100, background: colors.bg, color: colors.color, border: `1px solid ${colors.border}`, letterSpacing: '0.05em' }}>
-      {status.toUpperCase()}
-    </span>
-  );
+  const cls =
+    status === "completed"
+      ? "badge-success"
+      : status === "failed"
+        ? "badge-danger"
+        : status === "processing"
+          ? "badge-info"
+          : "badge-warning";
+  return <span className={`badge ${cls}`}>{status}</span>;
 }
 
 function JobDetailPanel({ job, onClose }: { job: Job; onClose: () => void }) {
@@ -255,6 +253,8 @@ const FILTERS = ['all', 'completed', 'failed', 'pdf', 'dxf', 'dwg', 'image'] as 
 type Filter = typeof FILTERS[number];
 
 export default function AnalysesHistory({ isOrg = false }: { isOrg?: boolean }) {
+  const router = useRouter();
+  const base = isOrg ? "/org" : "";
   const { user } = useUser();
   const { organization } = useOrganization();
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -297,7 +297,7 @@ export default function AnalysesHistory({ isOrg = false }: { isOrg?: boolean }) 
   };
 
   return (
-    <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 32px 80px' }}>
+    <div>
 
       {/* Summary stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 32 }}>
@@ -372,7 +372,13 @@ export default function AnalysesHistory({ isOrg = false }: { isOrg?: boolean }) 
           {filtered.map(j => (
             <div
               key={j.id}
-              onClick={() => setSelectedJob(j)}
+              onClick={() => {
+                if (j.status === "completed") {
+                  router.push(`${base}/dashboard/analysis/${j.id}`);
+                } else {
+                  setSelectedJob(j);
+                }
+              }}
               style={{
                 display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 100px',
                 gap: 12, alignItems: 'center',

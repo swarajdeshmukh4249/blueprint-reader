@@ -1,5 +1,5 @@
-import Navbar from "@/components/Navbar";
-import BlueprintAnalyzer from "@/components/BlueprintAnalyzer";
+import AppShell from "@/components/layout/AppShell";
+import UploadWorkspace from "@/components/workspace/UploadWorkspace";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 
@@ -9,9 +9,8 @@ export default async function DashboardPage() {
   if (orgId) redirect("/org/dashboard");
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--cad-bg-app)" }}>
-      <Navbar />
-      <BlueprintAnalyzer isOrg={false} />
-    </div>
+    <AppShell title="Workspace" subtitle="Upload and analyze architectural drawings">
+      <UploadWorkspace isOrg={false} />
+    </AppShell>
   );
 }

@@ -203,6 +203,8 @@ def get_file_type(filename: str) -> str:
         return "image"
     if filename.endswith(".dxf"):
         return "dxf"
+    if filename.endswith((".ifc", ".ifczip")):
+        return "ifc"
     if filename.endswith(".dwg"):
         return "dwg"
     return "unknown"
@@ -1098,9 +1100,12 @@ def attach_boq(result: dict) -> dict:
         else:
             result["boq_items"] = boq.get("items", [])
             result["boq_summary"] = boq.get("summary", {})
-            result["boq_total"] = boq.get("grand_total", 0)
+            result["boq_total"] = boq.get("grand_total_with_gst") or boq.get("grand_total", 0)
+            result["boq_subtotal"] = boq.get("grand_total", 0)
+            result["gst_breakdown"] = boq.get("gst_breakdown", {})
             result["cost_per_sqft"] = boq.get("cost_per_sqft", 0)
             result["rates_basis"] = boq.get("rates_basis", "")
+            result["rate_schedule"] = boq.get("rate_schedule", "")
             result["building_type"] = boq.get("building_type", "Residential")
             result["area_statement"] = boq.get("area_statement", {})
             result["costs"] = {
@@ -1375,6 +1380,11 @@ def analyze_dxf(file_bytes: bytes) -> dict:
         }
         if VISION_AVAILABLE:
             result = analyze_dxf_with_vision(file_bytes, result)
+        try:
+            from pipelines.plan_engine import enhance_analysis
+            result = enhance_analysis(result, dxf_doc=doc, linear_scale=scale)
+        except Exception as pipe_exc:
+            result["pipeline_warning"] = str(pipe_exc)
         return finalize_result(result)
     finally:
         if path and os.path.exists(path):
@@ -1484,12 +1494,23 @@ def analyze_blueprint(file_bytes: bytes, filename: str) -> dict:
             return analyze_image(file_bytes)
         if file_type == "dxf":
             return analyze_dxf(file_bytes)
+        if file_type == "ifc":
+            from pipelines.ifc_parser import analyze_ifc
+            ifc_result = analyze_ifc(file_bytes)
+            if ifc_result.get("error"):
+                return ifc_result
+            try:
+                from pipelines.plan_engine import enhance_analysis
+                ifc_result = enhance_analysis(ifc_result)
+            except Exception:
+                pass
+            return finalize_result(ifc_result)
         if file_type == "dwg":
             return analyze_dwg(file_bytes)
         return {
             "error": "Unsupported file type",
             "error_code": "UNSUPPORTED_FORMAT",
-            "notes": "Supported: PDF, JPG, PNG, DXF.",
+            "notes": "Supported: PDF, JPG, PNG, DXF, IFC.",
         }
     except Exception as exc:
         return {

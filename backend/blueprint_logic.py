@@ -1052,41 +1052,43 @@ def analyze_pdf(file_bytes: bytes) -> dict:
     except Exception as exc:
         return finalize_result({
             "source_type": "pdf",
-            "method_used": "PDF text only (image conversion failed)",
+            "method_used": "PDF text only",
             "room_data": text_rooms,
             "total_area": sum(r["area"] for r in text_rooms),
             "raw_text": normalize_text(pdf_text),
-            "notes": str(exc),
+            "notes": f"Image conversion failed: {str(exc)}",
         })
 
     words = extract_ocr_words(images)
     phrases = build_phrases(words)
     ocr_rooms = match_rooms_to_areas(phrases)
     room_data = merge_room_lists(text_rooms, ocr_rooms)
+    
     raw_text = normalize_text(pdf_text + "\n" + "\n".join(p["text"] for p in phrases))
     room_sum = sum(float(r.get("area") or 0) for r in room_data)
+    
+    # Try reconciling but keep the room sum as a fallback
     room_data, total_area, statement, stmt_note = reconcile_total_with_statement(
         room_data, room_sum, raw_text,
     )
 
     result = {
         "source_type": "pdf",
-        "method_used": "PDF text + OCR + spatial matching",
+        "method_used": "PDF text + OCR",
         "room_data": room_data,
-        "total_area": total_area,
+        "total_area": max(total_area, room_sum),
         "area_statement": statement,
         "raw_text": raw_text,
         "notes": stmt_note,
     }
-    if statement.get("net_built_up_sqft"):
-        result["method_used"] += " + AREA STATEMENT"
 
-    if VISION_AVAILABLE and GOOGLE_API_KEY:
-        result = analyze_pdf_with_vision(file_bytes, result)
-        if result.get("vision_used"):
-            result["method_used"] += " + Vision AI"
-    result = apply_vision_if_needed(file_bytes, result, analyze_pdf_with_vision)
-
+    # Step 3: Run Vision if OCR was weak or empty
+    if apply_vision_if_needed.__name__: # Just a check to allow fallback
+        result = apply_vision_if_needed(file_bytes, result, analyze_pdf_with_vision)
+    
+    # Ensure total area is recalculated one last time from all rooms found
+    result["total_area"] = sum(float(r.get("area") or 0) for r in result.get("room_data", []))
+    
     return finalize_result(result)
 
 

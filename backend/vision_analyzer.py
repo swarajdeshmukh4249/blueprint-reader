@@ -75,27 +75,27 @@ def pil_to_bytes(img):
 
 def call_gemini(image_bytes):
     client = get_client()
-
-    response = client.models.generate_content(
-        model=MODEL,
-        contents=[
-            types.Part.from_bytes(
-                data=image_bytes,
-                mime_type="image/jpeg",
-            ),
-            PROMPT,
-        ],
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            temperature=0.1,
-        ),
-    )
-
-    raw = response.text.strip()
-
     try:
-        return json.loads(raw)
-    except Exception:
+        response = client.models.generate_content(
+            model=MODEL,
+            contents=[
+                types.Part.from_bytes(
+                    data=image_bytes,
+                    mime_type="image/jpeg",
+                ),
+                PROMPT,
+            ],
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                temperature=0.1,
+            ),
+        )
+        raw = response.text.strip()
+        print(f"VISION RESPONSE: {raw[:200]}...") # Log first bit for debug
+        data = json.loads(raw)
+        return data
+    except Exception as e:
+        print(f"VISION ERROR: {str(e)}")
         return {}
 
 

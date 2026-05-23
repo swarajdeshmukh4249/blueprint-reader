@@ -21,7 +21,7 @@ if not os.environ.get("GOOGLE_API_KEY") and os.path.exists(".env"):
 
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
 
-MODEL = "gemini-1.5-flash"
+MODEL = "gemini-1.5-flash-latest"
 
 # =====================================================
 # CLIENT
@@ -152,7 +152,7 @@ def analyze_pdf_with_vision(file_bytes, legacy_result):
             file_bytes,
             dpi=300,
             first_page=1,
-            last_page=2, # Reduced to 2 pages to save your API quota
+            last_page=1, # Single page to avoid 429 quota issues
         )
 
         if not images:

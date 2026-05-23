@@ -108,10 +108,15 @@ def call_gemini(image_bytes):
 
 
 def merge_results(vision_data, legacy_data):
+    # Capture AI error if it exists
+    if "error" in vision_data:
+        legacy_data["notes"] = (legacy_data.get("notes") or "") + f" AI Error: {vision_data['error']}"
+
     if not vision_data or not vision_data.get("rooms"):
         return legacy_data
 
     vision_rooms = []
+    # ... rest of the room parsing ...
     for room in vision_data.get("rooms", []):
         area = room.get("area_sqft") or 0
         if not area and room.get("width_ft") and room.get("height_ft"):
@@ -126,7 +131,6 @@ def merge_results(vision_data, legacy_data):
             "source": "vision_ai",
         })
 
-    # If AI found rooms, FORCE use them. We trust the AI more than OCR/Text patterns.
     if vision_rooms:
         legacy_data["room_data"] = vision_rooms
         legacy_data["method_used"] = "AI Vision Analysis"

@@ -8,7 +8,28 @@ import urllib.parse
 import urllib.request
 from typing import Any
 
-from blueprint_logic import analyze_blueprint
+# Load .env BEFORE blueprint_logic import so GOOGLE_API_KEY is visible to Vision/OCR paths.
+_BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+def _load_env_early() -> None:
+    path = os.path.join(_BACKEND_DIR, ".env")
+    if not os.path.exists(path):
+        return
+    with open(path, "r", encoding="utf-8") as env_file:
+        for raw_line in env_file:
+            line = raw_line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            key, value = key.strip(), value.strip().strip('"').strip("'")
+            if key and key not in os.environ:
+                os.environ[key] = value
+
+
+_load_env_early()
+
+from blueprint_logic import analyze_blueprint  # noqa: E402
 
 try:
     import certifi
@@ -173,6 +194,27 @@ def process_job(project_url: str, service_role_key: str, job: dict[str, Any]) ->
         file_bytes = download_file(project_url, service_role_key, bucket, file_path)
         result = analyze_blueprint(file_bytes, file_name)
 
+        if result.get("error"):
+            update_job(
+                project_url,
+                service_role_key,
+                job_id,
+                {"status": "failed", "result": result, "error": str(result.get("error"))},
+            )
+            print(f"Failed job {job_id}: {result.get('error')}", file=sys.stderr, flush=True)
+            return
+
+        total_area = float(result.get("total_area") or 0)
+        rooms_with_area = (result.get("extraction_quality") or {}).get(
+            "rooms_with_area", 0,
+        )
+        warning = None
+        if total_area <= 0 and rooms_with_area == 0:
+            warning = (
+                "No rooms or areas detected. For PDF/JPG set GOOGLE_API_KEY on Railway "
+                "(Vision) and ensure poppler + tesseract are installed."
+            )
+
         update_job(
             project_url,
             service_role_key,
@@ -180,10 +222,14 @@ def process_job(project_url: str, service_role_key: str, job: dict[str, Any]) ->
             {
                 "status": "completed",
                 "result": result,
-                "error": None,
+                "error": warning,
             },
         )
-        print(f"Completed job {job_id}", flush=True)
+        print(
+            f"Completed job {job_id} area={total_area} vision={result.get('vision_used')} "
+            f"tesseract={result.get('tesseract_available')}",
+            flush=True,
+        )
     except Exception as exc:
         update_job(
             project_url,

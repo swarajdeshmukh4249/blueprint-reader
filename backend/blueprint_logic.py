@@ -122,6 +122,12 @@ def setup_tesseract():
 
 TESSERACT_AVAILABLE = setup_tesseract()
 
+
+def google_api_key() -> str:
+    """Read at call time — worker must load .env before importing this module."""
+    return (os.environ.get("GOOGLE_API_KEY") or "").strip()
+
+
 try:
     from vision_analyzer import (
         analyze_pdf_with_vision,
@@ -1005,7 +1011,7 @@ def attach_boq(result: dict) -> dict:
 
 def apply_vision_if_needed(file_bytes: bytes, result: dict, analyzer) -> dict:
     """Run Vision when OCR/text found nothing and API key is configured."""
-    if not VISION_AVAILABLE or not GOOGLE_API_KEY:
+    if not VISION_AVAILABLE or not google_api_key():
         return result
     rooms = result.get("room_data") or []
     has_area = any(float(r.get("area") or 0) > 0 for r in rooms)
@@ -1105,17 +1111,32 @@ def _finalize_raster_result(
     }
 
     has_areas = any(float(r.get("area") or 0) > 0 for r in room_data)
-    if VISION_AVAILABLE and GOOGLE_API_KEY and (not has_areas or source_type == "image"):
+    result["google_api_key_configured"] = bool(google_api_key())
+
+    # PDF/JPG/PNG rely on Vision for scanned plans — always run when key is set
+    if VISION_AVAILABLE and google_api_key():
         result = vision_analyzer(file_bytes, result)
         if result.get("vision_used"):
             result["method_used"] += " + Vision AI"
-    if VISION_AVAILABLE and GOOGLE_API_KEY:
+        elif result.get("notes"):
+            pass
+        else:
+            result["notes"] = (
+                (result.get("notes") or "")
+                + " Vision ran but returned no rooms — check GOOGLE_API_KEY quota/model."
+            ).strip()
+    if VISION_AVAILABLE and google_api_key():
         result = apply_vision_if_needed(file_bytes, result, vision_analyzer)
 
     if not TESSERACT_AVAILABLE and not result.get("vision_used"):
         result["notes"] = (
             (result.get("notes") or "")
             + " OCR unavailable on server. Set GOOGLE_API_KEY for Vision analysis."
+        ).strip()
+    if not google_api_key() and not result.get("vision_used"):
+        result["notes"] = (
+            (result.get("notes") or "")
+            + " GOOGLE_API_KEY not set on worker — PDF/image analysis requires Vision."
         ).strip()
 
     return finalize_result(result)
@@ -1133,7 +1154,7 @@ def analyze_pdf(file_bytes: bytes) -> dict:
     except Exception as exc:
         notes = f"PDF rasterization failed (install poppler): {exc}"
         images = []
-        if VISION_AVAILABLE and GOOGLE_API_KEY:
+        if VISION_AVAILABLE and google_api_key():
             return _finalize_raster_result(
                 file_bytes,
                 source_type="pdf",
@@ -1250,9 +1271,6 @@ def analyze_dxf(file_bytes: bytes) -> dict:
                 os.unlink(path)
             except OSError:
                 pass
-
-
-GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", "")
 
 
 def analyze_blueprint(file_bytes: bytes, filename: str) -> dict:

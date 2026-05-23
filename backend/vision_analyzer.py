@@ -9,9 +9,11 @@ from PIL import Image
 
 logger = logging.getLogger(__name__)
 
-GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
+def google_api_key() -> str:
+    return (os.environ.get("GOOGLE_API_KEY") or "").strip()
 
-MODEL = "gemini-2.0-flash"
+
+MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
 
 # =====================================================
 # CLIENT
@@ -19,7 +21,7 @@ MODEL = "gemini-2.0-flash"
 
 
 def get_client():
-    return genai.Client(api_key=GOOGLE_API_KEY)
+    return genai.Client(api_key=google_api_key())
 
 
 # =====================================================
@@ -101,7 +103,7 @@ def pil_to_bytes(img):
 
 
 def call_gemini(image_bytes):
-    if not GOOGLE_API_KEY:
+    if not google_api_key():
         logger.warning("GOOGLE_API_KEY not set — Vision analysis skipped")
         return {}
 

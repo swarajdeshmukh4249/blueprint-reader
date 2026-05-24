@@ -351,7 +351,18 @@ export default function AnalysisView({
               <table className="data-table">
                 <thead>
                   <tr>
-                    {["Room", "Width (ft)", "Height (ft)", "Area (sq ft)", "Floor", "Source"].map((h) => (
+                    {[
+                      "Room",
+                      roomData.some((r) => (r.unit || "").toLowerCase().includes("mm"))
+                        ? "Width (mm)"
+                        : "Width (ft)",
+                      roomData.some((r) => (r.unit || "").toLowerCase().includes("mm"))
+                        ? "Height (mm)"
+                        : "Height (ft)",
+                      "Area (sq ft)",
+                      "Floor",
+                      "Source",
+                    ].map((h) => (
                       <th key={h}>{h}</th>
                     ))}
                   </tr>

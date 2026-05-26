@@ -20,11 +20,11 @@ cp .env.example .env   # or ensure .env has SUPABASE_* and GOOGLE_API_KEY
 
 ```bash
 cd frontend
-cp .env.example .env.local   # Clerk + Supabase public keys
+cp .env.example .env.local
 npm run dev
 ```
 
-Open http://localhost:3000
+Open http://localhost:5173
 
 ### System deps
 

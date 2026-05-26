@@ -73,16 +73,6 @@ AREA_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
-# Indian floor plans: room names + W×H (mm) on a dedicated CAD layer
-TEXT_ROOMS_LAYER_HINTS = ("TEXT-ROOMS", "TEXT_ROOMS", "TEXTROOMS", "TEXT ROOMS")
-# Require 3+ digit sides so "TOILET-1" + "1500X2450" does not become "11500X2450"
-MM_DIMENSION_RE = re.compile(
-    r"(?<![0-9])(\d{3,5})\s*[xX×]\s*(\d{3,5})(?![0-9])",
-)
-MM_DIMENSION_ONLY_RE = re.compile(
-    r"^(\d{3,5})\s*[xX×]\s*(\d{3,5})$",
-)
-
 ROOM_NAME_ALIASES = {
     "BED RM": "BEDROOM",
     "BED ROOM": "BEDROOM",
@@ -109,9 +99,9 @@ INSUNITS_TO_SQFT = {
 MIN_ROOM_SQFT = 5.0
 MAX_ROOM_SQFT = 15000.0
 MIN_TOTAL_SQFT = 80.0  # minimum plausible built-up area for quality scoring / BOQ
-PDF_OCR_DPI = 200
-MAX_PDF_PAGES_OCR = 6
-MAX_PDF_PAGES_VISION = 4
+PDF_OCR_DPI = 100
+MAX_PDF_PAGES_OCR = 2
+MAX_PDF_PAGES_VISION = 2
 
 # Sanity bounds (sq ft) for validation
 ROOM_TYPE_BOUNDS = {
@@ -252,35 +242,6 @@ def detect_floor(text: str) -> Optional[str]:
     return None
 
 
-def is_text_rooms_layer(layer: Optional[str]) -> bool:
-    if not layer:
-        return False
-    upper = str(layer).upper().replace("_", "-").replace(" ", "-")
-    return any(hint.replace("_", "-") in upper for hint in TEXT_ROOMS_LAYER_HINTS)
-
-
-def mm_dimensions_to_sqft(width_mm: float, height_mm: float) -> float:
-    """W×H in mm → sq ft (same as Claude: mm² / 1e6 → m² → ×10.7639)."""
-    return round((width_mm * height_mm) / 92903.04, 2)
-
-
-def parse_mm_dimension_pair(text: str) -> Optional[tuple[float, float]]:
-    """Parse 1500X2450 style dimensions; ignore 1+1500 concatenation artifacts."""
-    if not text:
-        return None
-    compact = normalize_text(text).replace(" ", "")
-    m = MM_DIMENSION_ONLY_RE.match(compact.replace("×", "X"))
-    if not m:
-        m = MM_DIMENSION_RE.search(normalize_text(text))
-    if not m:
-        return None
-    w, h = float(m.group(1)), float(m.group(2))
-    # Reject concatenation artifacts (e.g. TOILET-1 + 1500 → 11500) and site dims
-    if not (300 <= w <= 8000 and 300 <= h <= 8000):
-        return None
-    return w, h
-
-
 def spatial_label_area_score(room: dict, area: dict) -> float:
     """Lower score = better match (vertical gap weighted, horizontal distance)."""
     dx = abs(room["cx"] - area["cx"])
@@ -307,13 +268,50 @@ def preprocess_image_for_ocr(image: Image.Image):
 
 
 def convert_pdf_to_images(file_bytes: bytes, max_pages: int = MAX_PDF_PAGES_OCR):
-    """Rasterize PDF for OCR / Vision (requires poppler on server)."""
-    return convert_from_bytes(
-        file_bytes,
-        dpi=PDF_OCR_DPI,
-        first_page=1,
-        last_page=max_pages,
-    )
+    """Memory-safe PDF rasterizer using PyMuPDF (10x less RAM than pdf2image)."""
+    try:
+        import fitz  # PyMuPDF
+        import psutil, os as _os
+        
+        doc = fitz.open(stream=file_bytes, filetype="pdf")
+        images = []
+        pages_to_process = min(max_pages, len(doc))
+        
+        for page_num in range(pages_to_process):
+            # Check memory before each page
+            mem_mb = psutil.Process(_os.getpid()).memory_info().rss / 1024 / 1024
+            print(f"Page {page_num+1} memory: {mem_mb:.0f} MB", flush=True)
+            
+            if mem_mb > 400:  # Stop before Railway kills us
+                print(f"Memory limit approaching, stopping at page {page_num+1}", flush=True)
+                break
+            
+            page = doc[page_num]
+            # 100 DPI = zoom factor 100/72 = 1.39
+            zoom = PDF_OCR_DPI / 72.0
+            mat = fitz.Matrix(zoom, zoom)
+            pix = page.get_pixmap(matrix=mat, alpha=False)
+            
+            # Convert to PIL Image
+            img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+            images.append(img)
+            
+            # Explicitly free pixmap memory
+            pix = None
+            
+        doc.close()
+        print(f"PDF converted: {len(images)} pages at {PDF_OCR_DPI} DPI", flush=True)
+        return images
+        
+    except ImportError:
+        # Fallback to pdf2image if PyMuPDF not installed
+        print("PyMuPDF not available, falling back to pdf2image", flush=True)
+        return convert_from_bytes(
+            file_bytes,
+            dpi=PDF_OCR_DPI,
+            first_page=1,
+            last_page=max_pages,
+        )
 
 
 def extract_ocr_document_text(images) -> str:
@@ -336,11 +334,10 @@ def extract_ocr_document_text(images) -> str:
 
 
 def ocr_pdf_first_page_hidpi(file_bytes: bytes) -> str:
-    """Extra high-DPI pass on page 1 when standard OCR finds little text."""
     if not TESSERACT_AVAILABLE:
         return ""
     try:
-        pages = convert_from_bytes(file_bytes, dpi=300, first_page=1, last_page=1)
+        pages = convert_pdf_to_images(file_bytes, max_pages=1)  # reuse safe version
         if not pages:
             return ""
         return extract_ocr_document_text(pages)
@@ -568,11 +565,7 @@ def reconcile_total_with_statement(
     return room_data, round(max(document_total, room_sum), 2), statement, note
 
 
-def extract_rooms_from_plain_text(
-    text: str,
-    *,
-    allow_orphan_mm: bool = True,
-) -> list[dict]:
+def extract_rooms_from_plain_text(text: str) -> list[dict]:
     """Parse embedded PDF text / OCR dump for room + area lines."""
     room_data = []
     if not text or not str(text).strip():
@@ -603,7 +596,7 @@ def extract_rooms_from_plain_text(
     dim_pat = re.compile(
         r"(MASTER\s+BEDROOM|BEDROOM|LIVING\s+ROOM|DINING\s+ROOM|KITCHEN|"
         r"BATHROOM|TOILET|LOBBY|HALL|BALCONY|UTILITY|PARKING)"
-        r".{0,40}?(?<![0-9])(\d{3,5})\s*['\u2032]?\s*[xX×]\s*(\d{3,5})(?![0-9])",
+        r".{0,40}?(\d+(?:\.\d+)?)\s*['\u2032]?\s*[xX×]\s*(\d+(?:\.\d+)?)",
         re.IGNORECASE,
     )
     for m in dim_pat.finditer(blob):
@@ -611,13 +604,14 @@ def extract_rooms_from_plain_text(
         if not room:
             continue
         w, h = float(m.group(2)), float(m.group(3))
+        # If values are large (e.g. 3800), assume they are mm
         if w > 100 or h > 100:
-            area = mm_dimensions_to_sqft(w, h)
+            area = round((w * h) / 92903.04, 2)
             unit = "sq ft (from mm)"
         else:
             area = round(w * h, 2)
             unit = "sq ft"
-
+            
         room_data.append({
             "room": room,
             "label": m.group(0),
@@ -631,20 +625,20 @@ def extract_rooms_from_plain_text(
             "source": "text_dimensions",
         })
 
-    if allow_orphan_mm:
-        for m in MM_DIMENSION_RE.finditer(blob):
-            w, h = float(m.group(1)), float(m.group(2))
-            area = mm_dimensions_to_sqft(w, h)
-            room_data.append({
-                "room": "UNKNOWN",
-                "label": m.group(0),
-                "area": area,
-                "unit": "sq ft (from mm)",
-                "width": w,
-                "height": h,
-                "confidence": 0.7,
-                "source": "text_dimensions_mm",
-            })
+    # Additional pattern for simple "3800 x 2500" without room name inside (nearby search)
+    mm_dim_pat = re.compile(r"(\d{3,5})\s*[xX×]\s*(\d{3,5})")
+    for m in mm_dim_pat.finditer(blob):
+        w, h = float(m.group(1)), float(m.group(2))
+        area = round((w * h) / 92903.04, 2)
+        room_data.append({
+            "room": "UNKNOWN",
+            "label": m.group(0),
+            "area": area,
+            "unit": "sq ft (from mm)",
+            "width": w, "height": h,
+            "confidence": 0.7,
+            "source": "text_dimensions_mm",
+        })
     return room_data
 
 
@@ -717,20 +711,11 @@ def dedupe_room_data(room_data: list[dict]) -> list[dict]:
     seen = set()
     out = []
     for r in room_data:
-        w, h = r.get("width"), r.get("height")
-        if w is not None and h is not None:
-            key = (
-                r.get("room"),
-                round(float(w)),
-                round(float(h)),
-                round(float(r.get("cx", 0)), 0) if "cx" in r else 0,
-            )
-        else:
-            key = (
-                r.get("room"),
-                round(float(r.get("area") or 0), 1),
-                round(float(r.get("cx", 0)), 0) if "cx" in r else hash(r.get("label", "")),
-            )
+        key = (
+            r.get("room"),
+            round(float(r.get("area") or 0), 1),
+            round(r.get("cx", 0) if "cx" in r else hash(r.get("label", "")), 0),
+        )
         if key in seen:
             continue
         seen.add(key)
@@ -915,115 +900,24 @@ def extract_dxf_text_entities(msp) -> list[dict]:
         try:
             text = None
             x = y = None
-            layer = ""
             if entity.dxftype() == "TEXT":
                 text = entity.dxf.text
                 x, y = float(entity.dxf.insert.x), float(entity.dxf.insert.y)
-                layer = getattr(entity.dxf, "layer", "") or ""
             elif entity.dxftype() == "MTEXT":
                 text = entity.plain_text()
                 x, y = float(entity.dxf.insert.x), float(entity.dxf.insert.y)
-                layer = getattr(entity.dxf, "layer", "") or ""
             elif entity.dxftype() == "ATTRIB":
                 text = entity.dxf.text
                 x, y = float(entity.dxf.insert.x), float(entity.dxf.insert.y)
-                layer = getattr(entity.dxf, "layer", "") or ""
             if text and x is not None:
                 entities.append({
                     "text": normalize_text(str(text)),
-                    "x": x,
-                    "y": y,
-                    "cx": x,
-                    "cy": y,
-                    "layer": layer,
+                    "x": x, "y": y,
+                    "cx": x, "cy": y,
                 })
         except Exception:
             continue
     return entities
-
-
-def _text_rooms_pair_radius(labels: list[dict]) -> float:
-    if not labels:
-        return 5000.0
-    xs = [l["cx"] for l in labels]
-    ys = [l["cy"] for l in labels]
-    span = max(max(xs) - min(xs), max(ys) - min(ys), 1.0)
-    return max(span * 0.08, 400.0)
-
-
-def extract_dxf_text_rooms_layer(labels: list[dict]) -> list[dict]:
-    """
-    Parse room schedule from TEXT-ROOMS layer: one label + one W×H (mm) per room.
-    Avoids scanning the whole drawing (which inflates room count and total area).
-    """
-    layer_labels = [l for l in labels if is_text_rooms_layer(l.get("layer"))]
-    if not layer_labels:
-        return []
-
-    room_data: list[dict] = []
-    name_labels: list[dict] = []
-    dim_labels: list[dict] = []
-    max_pair_dist = _text_rooms_pair_radius(layer_labels)
-
-    for lbl in layer_labels:
-        text = lbl["text"]
-        dims = parse_mm_dimension_pair(text)
-        room = match_room(text)
-        area = parse_area(text)
-
-        if dims and room:
-            w, h = dims
-            room_data.append({
-                "room": room,
-                "label": text,
-                "area": mm_dimensions_to_sqft(w, h),
-                "unit": "sq ft (from mm)",
-                "width": w,
-                "height": h,
-                "floor": detect_floor(text),
-                "wall_type": None,
-                "confidence": 0.96,
-                "source": "dxf_text_rooms",
-                "cx": lbl["cx"],
-                "cy": lbl["cy"],
-            })
-        elif dims and not room:
-            dim_labels.append({**lbl, "width": dims[0], "height": dims[1]})
-        elif room and not area:
-            name_labels.append({**lbl, "room": room})
-
-    used_names: set[int] = set()
-    for dim in dim_labels:
-        best_idx = None
-        best_score = max_pair_dist
-        for i, name in enumerate(name_labels):
-            if i in used_names:
-                continue
-            score = spatial_label_area_score(name, dim)
-            if score < best_score:
-                best_score = score
-                best_idx = i
-        if best_idx is None:
-            continue
-        used_names.add(best_idx)
-        name = name_labels[best_idx]
-        w, h = dim["width"], dim["height"]
-        room_data.append({
-            "room": name["room"],
-            "label": f"{name['text']} {int(w)}X{int(h)}",
-            "area": mm_dimensions_to_sqft(w, h),
-            "unit": "sq ft (from mm)",
-            "width": w,
-            "height": h,
-            "floor": detect_floor(name["text"]),
-            "wall_type": None,
-            "confidence": 0.94,
-            "source": "dxf_text_rooms",
-            "cx": dim["cx"],
-            "cy": dim["cy"],
-        })
-
-    return dedupe_room_data(room_data)
 
 
 def extract_closed_room_polygons(msp) -> list[dict]:
@@ -1494,44 +1388,20 @@ def analyze_dxf(file_bytes: bytes) -> dict:
         polygons = filter_room_polygons(polygons, span)
         header_scale = get_dxf_area_scale(doc)
         scale = resolve_dxf_scale(polygons, header_scale)
-        text_rooms_layer = extract_dxf_text_rooms_layer(labels)
-        layer_only = [l for l in labels if is_text_rooms_layer(l.get("layer"))]
-
-        if len(text_rooms_layer) >= 8:
-            room_data = text_rooms_layer
-            method = (
-                f"TEXT-ROOMS layer ({len(text_rooms_layer)} rooms, "
-                f"metric W×H mm→sq ft)"
-            )
-        else:
-            text_rooms = extract_dxf_text_room_areas(labels)
-            if layer_only:
-                text_rooms = merge_room_lists(
-                    text_rooms,
-                    extract_rooms_from_plain_text(
-                        "\n".join(l["text"] for l in layer_only),
-                        allow_orphan_mm=False,
-                    ),
-                )
-            else:
-                text_rooms = merge_room_lists(
-                    text_rooms,
-                    extract_rooms_from_plain_text(
-                        "\n".join(l["text"] for l in labels),
-                        allow_orphan_mm=False,
-                    ),
-                )
-            geom_rooms = match_dxf_polygons_to_labels(polygons, labels, scale)
-            room_data = merge_room_lists(text_rooms, geom_rooms)
-            if text_rooms_layer:
-                room_data = merge_room_lists(text_rooms_layer, room_data)
-            method = f"DXF geometry + label proximity (scale={scale:.6g})"
-
+        text_rooms = extract_dxf_text_room_areas(labels)
+        text_rooms = merge_room_lists(
+            text_rooms,
+            extract_rooms_from_plain_text("\n".join(l["text"] for l in labels)),
+        )
+        geom_rooms = match_dxf_polygons_to_labels(polygons, labels, scale)
+        room_data = merge_room_lists(text_rooms, geom_rooms)
         raw_text = "\n".join(l["text"] for l in labels)
         room_sum = sum(float(r.get("area") or 0) for r in room_data)
         room_data, total_area, statement, stmt_note = reconcile_total_with_statement(
             room_data, room_sum, raw_text,
         )
+
+        method = f"DXF geometry + label proximity (scale={scale:.6g})"
         if statement.get("net_built_up_sqft"):
             method += " + AREA STATEMENT"
 
@@ -1594,8 +1464,6 @@ def _dwg_to_dxf_via_libredwg(file_bytes: bytes) -> bytes | None:
 
 def _dwg_to_dxf_via_oda(file_bytes: bytes) -> bytes | None:
     """Convert DWG → DXF using ODA File Converter (Mac/desktop or ODA_FILE_CONVERTER env)."""
-    if os.environ.get("DISABLE_ODA_DWG", "").lower() in ("1", "true", "yes"):
-        return None
     oda_path = (
         os.environ.get("ODA_FILE_CONVERTER", "").strip()
         or "/Applications/ODAFileConverter.app/Contents/MacOS/ODAFileConverter"
@@ -1657,30 +1525,17 @@ def analyze_dwg(file_bytes: bytes) -> dict:
     DWG is binary; ezdxf cannot read it directly. Convert to DXF first, then run DXF pipeline.
     Order: LibreDWG (Railway) → ODA (desktop) → Aspose.CAD.
     """
-    max_mb = float(os.environ.get("DWG_MAX_MB", "80"))
-    size_mb = len(file_bytes) / (1024 * 1024)
-    if size_mb > max_mb:
-        return {
-            "error": f"DWG file too large ({size_mb:.1f} MB). Max {max_mb:.0f} MB.",
-            "error_code": "FILE_TOO_LARGE",
-            "source_type": "dwg",
-            "notes": "Export DXF from AutoCAD or use Save As → DXF for large drawings.",
-        }
-
     converters = (
         ("dwg_to_dxf_libredwg", _dwg_to_dxf_via_libredwg),
         ("dwg_to_dxf_oda", _dwg_to_dxf_via_oda),
         ("dwg_to_dxf_aspose", _dwg_to_dxf_via_aspose),
     )
-    errors: list[str] = []
     for method_tag, convert in converters:
         dxf_bytes = convert(file_bytes)
         if not dxf_bytes:
-            errors.append(f"{method_tag}: conversion failed")
             continue
         res = analyze_dxf(dxf_bytes)
         if res.get("error"):
-            errors.append(f"{method_tag}: {res.get('error')}")
             continue
         res["method_used"] = method_tag
         res["source_type"] = "dwg"
@@ -1690,13 +1545,13 @@ def analyze_dwg(file_bytes: bytes) -> dict:
         ).strip()
         return res
 
-    detail = "; ".join(errors[:3]) if errors else "no converter succeeded"
     return {
-        "error": "DWG could not be converted or analyzed on this server",
+        "error": "DWG could not be converted to DXF on this server",
         "error_code": "DEPENDENCY_MISSING",
         "source_type": "dwg",
         "notes": (
-            f"{detail}. Install LibreDWG (dwg2dxf) on the worker, or export DXF from AutoCAD / DraftSight."
+            "Native DWG requires dwg2dxf (LibreDWG) or ODA File Converter on the worker. "
+            "Export DXF from AutoCAD / DraftSight and upload that file for reliable results."
         ),
     }
 

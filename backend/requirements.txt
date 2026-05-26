@@ -31,9 +31,6 @@ google-genai
 scipy
 python-dotenv
 
-# ── IFC (BIM industry standard) ─────────────────────────────────────────────
-ifcopenshell
 
-# ── BOQ export ─────────────────────────────────────────────────────────────
-openpyxl
-fpdf2
+PyMuPDF==1.23.8
+psutil

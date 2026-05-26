@@ -98,9 +98,10 @@ INSUNITS_TO_SQFT = {
 
 MIN_ROOM_SQFT = 5.0
 MAX_ROOM_SQFT = 15000.0
-PDF_OCR_DPI = 200
-MAX_PDF_PAGES_OCR = 6
-MAX_PDF_PAGES_VISION = 4
+MIN_TOTAL_SQFT = 80.0  # minimum plausible built-up area for quality scoring / BOQ
+PDF_OCR_DPI = 100
+MAX_PDF_PAGES_OCR = 2
+MAX_PDF_PAGES_VISION = 2
 
 # Sanity bounds (sq ft) for validation
 ROOM_TYPE_BOUNDS = {
@@ -203,6 +204,8 @@ def get_file_type(filename: str) -> str:
         return "image"
     if filename.endswith(".dxf"):
         return "dxf"
+    if filename.endswith((".ifc", ".ifczip")):
+        return "ifc"
     if filename.endswith(".dwg"):
         return "dwg"
     return "unknown"
@@ -265,13 +268,50 @@ def preprocess_image_for_ocr(image: Image.Image):
 
 
 def convert_pdf_to_images(file_bytes: bytes, max_pages: int = MAX_PDF_PAGES_OCR):
-    """Rasterize PDF for OCR / Vision (requires poppler on server)."""
-    return convert_from_bytes(
-        file_bytes,
-        dpi=PDF_OCR_DPI,
-        first_page=1,
-        last_page=max_pages,
-    )
+    """Memory-safe PDF rasterizer using PyMuPDF (10x less RAM than pdf2image)."""
+    try:
+        import fitz  # PyMuPDF
+        import psutil, os as _os
+        
+        doc = fitz.open(stream=file_bytes, filetype="pdf")
+        images = []
+        pages_to_process = min(max_pages, len(doc))
+        
+        for page_num in range(pages_to_process):
+            # Check memory before each page
+            mem_mb = psutil.Process(_os.getpid()).memory_info().rss / 1024 / 1024
+            print(f"Page {page_num+1} memory: {mem_mb:.0f} MB", flush=True)
+            
+            if mem_mb > 400:  # Stop before Railway kills us
+                print(f"Memory limit approaching, stopping at page {page_num+1}", flush=True)
+                break
+            
+            page = doc[page_num]
+            # 100 DPI = zoom factor 100/72 = 1.39
+            zoom = PDF_OCR_DPI / 72.0
+            mat = fitz.Matrix(zoom, zoom)
+            pix = page.get_pixmap(matrix=mat, alpha=False)
+            
+            # Convert to PIL Image
+            img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+            images.append(img)
+            
+            # Explicitly free pixmap memory
+            pix = None
+            
+        doc.close()
+        print(f"PDF converted: {len(images)} pages at {PDF_OCR_DPI} DPI", flush=True)
+        return images
+        
+    except ImportError:
+        # Fallback to pdf2image if PyMuPDF not installed
+        print("PyMuPDF not available, falling back to pdf2image", flush=True)
+        return convert_from_bytes(
+            file_bytes,
+            dpi=PDF_OCR_DPI,
+            first_page=1,
+            last_page=max_pages,
+        )
 
 
 def extract_ocr_document_text(images) -> str:
@@ -294,11 +334,10 @@ def extract_ocr_document_text(images) -> str:
 
 
 def ocr_pdf_first_page_hidpi(file_bytes: bytes) -> str:
-    """Extra high-DPI pass on page 1 when standard OCR finds little text."""
     if not TESSERACT_AVAILABLE:
         return ""
     try:
-        pages = convert_from_bytes(file_bytes, dpi=300, first_page=1, last_page=1)
+        pages = convert_pdf_to_images(file_bytes, max_pages=1)  # reuse safe version
         if not pages:
             return ""
         return extract_ocr_document_text(pages)
@@ -1098,9 +1137,12 @@ def attach_boq(result: dict) -> dict:
         else:
             result["boq_items"] = boq.get("items", [])
             result["boq_summary"] = boq.get("summary", {})
-            result["boq_total"] = boq.get("grand_total", 0)
+            result["boq_total"] = boq.get("grand_total_with_gst") or boq.get("grand_total", 0)
+            result["boq_subtotal"] = boq.get("grand_total", 0)
+            result["gst_breakdown"] = boq.get("gst_breakdown", {})
             result["cost_per_sqft"] = boq.get("cost_per_sqft", 0)
             result["rates_basis"] = boq.get("rates_basis", "")
+            result["rate_schedule"] = boq.get("rate_schedule", "")
             result["building_type"] = boq.get("building_type", "Residential")
             result["area_statement"] = boq.get("area_statement", {})
             result["costs"] = {
@@ -1375,6 +1417,11 @@ def analyze_dxf(file_bytes: bytes) -> dict:
         }
         if VISION_AVAILABLE:
             result = analyze_dxf_with_vision(file_bytes, result)
+        try:
+            from pipelines.plan_engine import enhance_analysis
+            result = enhance_analysis(result, dxf_doc=doc, linear_scale=scale)
+        except Exception as pipe_exc:
+            result["pipeline_warning"] = str(pipe_exc)
         return finalize_result(result)
     finally:
         if path and os.path.exists(path):
@@ -1383,94 +1430,129 @@ def analyze_dxf(file_bytes: bytes) -> dict:
             except OSError:
                 pass
 
+def _dwg_to_dxf_via_libredwg(file_bytes: bytes) -> bytes | None:
+    """Convert DWG → DXF using LibreDWG dwg2dxf (Linux/Railway)."""
+    if not shutil.which("dwg2dxf"):
+        return None
+    dwg_path = dxf_path = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".dwg", delete=False) as tf:
+            tf.write(file_bytes)
+            dwg_path = tf.name
+        dxf_path = f"{dwg_path}.dxf"
+        subprocess.run(
+            ["dwg2dxf", "-o", dxf_path, dwg_path],
+            check=True,
+            capture_output=True,
+            timeout=120,
+        )
+        if not os.path.exists(dxf_path):
+            return None
+        with open(dxf_path, "rb") as f:
+            return f.read()
+    except Exception as exc:
+        print(f"LibreDWG dwg2dxf failed: {exc}", flush=True)
+        return None
+    finally:
+        for path in (dwg_path, dxf_path):
+            if path and os.path.exists(path):
+                try:
+                    os.unlink(path)
+                except OSError:
+                    pass
+
+
+def _dwg_to_dxf_via_oda(file_bytes: bytes) -> bytes | None:
+    """Convert DWG → DXF using ODA File Converter (Mac/desktop or ODA_FILE_CONVERTER env)."""
+    oda_path = (
+        os.environ.get("ODA_FILE_CONVERTER", "").strip()
+        or "/Applications/ODAFileConverter.app/Contents/MacOS/ODAFileConverter"
+    )
+    if not oda_path or not os.path.isfile(oda_path):
+        return None
+    try:
+        with tempfile.TemporaryDirectory() as tmp_root:
+            input_dir = os.path.join(tmp_root, "in")
+            output_dir = os.path.join(tmp_root, "out")
+            os.makedirs(input_dir)
+            os.makedirs(output_dir)
+            dwg_file = os.path.join(input_dir, "input.dwg")
+            with open(dwg_file, "wb") as f:
+                f.write(file_bytes)
+            subprocess.run(
+                [oda_path, input_dir, output_dir, "ACAD2018", "DXF", "0", "1"],
+                check=True,
+                capture_output=True,
+                timeout=180,
+            )
+            dxf_file = os.path.join(output_dir, "input.dxf")
+            if not os.path.exists(dxf_file):
+                return None
+            with open(dxf_file, "rb") as f:
+                return f.read()
+    except Exception as exc:
+        print(f"ODA conversion failed: {exc}", flush=True)
+        return None
+
+
+def _dwg_to_dxf_via_aspose(file_bytes: bytes) -> bytes | None:
+    if not ASPOSE_CAD_AVAILABLE:
+        return None
+    dwg_path = dxf_path = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".dwg", delete=False) as tf:
+            tf.write(file_bytes)
+            dwg_path = tf.name
+        dxf_path = dwg_path.replace(".dwg", ".dxf")
+        image = cad.Image.load(dwg_path)
+        image.save(dxf_path, DxfOptions())
+        with open(dxf_path, "rb") as f:
+            return f.read()
+    except Exception as exc:
+        print(f"Aspose DWG conversion failed: {exc}", flush=True)
+        return None
+    finally:
+        for path in (dwg_path, dxf_path):
+            if path and os.path.exists(path):
+                try:
+                    os.unlink(path)
+                except OSError:
+                    pass
+
+
 def analyze_dwg(file_bytes: bytes) -> dict:
     """
-    Handle DWG by converting to DXF. 
-    Prioritizes ODA File Converter (Industry Standard) 
-    then fallback to LibreDWG or Aspose.CAD.
+    DWG is binary; ezdxf cannot read it directly. Convert to DXF first, then run DXF pipeline.
+    Order: LibreDWG (Railway) → ODA (desktop) → Aspose.CAD.
     """
-    import tempfile
-    import subprocess
-    
-    # 1. Try ODA File Converter (Industry Standard for Mac)
-    oda_path = "/Applications/ODAFileConverter.app/Contents/MacOS/ODAFileConverter"
-    if os.path.exists(oda_path):
-        try:
-            with tempfile.TemporaryDirectory() as tmp_root:
-                input_dir = os.path.join(tmp_root, "in")
-                output_dir = os.path.join(tmp_root, "out")
-                os.makedirs(input_dir)
-                os.makedirs(output_dir)
-                
-                dwg_file = os.path.join(input_dir, "input.dwg")
-                with open(dwg_file, "wb") as f:
-                    f.write(file_bytes)
-                
-                # ODA Arguments: InputDir OutputDir OutVer OutFormat Recurse Audit
-                subprocess.run([
-                    oda_path, input_dir, output_dir, "ACAD2018", "DXF", "0", "1"
-                ], check=True, capture_output=True)
-                
-                dxf_file = os.path.join(output_dir, "input.dxf")
-                if os.path.exists(dxf_file):
-                    with open(dxf_file, "rb") as f:
-                        dxf_bytes = f.read()
-                    res = analyze_dxf(dxf_bytes)
-                    res["method_used"] = "dwg_to_dxf_oda"
-                    res["notes"] = (res.get("notes") or "") + " (Converted via ODA Engine)"
-                    return res
-        except Exception as e:
-            print(f"ODA Conversion failed: {e}")
-
-    # 2. Try Aspose.CAD (if installed)
-    if ASPOSE_CAD_AVAILABLE:
-        try:
-            with tempfile.NamedTemporaryFile(suffix=".dwg", delete=False) as tf:
-                tf.write(file_bytes)
-                dwg_path = tf.name
-            
-            dxf_path = dwg_path.replace(".dwg", ".dxf")
-            image = cad.Image.load(dwg_path)
-            image.save(dxf_path, DxfOptions())
-            
-            with open(dxf_path, "rb") as f:
-                dxf_bytes = f.read()
-            
-            os.remove(dwg_path)
-            if os.path.exists(dxf_path): os.remove(dxf_path)
-            
-            res = analyze_dxf(dxf_bytes)
-            res["method_used"] = "dwg_to_dxf_aspose"
-            return res
-        except Exception:
-            pass
-    
-    # 3. Try LibreDWG (installed via Option 1)
-    if shutil.which("dwg2dxf"):
-        try:
-            with tempfile.NamedTemporaryFile(suffix=".dwg", delete=False) as tf:
-                tf.write(file_bytes)
-                dwg_path = tf.name
-            
-            dxf_path = dwg_path.replace(".dwg", ".dxf")
-            subprocess.run(["dwg2dxf", "-o", dxf_path, dwg_path], check=True, capture_output=True)
-            
-            with open(dxf_path, "rb") as f:
-                dxf_bytes = f.read()
-            
-            os.remove(dwg_path)
-            if os.path.exists(dxf_path): os.remove(dxf_path)
-            
-            res = analyze_dxf(dxf_bytes)
-            res["method_used"] = "dwg_to_dxf_libredwg"
-            return res
-        except Exception:
-            pass
+    converters = (
+        ("dwg_to_dxf_libredwg", _dwg_to_dxf_via_libredwg),
+        ("dwg_to_dxf_oda", _dwg_to_dxf_via_oda),
+        ("dwg_to_dxf_aspose", _dwg_to_dxf_via_aspose),
+    )
+    for method_tag, convert in converters:
+        dxf_bytes = convert(file_bytes)
+        if not dxf_bytes:
+            continue
+        res = analyze_dxf(dxf_bytes)
+        if res.get("error"):
+            continue
+        res["method_used"] = method_tag
+        res["source_type"] = "dwg"
+        res["notes"] = (
+            (res.get("notes") or "")
+            + " DWG converted to DXF before analysis."
+        ).strip()
+        return res
 
     return {
-        "error": "DWG converter not found",
+        "error": "DWG could not be converted to DXF on this server",
         "error_code": "DEPENDENCY_MISSING",
-        "notes": "Please install LibreDWG (Option 1) or ODA File Converter (Option 2) for DWG support.",
+        "source_type": "dwg",
+        "notes": (
+            "Native DWG requires dwg2dxf (LibreDWG) or ODA File Converter on the worker. "
+            "Export DXF from AutoCAD / DraftSight and upload that file for reliable results."
+        ),
     }
 
 
@@ -1484,12 +1566,23 @@ def analyze_blueprint(file_bytes: bytes, filename: str) -> dict:
             return analyze_image(file_bytes)
         if file_type == "dxf":
             return analyze_dxf(file_bytes)
+        if file_type == "ifc":
+            from pipelines.ifc_parser import analyze_ifc
+            ifc_result = analyze_ifc(file_bytes)
+            if ifc_result.get("error"):
+                return ifc_result
+            try:
+                from pipelines.plan_engine import enhance_analysis
+                ifc_result = enhance_analysis(ifc_result)
+            except Exception:
+                pass
+            return finalize_result(ifc_result)
         if file_type == "dwg":
             return analyze_dwg(file_bytes)
         return {
             "error": "Unsupported file type",
             "error_code": "UNSUPPORTED_FORMAT",
-            "notes": "Supported: PDF, JPG, PNG, DXF.",
+            "notes": "Supported: PDF, JPG, PNG, DXF, DWG, IFC.",
         }
     except Exception as exc:
         return {

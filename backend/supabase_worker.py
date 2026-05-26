@@ -8,6 +8,34 @@ import urllib.parse
 import urllib.request
 from typing import Any
 
+
+# At the top of supabase_worker.py
+import sys
+import traceback
+
+def process_pdf(job_data):
+    try:
+        filename = job_data['filename']
+        print(f"Starting PDF: {filename}")
+        
+        # Test poppler is available
+        import subprocess
+        result = subprocess.run(['pdfinfo', '--version'], 
+                              capture_output=True, text=True)
+        print(f"Poppler version: {result.stdout or result.stderr}")
+        
+        # Test tesseract
+        import pytesseract
+        print(f"Tesseract version: {pytesseract.get_tesseract_version()}")
+        
+        # your existing PDF code...
+        
+    except Exception as e:
+        print(f"PDF CRASH: {type(e).__name__}: {str(e)}")
+        traceback.print_exc()
+        raise
+
+
 # Load .env BEFORE blueprint_logic import so GOOGLE_API_KEY is visible to Vision/OCR paths.
 _BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -172,6 +200,24 @@ def download_file(project_url: str, service_role_key: str, bucket: str, file_pat
         raise RuntimeError(f"Download failed: {exc.reason}") from exc
 
 
+def format_user_error(result: dict[str, Any]) -> str:
+    """Human-readable job error — never bare FAILED."""
+    code = result.get("error_code") or "ANALYSIS_ERROR"
+    msg = result.get("error") or result.get("notes") or "Analysis could not complete"
+    hint = ""
+    if code == "NO_ROOMS_DETECTED":
+        hint = " Upload DXF or IFC, or enable Gemini billing for scanned PDFs."
+    elif code == "IFC_UNAVAILABLE":
+        hint = " Redeploy worker with ifcopenshell installed."
+    elif code == "QUOTA_EXCEEDED" or "429" in str(msg):
+        hint = " Enable Google AI billing or set GEMINI_MODEL=gemini-1.5-flash."
+    elif code == "UNSUPPORTED_FORMAT":
+        hint = " Use DXF, DWG, IFC, PDF, or PNG."
+    elif code == "DEPENDENCY_MISSING":
+        hint = " Export DWG as DXF from AutoCAD, or install LibreDWG (dwg2dxf) on the worker."
+    return f"[{code}] {msg}{hint}"
+
+
 def process_job(project_url: str, service_role_key: str, job: dict[str, Any]) -> None:
     job_id = str(job["id"])
     bucket = str(job.get("storage_bucket") or "blueprints")
@@ -195,13 +241,14 @@ def process_job(project_url: str, service_role_key: str, job: dict[str, Any]) ->
         result = analyze_blueprint(file_bytes, file_name)
 
         if result.get("error"):
+            user_err = format_user_error(result)
             update_job(
                 project_url,
                 service_role_key,
                 job_id,
-                {"status": "failed", "result": result, "error": str(result.get("error"))},
+                {"status": "failed", "result": result, "error": user_err},
             )
-            print(f"Failed job {job_id}: {result.get('error')}", file=sys.stderr, flush=True)
+            print(f"Failed job {job_id}: {user_err}", file=sys.stderr, flush=True)
             return
 
         total_area = float(result.get("total_area") or 0)
@@ -237,16 +284,18 @@ def process_job(project_url: str, service_role_key: str, job: dict[str, Any]) ->
             flush=True,
         )
     except Exception as exc:
+        user_err = f"[WORKER_ERROR] {type(exc).__name__}: {exc}"
         update_job(
             project_url,
             service_role_key,
             job_id,
             {
                 "status": "failed",
-                "error": str(exc),
+                "error": user_err,
+                "result": {"error_code": "WORKER_ERROR", "error": str(exc)},
             },
         )
-        print(f"Failed job {job_id}: {exc}", file=sys.stderr, flush=True)
+        print(f"Failed job {job_id}: {user_err}", file=sys.stderr, flush=True)
 
 
 def main() -> int:

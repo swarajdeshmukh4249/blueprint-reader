@@ -1,9 +1,10 @@
 [phases.setup]
 nixPkgs = [
   "python311",
-  "poppler_utils",
-  "tesseract",
-  "tessdata",
+  "poppler",          # ✅ was poppler_utils
+  "poppler_utils",    # ✅ add this too for pdfinfo/pdftotext binaries
+  "tesseract",        # OCR engine
+  "tesseract-ocr-eng", # ✅ English language data
   "libGL",
   "gcc",
   "zlib",
@@ -11,15 +12,15 @@ nixPkgs = [
   "libpng",
   "freetype",
   "pkg-config",
-  "tesseract",
   "libredwg",
 ]
 
 [phases.install]
 cmds = [
   "pip3 install --break-system-packages -r requirements.txt",
-  "pip3 install --break-system-packages pytesseract",
+  "pip3 install --break-system-packages pytesseract pdf2image pdfplumber",
 ]
 
-[start]
-cmd = "python3 supabase_worker.py"
+[deploy]
+startCommand = "python3 supabase_worker.py"
+restartPolicyType = "always"

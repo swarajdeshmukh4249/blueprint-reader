@@ -1,3 +1,4 @@
+import { normalizeAnalysis } from '@/lib/normalizeAnalysis'
 import type { AnalyzeBlueprintResponse } from '@/types/analysis'
 
 export class ApiError extends Error {
@@ -27,10 +28,6 @@ export async function analyzeBlueprint(file: File): Promise<AnalyzeBlueprintResp
   }
 
   const json = (await res.json()) as unknown
-  if (typeof json === 'object' && json !== null) {
-    return json as AnalyzeBlueprintResponse
-  }
-
-  return { raw: json }
+  return normalizeAnalysis(json)
 }
 

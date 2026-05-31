@@ -24,6 +24,15 @@ function toCsv(rooms: AnalyzeBlueprintRoom[]) {
   return lines.join('\n')
 }
 
+function formatInr(value?: number) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return '—'
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0,
+  }).format(value)
+}
+
 function download(filename: string, content: string, mime: string) {
   const blob = new Blob([content], { type: mime })
   const url = URL.createObjectURL(blob)
@@ -59,9 +68,10 @@ export default function Results() {
   }
 
   const rooms = Array.isArray(result.rooms) ? result.rooms : []
+  const boq = Array.isArray(result.boq) ? result.boq : []
   const totals = result.totals
   const roomCount = totals?.room_count ?? rooms.length
-  const pretty = JSON.stringify(result, null, 2)
+  const pretty = JSON.stringify(result.raw ?? result, null, 2)
 
   return (
     <div className="pb-16">
@@ -135,6 +145,19 @@ export default function Results() {
                     <span className="text-base text-ink/60">{totals?.unit ?? ''}</span>
                   </div>
                 </div>
+                {typeof totals?.boq_total === 'number' && totals.boq_total > 0 && (
+                  <div className="rounded-2xl border border-ink/10 bg-paper/50 p-4">
+                    <div className="text-xs text-ink/60">BOQ Total</div>
+                    <div className="mt-2 font-display text-3xl tracking-tight">
+                      {formatInr(totals.boq_total)}
+                    </div>
+                    {typeof totals?.cost_per_sqft === 'number' && totals.cost_per_sqft > 0 && (
+                      <div className="mt-1 text-xs text-ink/60">
+                        {formatInr(totals.cost_per_sqft)} / sq ft
+                      </div>
+                    )}
+                  </div>
+                )}
                 <NavLink
                   to="/upload"
                   className="inline-flex w-full items-center justify-center rounded-full bg-ink px-5 py-3 text-sm font-medium text-paper transition hover:-translate-y-px hover:bg-ink/90"
@@ -184,6 +207,41 @@ export default function Results() {
                         ) : null}
                       </div>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {boq.length > 0 && (
+                <div className="mt-8">
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs tracking-[0.2em] text-ink/55">BILL OF QUANTITIES</div>
+                    <div className="text-xs text-ink/60">{boq.length} items</div>
+                  </div>
+                  <div className="mt-6 overflow-hidden rounded-2xl border border-ink/10">
+                    <div className="grid grid-cols-12 bg-paper-2/60 px-4 py-3 text-xs font-medium text-ink/70">
+                      <div className="col-span-6">Item</div>
+                      <div className="col-span-2 text-right">Qty</div>
+                      <div className="col-span-1 text-right">Unit</div>
+                      <div className="col-span-3 text-right">Amount</div>
+                    </div>
+                    <div className="divide-y divide-ink/10 bg-paper/50">
+                      {boq.map((b, idx) => (
+                        <div key={idx} className="grid grid-cols-12 px-4 py-3 text-sm">
+                          <div className="col-span-6 font-medium">
+                            {b.item ?? `Item ${idx + 1}`}
+                          </div>
+                          <div className="col-span-2 text-right text-ink/70">
+                            {b.quantity ?? '—'}
+                          </div>
+                          <div className="col-span-1 text-right text-ink/70">
+                            {b.unit ?? ''}
+                          </div>
+                          <div className="col-span-3 text-right text-ink/70">
+                            {formatInr(b.amount)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}

@@ -8,6 +8,34 @@ import urllib.parse
 import urllib.request
 from typing import Any
 
+
+# At the top of supabase_worker.py
+import sys
+import traceback
+
+def process_pdf(job_data):
+    try:
+        filename = job_data['filename']
+        print(f"Starting PDF: {filename}")
+        
+        # Test poppler is available
+        import subprocess
+        result = subprocess.run(['pdfinfo', '--version'], 
+                              capture_output=True, text=True)
+        print(f"Poppler version: {result.stdout or result.stderr}")
+        
+        # Test tesseract
+        import pytesseract
+        print(f"Tesseract version: {pytesseract.get_tesseract_version()}")
+        
+        # your existing PDF code...
+        
+    except Exception as e:
+        print(f"PDF CRASH: {type(e).__name__}: {str(e)}")
+        traceback.print_exc()
+        raise
+
+
 # Load .env BEFORE blueprint_logic import so GOOGLE_API_KEY is visible to Vision/OCR paths.
 _BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
 

@@ -135,19 +135,20 @@ export default function UploadWorkspace({ isOrg }: { isOrg: boolean }) {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
       <div>
-        <h2 className="page-title">New blueprint analysis</h2>
+        <p className="eyebrow">New analysis</p>
+        <h2 className="page-title">Upload drawing</h2>
         <p className="page-subtitle">
-          Upload DXF, DWG, IFC, PDF, or site photos. Results open on a dedicated report page when processing finishes.
+          CAD formats (DXF, DWG, IFC) give the most accurate room data. PDF and images use OCR + vision when needed.
         </p>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-        <div className="card">
+      <div className="upload-grid">
+        <div className="card card-scientific">
           <div className="card-header">
-            <span style={{ fontWeight: 600 }}>Upload drawing</span>
-            <span className="badge badge-muted">Max {formatMaxUpload()}</span>
+            <span style={{ fontWeight: 700, fontFamily: "var(--font-display)" }}>Source file</span>
+            <span className="badge badge-coral">Max {formatMaxUpload()}</span>
           </div>
           <div className="card-body">
             <div
@@ -162,8 +163,11 @@ export default function UploadWorkspace({ isOrg }: { isOrg: boolean }) {
               }}
               onClick={pickFile}
             >
-              <p style={{ fontWeight: 600, marginBottom: 6 }}>Drop file or click to browse</p>
-              <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
+              <div className="dropzone-icon">↑</div>
+              <p style={{ fontWeight: 700, marginBottom: 6, fontFamily: "var(--font-display)" }}>
+                Drop file or click to browse
+              </p>
+              <p style={{ fontSize: 12, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
                 DXF · DWG · IFC · PDF · PNG · JPG
               </p>
             </div>
@@ -208,7 +212,16 @@ export default function UploadWorkspace({ isOrg }: { isOrg: boolean }) {
             {job && (
               <div className="alert alert-warning" style={{ marginTop: 16 }}>
                 Job {job.id.slice(0, 8)}… — <strong>{job.status}</strong>
-                {job.status === "processing" && " — extracting rooms and BOQ…"}
+                {job.status === "processing" && (
+                  <>
+                    {" — extracting rooms and BOQ…"}
+                    {fileType === "dwg" && (
+                      <span style={{ display: "block", marginTop: 6, fontSize: 12 }}>
+                        DWG can take 2–7 minutes (convert to DXF, then analyze). If stuck over 10 min, export DXF from CAD and re-upload.
+                      </span>
+                    )}
+                  </>
+                )}
               </div>
             )}
 
@@ -221,7 +234,7 @@ export default function UploadWorkspace({ isOrg }: { isOrg: boolean }) {
             >
               {loading ? (
                 <>
-                  <span className="spinner" /> Processing…
+                  <span className="spinner processing-glow" /> Processing…
                 </>
               ) : (
                 "Run analysis"
@@ -230,9 +243,12 @@ export default function UploadWorkspace({ isOrg }: { isOrg: boolean }) {
           </div>
         </div>
 
-        <div className="card">
+        <div className="card card-scientific">
           <div className="card-header">
-            <span style={{ fontWeight: 600 }}>Preview</span>
+            <span style={{ fontWeight: 700, fontFamily: "var(--font-display)" }}>Preview</span>
+            <span className="badge badge-muted" style={{ fontFamily: "var(--font-mono)", fontSize: 10 }}>
+              LIVE
+            </span>
           </div>
           <div className="card-body" style={{ padding: 12 }}>
             <div className="preview-frame" style={{ minHeight: 280 }}>

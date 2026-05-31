@@ -109,6 +109,7 @@ export default function AnalysisView({
   const warnMsg =
     result.vision_error ||
     result.boq_error ||
+    (result.accuracy?.accuracy_level === "low" ? result.accuracy?.recommendation : null) ||
     (totalArea < 100 ? "Total area looks low — verify scale and units." : null) ||
     (result.extraction_quality?.level === "low" ? "Low confidence extraction — verify before tender." : null);
 
@@ -122,6 +123,7 @@ export default function AnalysisView({
           >
             ← Back to upload
           </Link>
+          <p className="eyebrow" style={{ marginBottom: 8 }}>Analysis report</p>
           <h2 className="page-title" style={{ marginBottom: 4 }}>{job.file_name}</h2>
           <p style={{ fontSize: 13, color: "var(--text-muted)" }}>
             {result.method_used} · {new Date(job.created_at).toLocaleString("en-IN")}
@@ -129,7 +131,14 @@ export default function AnalysisView({
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
             {result.building_type && <span className="badge badge-info">{result.building_type}</span>}
             {result.drawing_type && <span className="badge badge-muted">{result.drawing_type}</span>}
-            {result.vision_used && <span className="badge badge-success">Vision AI</span>}
+            {result.vision_used && (
+              <span className="badge badge-success">
+                Vision {result.vision_provider ? `(${result.vision_provider})` : "AI"}
+              </span>
+            )}
+            {result.accuracy?.accuracy_level === "high" && (
+              <span className="badge badge-success">Verified</span>
+            )}
             {result.source_type && <span className="badge badge-muted">{result.source_type.toUpperCase()}</span>}
           </div>
         </div>

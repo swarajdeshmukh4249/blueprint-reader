@@ -1,10 +1,12 @@
-import { FileUp, Loader2, Sparkles, X } from 'lucide-react'
+import { FileUp, Loader2, Sparkles, X, Lock } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '@clerk/clerk-react'
 import { analyzeBlueprint } from '@/api/analyzeBlueprint'
 import Container from '@/components/Container'
 import { cn } from '@/lib/utils'
 import { useAnalysisStore } from '@/stores/useAnalysisStore'
+import { blueprintFilesApi } from '@/lib/api'
 
 const ACCEPTED = [
   '.pdf',
@@ -25,6 +27,7 @@ function formatBytes(bytes: number) {
 }
 
 export default function Upload() {
+  const { isLoaded, isSignedIn, getToken } = useAuth()
   const navigate = useNavigate()
   const inputRef = useRef<HTMLInputElement | null>(null)
   const [file, setFile] = useState<File | null>(null)
@@ -36,14 +39,29 @@ export default function Upload() {
   const setResult = useAnalysisStore((s) => s.setResult)
   const setError = useAnalysisStore((s) => s.setError)
 
-  const canSubmit = useMemo(() => status !== 'processing' && !!file, [status, file])
+  const canSubmit = useMemo(() => status !== 'processing' && !!file && isSignedIn, [status, file, isSignedIn])
 
   async function onSubmit() {
     if (!file) return
     setProcessing(file.name)
     try {
-      const res = await analyzeBlueprint(file)
+      const token = await getToken()
+      const res = await analyzeBlueprint(file, token || undefined)
       setResult(file.name, res)
+      
+      // Save the analyzed file to the database
+      try {
+        await blueprintFilesApi.create({
+          filename: file.name,
+          analysis_result: res,
+          total_area: res.totals?.total_area || null,
+          room_count: res.totals?.room_count || res.rooms?.length || null,
+        })
+      } catch (saveError) {
+        console.error('Failed to save file record:', saveError)
+        // Don't block the user if saving fails
+      }
+      
       navigate('/results')
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Analysis failed'
@@ -53,6 +71,25 @@ export default function Upload() {
 
   function pickFile() {
     inputRef.current?.click()
+  }
+
+  // Redirect to sign in if not authenticated
+  if (isLoaded && !isSignedIn) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center p-8">
+          <Lock className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Authentication Required</h2>
+          <p className="text-gray-600 mb-6">Please sign in to upload and analyze blueprints</p>
+          <button
+            onClick={() => navigate('/sign-in')}
+            className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700"
+          >
+            Sign In
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (

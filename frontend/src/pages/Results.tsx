@@ -1,9 +1,10 @@
-import { Copy, Download, RotateCcw } from 'lucide-react'
+import { Download, RotateCcw, FileText, Calculator } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import Container from '@/components/Container'
 import { cn } from '@/lib/utils'
 import { useAnalysisStore } from '@/stores/useAnalysisStore'
 import type { AnalyzeBlueprintRoom } from '@/types/analysis'
+import { useState, useEffect } from 'react'
 
 function toCsv(rooms: AnalyzeBlueprintRoom[]) {
   const header = ['name', 'area', 'unit', 'confidence', 'notes']
@@ -47,6 +48,17 @@ export default function Results() {
   const filename = useAnalysisStore((s) => s.filename)
   const result = useAnalysisStore((s) => s.result)
   const reset = useAnalysisStore((s) => s.reset)
+  const [editableBoq, setEditableBoq] = useState<any[]>([])
+  const [showFinalBoq, setShowFinalBoq] = useState(false)
+
+  useEffect(() => {
+    if (result?.boq) {
+      setEditableBoq(result.boq.map((item: any) => ({
+        ...item,
+        rate: item.rate || (item.quantity && item.amount ? item.amount / item.quantity : 0)
+      })))
+    }
+  }, [result])
 
   if (!result) {
     return (
@@ -71,7 +83,6 @@ export default function Results() {
   const boq = Array.isArray(result.boq) ? result.boq : []
   const totals = result.totals
   const roomCount = totals?.room_count ?? rooms.length
-  const pretty = JSON.stringify(result.raw ?? result, null, 2)
 
   return (
     <div className="pb-16">
@@ -88,24 +99,6 @@ export default function Results() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                navigator.clipboard.writeText(pretty)
-              }}
-              className="inline-flex items-center gap-2 rounded-full border border-ink/12 bg-paper/60 px-4 py-2 text-sm text-ink/80 transition hover:bg-paper hover:text-ink"
-            >
-              <Copy className="h-4 w-4" />
-              Copy JSON
-            </button>
-            <button
-              type="button"
-              onClick={() => download('blueprint-result.json', pretty, 'application/json')}
-              className="inline-flex items-center gap-2 rounded-full border border-ink/12 bg-paper/60 px-4 py-2 text-sm text-ink/80 transition hover:bg-paper hover:text-ink"
-            >
-              <Download className="h-4 w-4" />
-              Download JSON
-            </button>
             {rooms.length > 0 && (
               <button
                 type="button"
@@ -116,6 +109,14 @@ export default function Results() {
                 Download CSV
               </button>
             )}
+            <button
+              type="button"
+              onClick={() => setShowFinalBoq(!showFinalBoq)}
+              className="inline-flex items-center gap-2 rounded-full border border-ink/12 bg-paper/60 px-4 py-2 text-sm text-ink/80 transition hover:bg-paper hover:text-ink"
+            >
+              <Calculator className="h-4 w-4" />
+              {showFinalBoq ? 'Hide Final BOQ' : 'Generate Final BOQ'}
+            </button>
             <button
               type="button"
               onClick={reset}
@@ -215,28 +216,52 @@ export default function Results() {
                 <div className="mt-8">
                   <div className="flex items-center justify-between">
                     <div className="text-xs tracking-[0.2em] text-ink/55">BILL OF QUANTITIES</div>
-                    <div className="text-xs text-ink/60">{boq.length} items</div>
+                    <div className="text-xs text-ink/60">{editableBoq.length} items</div>
                   </div>
                   <div className="mt-6 overflow-hidden rounded-2xl border border-ink/10">
                     <div className="grid grid-cols-12 bg-paper-2/60 px-4 py-3 text-xs font-medium text-ink/70">
-                      <div className="col-span-6">Item</div>
+                      <div className="col-span-5">Item</div>
                       <div className="col-span-2 text-right">Qty</div>
+                      <div className="col-span-2 text-right">Rate</div>
                       <div className="col-span-1 text-right">Unit</div>
-                      <div className="col-span-3 text-right">Amount</div>
+                      <div className="col-span-2 text-right">Amount</div>
                     </div>
                     <div className="divide-y divide-ink/10 bg-paper/50">
-                      {boq.map((b, idx) => (
+                      {editableBoq.map((b, idx) => (
                         <div key={idx} className="grid grid-cols-12 px-4 py-3 text-sm">
-                          <div className="col-span-6 font-medium">
+                          <div className="col-span-5 font-medium">
                             {b.item ?? `Item ${idx + 1}`}
                           </div>
-                          <div className="col-span-2 text-right text-ink/70">
-                            {b.quantity ?? '—'}
+                          <div className="col-span-2 text-right">
+                            <input
+                              type="number"
+                              value={b.quantity ?? ''}
+                              onChange={(e) => {
+                                const newBoq = [...editableBoq]
+                                newBoq[idx].quantity = parseFloat(e.target.value) || 0
+                                newBoq[idx].amount = (newBoq[idx].quantity || 0) * (newBoq[idx].rate || 0)
+                                setEditableBoq(newBoq)
+                              }}
+                              className="w-16 text-right border rounded px-1 py-0.5 text-ink/70"
+                            />
+                          </div>
+                          <div className="col-span-2 text-right">
+                            <input
+                              type="number"
+                              value={b.rate ?? ''}
+                              onChange={(e) => {
+                                const newBoq = [...editableBoq]
+                                newBoq[idx].rate = parseFloat(e.target.value) || 0
+                                newBoq[idx].amount = (newBoq[idx].quantity || 0) * (newBoq[idx].rate || 0)
+                                setEditableBoq(newBoq)
+                              }}
+                              className="w-20 text-right border rounded px-1 py-0.5 text-ink/70"
+                            />
                           </div>
                           <div className="col-span-1 text-right text-ink/70">
                             {b.unit ?? ''}
                           </div>
-                          <div className="col-span-3 text-right text-ink/70">
+                          <div className="col-span-2 text-right text-ink/70">
                             {formatInr(b.amount)}
                           </div>
                         </div>
@@ -246,17 +271,62 @@ export default function Results() {
                 </div>
               )}
 
-              <div className="mt-6">
-                <div className="text-xs tracking-[0.2em] text-ink/55">RAW JSON</div>
-                <pre
-                  className={cn(
-                    'mt-3 max-h-[420px] overflow-auto rounded-2xl border border-ink/10 bg-[linear-gradient(180deg,hsl(var(--paper-2)/0.65),hsl(var(--paper)/0.65))] p-4 text-xs text-ink/75',
-                    'shadow-[inset_0_1px_0_hsl(var(--ink)/0.08)]',
-                  )}
-                >
-                  {pretty}
-                </pre>
-              </div>
+              {showFinalBoq && editableBoq.length > 0 && (
+                <div className="mt-8 rounded-2xl border border-ink/10 bg-paper/60 p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="text-xs tracking-[0.2em] text-ink/55">FINAL BOQ</div>
+                    <button
+                      type="button"
+                      onClick={() => download('final-boq.csv', toCsv(editableBoq.map((b, idx) => ({
+                        name: b.item ?? `Item ${idx + 1}`,
+                        area: b.quantity,
+                        unit: b.unit,
+                        confidence: b.rate,
+                        notes: `Amount: ${formatInr(b.amount)}`
+                      }))), 'text/csv')}
+                      className="inline-flex items-center gap-2 rounded-full border border-ink/12 bg-paper/60 px-4 py-2 text-sm text-ink/80 transition hover:bg-paper hover:text-ink"
+                    >
+                      <Download className="h-4 w-4" />
+                      Download Final BOQ
+                    </button>
+                  </div>
+                  <div className="overflow-hidden rounded-2xl border border-ink/10">
+                    <div className="grid grid-cols-12 bg-paper-2/60 px-4 py-3 text-xs font-medium text-ink/70">
+                      <div className="col-span-5">Item</div>
+                      <div className="col-span-2 text-right">Qty</div>
+                      <div className="col-span-2 text-right">Rate</div>
+                      <div className="col-span-1 text-right">Unit</div>
+                      <div className="col-span-2 text-right">Amount</div>
+                    </div>
+                    <div className="divide-y divide-ink/10 bg-paper/50">
+                      {editableBoq.map((b, idx) => (
+                        <div key={idx} className="grid grid-cols-12 px-4 py-3 text-sm">
+                          <div className="col-span-5 font-medium">
+                            {b.item ?? `Item ${idx + 1}`}
+                          </div>
+                          <div className="col-span-2 text-right text-ink/70">
+                            {b.quantity ?? '—'}
+                          </div>
+                          <div className="col-span-2 text-right text-ink/70">
+                            {formatInr(b.rate)}
+                          </div>
+                          <div className="col-span-1 text-right text-ink/70">
+                            {b.unit ?? ''}
+                          </div>
+                          <div className="col-span-2 text-right text-ink/70">
+                            {formatInr(b.amount)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="bg-paper-2/60 px-4 py-3 text-right">
+                      <div className="text-sm font-medium text-ink">
+                        Total: {formatInr(editableBoq.reduce((sum, item) => sum + (item.amount || 0), 0))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

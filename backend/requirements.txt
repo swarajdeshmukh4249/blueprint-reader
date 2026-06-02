@@ -2,9 +2,13 @@
 fastapi
 uvicorn[standard]
 python-multipart
+sqlalchemy
+alembic
+psycopg2-binary
 
 # ── Supabase ───────────────────────────────────────────────────────────────
 supabase
+clerk-backend-api
 
 # ── PDF processing ─────────────────────────────────────────────────────────
 pypdf
@@ -19,7 +23,6 @@ numpy
 # ── CAD parsing ────────────────────────────────────────────────────────────
 ezdxf
 shapely
-aspose-cad
 
 # ── DXF rendering for Vision ───────────────────────────────────────────────
 matplotlib
@@ -32,5 +35,9 @@ scipy
 python-dotenv
 
 
-PyMuPDF==1.23.8
+pymupdf
 psutil
+ifcopenshell
+boto3  # For S3 file storage
+reportlab  # For PDF exports
+openpyxl  # For Excel exports

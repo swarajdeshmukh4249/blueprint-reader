@@ -1,5 +1,6 @@
 import { Moon, Sun } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
+import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react'
 import { useTheme } from '@/hooks/useTheme'
 import { cn } from '@/lib/utils'
 import Container from '@/components/Container'
@@ -56,12 +57,34 @@ export default function TopNav() {
               <Moon className="h-4 w-4 transition-transform group-hover:rotate-12" />
             )}
           </button>
-          <NavLink
-            to="/upload"
-            className="hidden rounded-full bg-ink px-4 py-2 text-sm font-medium text-paper transition hover:-translate-y-px hover:bg-ink/90 md:inline-flex"
-          >
-            Analyze Blueprint
-          </NavLink>
+          <SignedIn>
+            <NavLink
+              to="/dashboard"
+              className="hidden rounded-full border border-ink/15 bg-paper/60 px-4 py-2 text-sm font-medium text-ink transition hover:bg-paper md:inline-flex"
+            >
+              Dashboard
+            </NavLink>
+            <NavLink
+              to="/enterprise-dashboard"
+              className="hidden rounded-full border border-ink/15 bg-paper/60 px-4 py-2 text-sm font-medium text-ink transition hover:bg-paper md:inline-flex"
+            >
+              Analytics
+            </NavLink>
+            <UserButton afterSignOutUrl="/" />
+          </SignedIn>
+          <SignedOut>
+            <NavLink
+              to="/upload"
+              className="hidden rounded-full bg-ink px-4 py-2 text-sm font-medium text-paper transition hover:-translate-y-px hover:bg-ink/90 md:inline-flex"
+            >
+              Analyze Blueprint
+            </NavLink>
+            <SignInButton mode="modal">
+              <button className="hidden rounded-full border border-ink/15 bg-paper/60 px-4 py-2 text-sm font-medium text-ink transition hover:bg-paper md:inline-flex">
+                Sign In
+              </button>
+            </SignInButton>
+          </SignedOut>
         </div>
       </Container>
     </header>

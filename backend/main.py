@@ -8,7 +8,7 @@ if os.path.exists(".env"):
                 k, v = line.strip().split("=", 1)
                 os.environ[k] = v
 
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from pydantic import BaseModel
@@ -17,8 +17,33 @@ from typing import Any, Optional
 from blueprint_logic import analyze_blueprint
 from rates.dsr_registry import list_schedules
 from export.boq_export import export_csv, export_xlsx, export_pdf
+from api import organizations_router, projects_router, files_router, analysis_router, diff_router, correction_router, calibration_router, audit_router, comments_router, cost_engine_router, rate_cards_router, approvals_router, analytics_router, blueprint_files_router, floor_comparison_router, public_shares_router, cost_benchmark_router
+from auth.clerk import get_current_user, verify_jwt
+from utils.error_handler import setup_error_handlers
 
 app = FastAPI(title="AI Blueprint Reader API")
+
+# Setup error handlers for consistent error response shape
+setup_error_handlers(app)
+
+# Include new enterprise API routes
+app.include_router(organizations_router, prefix="/api/v1")
+app.include_router(projects_router, prefix="/api/v1")
+app.include_router(files_router, prefix="/api/v1")
+app.include_router(analysis_router, prefix="/api/v1")
+app.include_router(diff_router, prefix="/api/v1")
+app.include_router(correction_router, prefix="/api/v1")
+app.include_router(calibration_router, prefix="/api/v1")
+app.include_router(audit_router, prefix="/api/v1")
+app.include_router(comments_router, prefix="/api/v1")
+app.include_router(cost_engine_router, prefix="/api/v1")
+app.include_router(rate_cards_router, prefix="/api/v1")
+app.include_router(approvals_router, prefix="/api/v1")
+app.include_router(analytics_router, prefix="/api/v1")
+app.include_router(blueprint_files_router, prefix="/api/v1")
+app.include_router(floor_comparison_router, prefix="/api/v1")
+app.include_router(public_shares_router, prefix="/api/v1")
+app.include_router(cost_benchmark_router, prefix="/api/v1")
 
 app.add_middleware(
     CORSMiddleware,
@@ -28,6 +53,10 @@ app.add_middleware(
             "http://127.0.0.1:3000",
             "http://localhost:5173",
             "http://127.0.0.1:5173",
+            "http://localhost:5174",
+            "http://127.0.0.1:5174",
+            "http://localhost:5175",
+            "http://127.0.0.1:5175",
             os.environ.get("FRONTEND_ORIGIN", ""),
         ] if o
     ],
@@ -57,7 +86,19 @@ def rate_schedules():
 
 
 @app.post("/analyze-blueprint")
-async def analyze_blueprint_api(file: UploadFile = File(...)):
+async def analyze_blueprint_api(
+    file: UploadFile = File(...),
+    authorization: Optional[str] = Header(None)
+):
+    # Optional authentication - if token provided, verify it
+    if authorization:
+        try:
+            token = authorization.replace("Bearer ", "")
+            await verify_jwt(token)
+        except Exception:
+            # If token verification fails, still allow the request for now
+            pass
+    
     file_bytes = await file.read()
     max_mb = int(os.environ.get("MAX_UPLOAD_MB", "150"))
     if len(file_bytes) > max_mb * 1024 * 1024:

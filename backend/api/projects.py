@@ -203,8 +203,8 @@ async def list_projects(
         first_file = db.query(BlueprintFile).filter(
             BlueprintFile.project_id == p.id
         ).first()
-        if first_file and first_file.storage_path:
-            thumbnail_url = first_file.storage_path
+        if first_file and first_file.file_path:
+            thumbnail_url = first_file.file_path
         
         result.append(ProjectResponse(
             id=str(p.id),

@@ -98,7 +98,7 @@ async def analyze_blueprint_api(
         except Exception:
             # If token verification fails, still allow the request for now
             pass
-    
+
     file_bytes = await file.read()
     max_mb = int(os.environ.get("MAX_UPLOAD_MB", "150"))
     if len(file_bytes) > max_mb * 1024 * 1024:
@@ -106,7 +106,11 @@ async def analyze_blueprint_api(
             status_code=413,
             detail=f"File exceeds {max_mb} MB limit. Compress or split the drawing.",
         )
-    result = analyze_blueprint(file_bytes, file.filename or "")
+
+    # Use multi-provider analyzer with Groq primary and Gemini fallback
+    from services.multi_provider_analyzer import MultiProviderAnalyzer
+    analyzer = MultiProviderAnalyzer(use_fast_model=True)
+    result = analyzer.analyze_blueprint(file_bytes, file.filename or "")
     return result
 
 

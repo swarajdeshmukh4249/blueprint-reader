@@ -26,6 +26,16 @@ GEMINI_MODEL_ACCURATE = "gemini-1.5-pro"
 GEMINI_MAX_RETRIES = 2
 GEMINI_TIMEOUT_SECONDS = 60
 
+# Groq Configuration
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+GROQ_MODEL_FAST = "llama-3.2-11b-vision-preview"
+GROQ_MODEL_ACCURATE = "llama-3.2-90b-vision-preview"
+GROQ_MAX_RETRIES = 2
+GROQ_TIMEOUT_SECONDS = 60
+
+# Provider priority (tried in order)
+AI_PROVIDERS = ["groq", "gemini"]  # Try Groq first, then Gemini
+
 # ─── ALLOWED ROOM TYPES ───
 ALLOWED_ROOM_TYPES = [
     "bedroom", "bathroom", "kitchen", "living_room", "dining_room",

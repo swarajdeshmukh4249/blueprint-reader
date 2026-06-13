@@ -1,0 +1,56 @@
+steps:
+  # Build backend Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/blueprint-reader/backend:$COMMIT_SHA', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/blueprint-reader/backend:latest', '.']
+    dir: 'backend'
+  
+  # Push to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/blueprint-reader/backend:$COMMIT_SHA']
+  
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/blueprint-reader/backend:latest']
+  
+  # Deploy to Cloud Run
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'blueprint-reader-backend'
+      - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/blueprint-reader/backend:$COMMIT_SHA'
+      - '--platform=managed'
+      - '--region=us-central1'
+      - '--allow-unauthenticated'
+      - '--memory=2Gi'
+      - '--cpu=1'
+      - '--timeout=3600'
+      - '--set-env-vars=SUPABASE_URL=$_SUPABASE_URL'
+      - '--set-env-vars=SUBABASE_SERVICE_ROLE_KEY=$_SUPABASE_SERVICE_ROLE_KEY'
+      - '--set-env-vars=GOOGLE_API_KEY=$_GOOGLE_API_KEY'
+      - '--set-env-vars=GEMINI_MODEL=$_GEMINI_MODEL'
+  
+  # Build frontend
+  - name: 'node:18'
+    entrypoint: 'npm'
+    args: ['ci']
+    dir: 'frontend'
+  
+  - name: 'node:18'
+    entrypoint: 'npm'
+    args: ['run', 'build']
+    dir: 'frontend'
+  
+  # Deploy to Firebase Hosting
+  - name: 'node:18'
+    entrypoint: 'npx'
+    args: ['firebase-tools', 'deploy', '--only=hosting', '--project=$PROJECT_ID']
+    dir: 'frontend'
+
+substitutions:
+  _SUPABASE_URL: ''
+  _SUPABASE_SERVICE_ROLE_KEY: ''
+  _GOOGLE_API_KEY: ''
+  _GEMINI_MODEL: 'gemini-1.5-flash'
+
+options:
+  logging: CLOUD_LOGGING_ONLY

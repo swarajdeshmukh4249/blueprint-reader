@@ -9,6 +9,7 @@ import hashlib
 from models import get_db, BlueprintFile, Project
 from auth.clerk import verify_jwt
 from services.storage import storage_service
+from services.multi_provider_analyzer import MultiProviderAnalyzer
 
 router = APIRouter(prefix="/blueprint-files", tags=["blueprint-files"])
 
@@ -216,18 +217,73 @@ async def analyze_blueprint_file(
     # Update status to processing
     file.status = 'processing'
     db.commit()
-    
-    # TODO: Trigger actual analysis with vision analyzer
-    # For now, just mark as analyzed with placeholder data
-    file.status = 'analyzed'
-    file.analyzed_at = datetime.utcnow()
-    file.analysis_result = {
-        "rooms": [],
-        "total_area": 0,
-        "room_count": 0
-    }
-    db.commit()
-    db.refresh(file)
+
+    # Trigger actual analysis with vision analyzer
+    try:
+        # Read file from storage
+        file_data = storage_service.download_file(file.file_path)
+
+        # Initialize multi-provider analyzer
+        analyzer = MultiProviderAnalyzer(use_fast_model=True)
+
+        # Analyze the blueprint
+        analysis_result = analyzer.analyze_blueprint(file_data, file.filename)
+
+        # Check if analysis failed
+        if "error_code" in analysis_result:
+            file.status = 'failed'
+            file.analysis_result = analysis_result
+            db.commit()
+            db.refresh(file)
+            return BlueprintFileResponse(
+                id=str(file.id),
+                filename=file.filename,
+                project_id=str(file.project_id) if file.project_id else None,
+                status=file.status,
+                total_area=float(file.total_area) if file.total_area else None,
+                room_count=file.room_count,
+                created_at=file.created_at,
+                analyzed_at=file.analyzed_at,
+                analysis_result=file.analysis_result
+            )
+
+        # Update file with analysis results
+        file.status = 'analyzed'
+        file.analyzed_at = datetime.utcnow()
+
+        # Extract rooms and calculate metrics
+        rooms = analysis_result.get("rooms", [])
+        total_area = sum(room.get("area_px", 0) for room in rooms)
+
+        file.analysis_result = {
+            "rooms": rooms,
+            "total_area": total_area,
+            "room_count": len(rooms),
+            "boq": [],  # BOQ will be calculated separately
+            "drawing_type": analysis_result.get("drawing_type", "unknown"),
+            "scale_detected": analysis_result.get("scale_detected", None),
+            "notes": analysis_result.get("notes", "")
+        }
+
+        file.total_area = total_area
+        file.room_count = len(rooms)
+
+        db.commit()
+        db.refresh(file)
+
+    except Exception as e:
+        # Handle analysis errors
+        file.status = 'failed'
+        file.analysis_result = {
+            "error_code": "ANALYSIS_FAILED",
+            "error_message": str(e),
+            "rooms": [],
+            "total_area": 0,
+            "room_count": 0,
+            "boq": []
+        }
+        db.commit()
+        db.refresh(file)
     
     return BlueprintFileResponse(
         id=str(file.id),

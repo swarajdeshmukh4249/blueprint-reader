@@ -48,20 +48,6 @@ export default function Upload() {
       const token = await getToken()
       const res = await analyzeBlueprint(file, token || undefined)
       setResult(file.name, res)
-      
-      // Save the analyzed file to the database
-      try {
-        await blueprintFilesApi.create({
-          filename: file.name,
-          analysis_result: res,
-          total_area: res.totals?.total_area || null,
-          room_count: res.totals?.room_count || res.rooms?.length || null,
-        })
-      } catch (saveError) {
-        console.error('Failed to save file record:', saveError)
-        // Don't block the user if saving fails
-      }
-      
       navigate('/results')
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Analysis failed'

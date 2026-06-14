@@ -20,6 +20,12 @@ class BlueprintFileCreate(BaseModel):
     total_area: Optional[float] = None
     room_count: Optional[int] = None
 
+class SaveAnalysisRequest(BaseModel):
+    filename: str
+    analysis_result: dict
+    total_area: Optional[float] = None
+    room_count: Optional[int] = None
+
 class BlueprintFileResponse(BaseModel):
     id: str
     filename: str
@@ -31,16 +37,68 @@ class BlueprintFileResponse(BaseModel):
     analyzed_at: Optional[datetime]
     analysis_result: Optional[dict] = None
 
+@router.post("/save-analysis", response_model=BlueprintFileResponse)
+async def save_analysis_result(
+    request: SaveAnalysisRequest,
+    authorization: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+):
+    """Save analysis results to database (for analytics)"""
+    
+    # Optional authentication
+    if authorization:
+        try:
+            user = verify_jwt(authorization.replace("Bearer ", ""))
+        except Exception as e:
+            print(f"Auth failed: {e}")
+            pass  # Allow request to proceed even if auth fails
+    
+    # Create file record with analysis results
+    try:
+        new_file = BlueprintFile(
+            filename=request.filename,
+            file_path="",  # No actual file uploaded
+            file_size=0,
+            status='analyzed',
+            analysis_result=request.analysis_result,
+            total_area=request.total_area,
+            room_count=request.room_count,
+            analyzed_at=datetime.utcnow()
+        )
+        
+        db.add(new_file)
+        db.commit()
+        db.refresh(new_file)
+        print(f"Analysis saved to database: {new_file.id}")
+    except Exception as e:
+        print(f"Failed to save analysis: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to save analysis: {e}")
+    
+    return BlueprintFileResponse(
+        id=str(new_file.id),
+        filename=new_file.filename,
+        project_id=str(new_file.project_id) if new_file.project_id else None,
+        status=new_file.status,
+        total_area=float(new_file.total_area) if new_file.total_area else None,
+        room_count=new_file.room_count,
+        created_at=new_file.created_at,
+        analyzed_at=new_file.analyzed_at,
+        analysis_result=new_file.analysis_result
+    )
+
+
 @router.post("/", response_model=BlueprintFileResponse)
 async def create_blueprint_file(
     file: UploadFile = File(...),
     project_id: Optional[str] = Form(None),
+    auto_analyze: Optional[bool] = Form(True),
     authorization: Optional[str] = Header(None),
     db: Session = Depends(get_db)
 ):
-    """Upload a blueprint file"""
+    """Upload a blueprint file and optionally trigger automatic analysis"""
 
-    print(f"Upload request received - file: {file.filename}, project_id: {project_id}")
+    print(f"Upload request received - file: {file.filename}, project_id: {project_id}, auto_analyze: {auto_analyze}")
 
     # Optional authentication
     if authorization:
@@ -110,6 +168,42 @@ async def create_blueprint_file(
         print(f"Database creation failed: {e}")
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Database creation failed: {e}")
+    
+    # Trigger automatic analysis if requested
+    if auto_analyze:
+        try:
+            print(f"Triggering automatic analysis for file: {new_file.id}")
+            from blueprint_logic import analyze_blueprint
+            
+            # Download file from storage
+            file_data = storage_service.download_file(storage_path)
+            
+            # Run analysis
+            analysis_result = analyze_blueprint(file_data, file.filename or "unknown")
+            
+            # Update file with analysis results
+            new_file.status = 'analyzed' if not analysis_result.get('error') else 'failed'
+            new_file.analyzed_at = datetime.utcnow()
+            
+            # Extract key metrics
+            rooms = analysis_result.get("room_data", [])
+            total_area = sum(room.get("area", 0) for room in rooms)
+            
+            new_file.analysis_result = analysis_result
+            new_file.total_area = total_area
+            new_file.room_count = len(rooms)
+            
+            db.commit()
+            db.refresh(new_file)
+            print(f"Analysis completed for file: {new_file.id}, status: {new_file.status}")
+            
+        except Exception as e:
+            print(f"Automatic analysis failed: {e}")
+            # Don't fail the upload if analysis fails
+            new_file.status = 'analysis_failed'
+            new_file.analysis_result = {"error": str(e)}
+            db.commit()
+            db.refresh(new_file)
     
     return BlueprintFileResponse(
         id=str(new_file.id),

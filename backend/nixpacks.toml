@@ -22,5 +22,5 @@ cmds = [
 ]
 
 [deploy]
-startCommand = "python3 supabase_worker.py"
+startCommand = "python3 start_server.py"
 restartPolicyType = "always"

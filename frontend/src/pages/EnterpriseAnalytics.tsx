@@ -319,25 +319,25 @@ const EnterpriseAnalytics: React.FC = () => {
   }, [organizationId])
 
   const KPICard: React.FC<KPICard> = ({ title, value, trend, unit }) => (
-    <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+    <div className="bg-paper rounded-lg shadow-md p-6 border border-ink/10">
       <div className="flex justify-between items-start">
         <div>
-          <p className="text-sm font-medium text-gray-500">{title}</p>
-          <p className="text-2xl font-bold text-gray-900 mt-1">
-            {value} {unit && <span className="text-sm font-normal text-gray-500">{unit}</span>}
+          <p className="text-sm font-medium text-ink/60">{title}</p>
+          <p className="text-2xl font-bold text-ink mt-1">
+            {value} {unit && <span className="text-sm font-normal text-ink/60">{unit}</span>}
           </p>
         </div>
-        <div className={`flex items-center text-sm ${trend >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+        <div className={`flex items-center text-sm ${trend >= 0 ? 'text-green-500' : 'text-red-500'}`}>
           {trend >= 0 ? '↑' : '↓'} {Math.abs(trend)}%
         </div>
       </div>
-      <p className="text-xs text-gray-400 mt-2">vs last month</p>
+      <p className="text-xs text-ink/40 mt-2">vs last month</p>
     </div>
   )
 
   const ExecutiveDashboard = () => (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900">Executive KPI Dashboard</h2>
+      <h2 className="text-2xl font-bold text-ink">Executive KPI Dashboard</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {kpis.map((kpi, index) => <KPICard key={index} {...kpi} />)}
       </div>
@@ -346,10 +346,10 @@ const EnterpriseAnalytics: React.FC = () => {
 
   const CostAnalytics = () => (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900">Cost Analytics</h2>
+      <h2 className="text-2xl font-bold text-ink">Cost Analytics</h2>
       
-      <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
-        <h3 className="text-lg font-semibold mb-4">Total Cost Trend</h3>
+      <div className="bg-paper rounded-lg shadow-md p-6 border border-ink/10">
+        <h3 className="text-lg font-semibold mb-4 text-ink">Total Cost Trend</h3>
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={costTrends}>
             <CartesianGrid strokeDasharray="3 3" />
@@ -365,8 +365,8 @@ const EnterpriseAnalytics: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
-          <h3 className="text-lg font-semibold mb-4">Cost Breakdown</h3>
+        <div className="bg-paper rounded-lg shadow-md p-6 border border-ink/10">
+          <h3 className="text-lg font-semibold mb-4 text-ink">Cost Breakdown</h3>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
@@ -388,8 +388,8 @@ const EnterpriseAnalytics: React.FC = () => {
           </ResponsiveContainer>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
-          <h3 className="text-lg font-semibold mb-4">Cost by Category</h3>
+        <div className="bg-paper rounded-lg shadow-md p-6 border border-ink/10">
+          <h3 className="text-lg font-semibold mb-4 text-ink">Cost by Category</h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={costBreakdown}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -406,21 +406,21 @@ const EnterpriseAnalytics: React.FC = () => {
 
   const MaterialAnalytics = () => (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900">Material Analytics</h2>
+      <h2 className="text-2xl font-bold text-ink">Material Analytics</h2>
       
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {materialQuantities.map((material, index) => (
-          <div key={index} className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
-            <p className="text-sm font-medium text-gray-500">{material.material_name}</p>
-            <p className="text-xl font-bold text-gray-900 mt-1">{material.quantity.toLocaleString()}</p>
-            <p className="text-xs text-gray-400">{material.unit}</p>
-            <p className="text-sm font-semibold text-blue-600 mt-2">₹{(material.cost / 100000).toFixed(1)}L</p>
+          <div key={index} className="bg-paper rounded-lg shadow-md p-4 border border-ink/10">
+            <p className="text-sm font-medium text-ink/60">{material.material_name}</p>
+            <p className="text-xl font-bold text-ink mt-1">{material.quantity.toLocaleString()}</p>
+            <p className="text-xs text-ink/40">{material.unit}</p>
+            <p className="text-sm font-semibold text-accent mt-2">₹{(material.cost / 100000).toFixed(1)}L</p>
           </div>
         ))}
       </div>
 
-      <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
-        <h3 className="text-lg font-semibold mb-4">Material Cost Breakdown</h3>
+      <div className="bg-paper rounded-lg shadow-md p-6 border border-ink/10">
+        <h3 className="text-lg font-semibold mb-4 text-ink">Material Cost Breakdown</h3>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={materialQuantities}>
             <CartesianGrid strokeDasharray="3 3" />
@@ -436,29 +436,29 @@ const EnterpriseAnalytics: React.FC = () => {
 
   const RegionalCostIntelligence = () => (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900">Regional Cost Intelligence</h2>
+      <h2 className="text-2xl font-bold text-ink">Regional Cost Intelligence</h2>
       
-      <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+      <div className="bg-paper rounded-lg shadow-md overflow-hidden border border-ink/10">
+        <table className="min-w-full divide-y divide-ink/10">
+          <thead className="bg-paper-2">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">City</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Material</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Rate</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trend</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-ink/60 uppercase tracking-wider">City</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-ink/60 uppercase tracking-wider">Material</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-ink/60 uppercase tracking-wider">Current Rate</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-ink/60 uppercase tracking-wider">Trend</th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-paper divide-y divide-ink/10">
             {regionalRates.map((rate, index) => (
               <tr key={index}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{rate.city}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{rate.material_name}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">₹{rate.current_rate.toLocaleString()}/{rate.unit}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-ink">{rate.city}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-ink">{rate.material_name}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-ink">₹{rate.current_rate.toLocaleString()}/{rate.unit}</td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`px-2 py-1 text-xs rounded-full ${
-                    rate.trend === 'increasing' ? 'bg-red-100 text-red-800' :
-                    rate.trend === 'decreasing' ? 'bg-green-100 text-green-800' :
-                    'bg-gray-100 text-gray-800'
+                    rate.trend === 'increasing' ? 'bg-red-500/10 text-red-500' :
+                    rate.trend === 'decreasing' ? 'bg-green-500/10 text-green-500' :
+                    'bg-ink/10 text-ink/60'
                   }`}>
                     {rate.trend} ({rate.trend_percentage}%)
                   </span>
@@ -473,12 +473,12 @@ const EnterpriseAnalytics: React.FC = () => {
 
   const AIQualityDashboard = () => (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900">AI Analysis Quality Dashboard</h2>
+      <h2 className="text-2xl font-bold text-ink">AI Analysis Quality Dashboard</h2>
       
       {aiQuality && (
         <>
-          <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
-            <h3 className="text-lg font-semibold mb-4">Confidence Distribution</h3>
+          <div className="bg-paper rounded-lg shadow-md p-6 border border-ink/10">
+            <h3 className="text-lg font-semibold mb-4 text-ink">Confidence Distribution</h3>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
@@ -505,26 +505,26 @@ const EnterpriseAnalytics: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
-              <p className="text-sm font-medium text-gray-500">Total Rooms Detected</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{aiQuality.total_rooms_detected}</p>
+            <div className="bg-paper rounded-lg shadow-md p-4 border border-ink/10">
+              <p className="text-sm font-medium text-ink/60">Total Rooms Detected</p>
+              <p className="text-2xl font-bold text-ink mt-1">{aiQuality.total_rooms_detected}</p>
             </div>
-            <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
-              <p className="text-sm font-medium text-gray-500">Rooms Corrected</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{aiQuality.rooms_corrected}</p>
+            <div className="bg-paper rounded-lg shadow-md p-4 border border-ink/10">
+              <p className="text-sm font-medium text-ink/60">Rooms Corrected</p>
+              <p className="text-2xl font-bold text-ink mt-1">{aiQuality.rooms_corrected}</p>
             </div>
-            <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
-              <p className="text-sm font-medium text-gray-500">Manual Corrections</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{aiQuality.manual_corrections}</p>
+            <div className="bg-paper rounded-lg shadow-md p-4 border border-ink/10">
+              <p className="text-sm font-medium text-ink/60">Manual Corrections</p>
+              <p className="text-2xl font-bold text-ink mt-1">{aiQuality.manual_corrections}</p>
             </div>
-            <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
-              <p className="text-sm font-medium text-gray-500">Accuracy Rate</p>
-              <p className="text-2xl font-bold text-green-600 mt-1">{aiQuality.accuracy_rate}%</p>
+            <div className="bg-paper rounded-lg shadow-md p-4 border border-ink/10">
+              <p className="text-sm font-medium text-ink/60">Accuracy Rate</p>
+              <p className="text-2xl font-bold text-green-500 mt-1">{aiQuality.accuracy_rate}%</p>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
-            <h3 className="text-lg font-semibold mb-4">Most Corrected Room Types</h3>
+          <div className="bg-paper rounded-lg shadow-md p-6 border border-ink/10">
+            <h3 className="text-lg font-semibold mb-4 text-ink">Most Corrected Room Types</h3>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={roomTypeCorrections}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -542,35 +542,35 @@ const EnterpriseAnalytics: React.FC = () => {
 
   const RevisionAnalytics = () => (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900">Revision Analytics</h2>
+      <h2 className="text-2xl font-bold text-ink">Revision Analytics</h2>
       
-      <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+      <div className="bg-paper rounded-lg shadow-md overflow-hidden border border-ink/10">
+        <table className="min-w-full divide-y divide-ink/10">
+          <thead className="bg-paper-2">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">From</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">To</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Area Change</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cost Change</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rooms Added</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rooms Deleted</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-ink/60 uppercase tracking-wider">From</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-ink/60 uppercase tracking-wider">To</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-ink/60 uppercase tracking-wider">Area Change</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-ink/60 uppercase tracking-wider">Cost Change</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-ink/60 uppercase tracking-wider">Rooms Added</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-ink/60 uppercase tracking-wider">Rooms Deleted</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-ink/60 uppercase tracking-wider">Date</th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-paper divide-y divide-ink/10">
             {revisions.map((rev, index) => (
               <tr key={index}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{rev.from_version_id}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{rev.to_version_id}</td>
-                <td className={`px-6 py-4 whitespace-nowrap text-sm ${rev.area_change_sqft >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-ink">{rev.from_version_id}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-ink">{rev.to_version_id}</td>
+                <td className={`px-6 py-4 whitespace-nowrap text-sm ${rev.area_change_sqft >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                   {rev.area_change_sqft >= 0 ? '+' : ''}{rev.area_change_sqft} sq ft
                 </td>
-                <td className={`px-6 py-4 whitespace-nowrap text-sm ${rev.cost_change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <td className={`px-6 py-4 whitespace-nowrap text-sm ${rev.cost_change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                   ₹{(rev.cost_change / 1000).toFixed(0)}K
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{rev.rooms_added}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{rev.rooms_deleted}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{rev.created_at}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-ink">{rev.rooms_added}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-ink">{rev.rooms_deleted}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-ink/50">{rev.created_at}</td>
               </tr>
             ))}
           </tbody>
@@ -581,31 +581,31 @@ const EnterpriseAnalytics: React.FC = () => {
 
   const PortfolioAnalytics = () => (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900">Portfolio Analytics</h2>
+      <h2 className="text-2xl font-bold text-ink">Portfolio Analytics</h2>
       
       {portfolioMetrics && (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
-              <p className="text-sm font-medium text-gray-500">Total Portfolio Value</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">₹{(portfolioMetrics.total_portfolio_value / 10000000).toFixed(1)} Cr</p>
+            <div className="bg-paper rounded-lg shadow-md p-4 border border-ink/10">
+              <p className="text-sm font-medium text-ink/60">Total Portfolio Value</p>
+              <p className="text-2xl font-bold text-ink mt-1">₹{(portfolioMetrics.total_portfolio_value / 10000000).toFixed(1)} Cr</p>
             </div>
-            <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
-              <p className="text-sm font-medium text-gray-500">Total Area</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{(portfolioMetrics.total_area_sqft / 1000000).toFixed(1)}M sq ft</p>
+            <div className="bg-paper rounded-lg shadow-md p-4 border border-ink/10">
+              <p className="text-sm font-medium text-ink/60">Total Area</p>
+              <p className="text-2xl font-bold text-ink mt-1">{(portfolioMetrics.total_area_sqft / 1000000).toFixed(1)}M sq ft</p>
             </div>
-            <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
-              <p className="text-sm font-medium text-gray-500">Total Buildings</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{portfolioMetrics.total_buildings}</p>
+            <div className="bg-paper rounded-lg shadow-md p-4 border border-ink/10">
+              <p className="text-sm font-medium text-ink/60">Total Buildings</p>
+              <p className="text-2xl font-bold text-ink mt-1">{portfolioMetrics.total_buildings}</p>
             </div>
-            <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
-              <p className="text-sm font-medium text-gray-500">Total Floors</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{portfolioMetrics.total_floors}</p>
+            <div className="bg-paper rounded-lg shadow-md p-4 border border-ink/10">
+              <p className="text-sm font-medium text-ink/60">Total Floors</p>
+              <p className="text-2xl font-bold text-ink mt-1">{portfolioMetrics.total_floors}</p>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
-            <h3 className="text-lg font-semibold mb-4">Project Distribution by Type</h3>
+          <div className="bg-paper rounded-lg shadow-md p-6 border border-ink/10">
+            <h3 className="text-lg font-semibold mb-4 text-ink">Project Distribution by Type</h3>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
@@ -639,29 +639,29 @@ const EnterpriseAnalytics: React.FC = () => {
 
   const TeamAnalytics = () => (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900">Team Analytics</h2>
+      <h2 className="text-2xl font-bold text-ink">Team Analytics</h2>
       
-      <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+      <div className="bg-paper rounded-lg shadow-md overflow-hidden border border-ink/10">
+        <table className="min-w-full divide-y divide-ink/10">
+          <thead className="bg-paper-2">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Analyses</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Exports</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Comments</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Corrections</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Approvals</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-ink/60 uppercase tracking-wider">User</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-ink/60 uppercase tracking-wider">Analyses</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-ink/60 uppercase tracking-wider">Exports</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-ink/60 uppercase tracking-wider">Comments</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-ink/60 uppercase tracking-wider">Corrections</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-ink/60 uppercase tracking-wider">Approvals</th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-paper divide-y divide-ink/10">
             {teamActivity.map((activity, index) => (
               <tr key={index}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{activity.user_id}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{activity.analyses_run}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{activity.reports_exported}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{activity.comments_added}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{activity.corrections_made}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{activity.approvals_given}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-ink">{activity.user_id}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-ink">{activity.analyses_run}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-ink">{activity.reports_exported}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-ink">{activity.comments_added}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-ink">{activity.corrections_made}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-ink">{activity.approvals_given}</td>
               </tr>
             ))}
           </tbody>
@@ -672,25 +672,25 @@ const EnterpriseAnalytics: React.FC = () => {
 
   const ApprovalAnalytics = () => (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900">Approval Workflow Analytics</h2>
+      <h2 className="text-2xl font-bold text-ink">Approval Workflow Analytics</h2>
       
       {approvalMetrics && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
-            <p className="text-sm font-medium text-gray-500">Pending Approvals</p>
-            <p className="text-2xl font-bold text-yellow-600 mt-1">{approvalMetrics.pending_approvals}</p>
+          <div className="bg-paper rounded-lg shadow-md p-4 border border-ink/10">
+            <p className="text-sm font-medium text-ink/60">Pending Approvals</p>
+            <p className="text-2xl font-bold text-yellow-500 mt-1">{approvalMetrics.pending_approvals}</p>
           </div>
-          <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
-            <p className="text-sm font-medium text-gray-500">Approved Reports</p>
-            <p className="text-2xl font-bold text-green-600 mt-1">{approvalMetrics.approved_reports}</p>
+          <div className="bg-paper rounded-lg shadow-md p-4 border border-ink/10">
+            <p className="text-sm font-medium text-ink/60">Approved Reports</p>
+            <p className="text-2xl font-bold text-green-500 mt-1">{approvalMetrics.approved_reports}</p>
           </div>
-          <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
-            <p className="text-sm font-medium text-gray-500">Rejected Reports</p>
-            <p className="text-2xl font-bold text-red-600 mt-1">{approvalMetrics.rejected_reports}</p>
+          <div className="bg-paper rounded-lg shadow-md p-4 border border-ink/10">
+            <p className="text-sm font-medium text-ink/60">Rejected Reports</p>
+            <p className="text-2xl font-bold text-red-500 mt-1">{approvalMetrics.rejected_reports}</p>
           </div>
-          <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
-            <p className="text-sm font-medium text-gray-500">Avg Approval Time</p>
-            <p className="text-2xl font-bold text-gray-900 mt-1">{approvalMetrics.avg_approval_time_hours}h</p>
+          <div className="bg-paper rounded-lg shadow-md p-4 border border-ink/10">
+            <p className="text-sm font-medium text-ink/60">Avg Approval Time</p>
+            <p className="text-2xl font-bold text-ink mt-1">{approvalMetrics.avg_approval_time_hours}h</p>
           </div>
         </div>
       )}
@@ -699,36 +699,36 @@ const EnterpriseAnalytics: React.FC = () => {
 
   const AuditComplianceAnalytics = () => (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900">Audit & Compliance Analytics</h2>
+      <h2 className="text-2xl font-bold text-ink">Audit & Compliance Analytics</h2>
       
-      <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
-        <h3 className="text-lg font-semibold mb-4">Audit Summary</h3>
+      <div className="bg-paper rounded-lg shadow-md p-6 border border-ink/10">
+        <h3 className="text-lg font-semibold mb-4 text-ink">Audit Summary</h3>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <div className="bg-blue-50 rounded-lg p-4">
-            <p className="text-sm font-medium text-blue-600">Uploads</p>
-            <p className="text-2xl font-bold text-blue-900 mt-1">1,245</p>
+          <div className="bg-accent/10 rounded-lg p-4">
+            <p className="text-sm font-medium text-accent">Uploads</p>
+            <p className="text-2xl font-bold text-ink mt-1">1,245</p>
           </div>
-          <div className="bg-green-50 rounded-lg p-4">
-            <p className="text-sm font-medium text-green-600">Analyses</p>
-            <p className="text-2xl font-bold text-green-900 mt-1">892</p>
+          <div className="bg-green-500/10 rounded-lg p-4">
+            <p className="text-sm font-medium text-green-500">Analyses</p>
+            <p className="text-2xl font-bold text-ink mt-1">892</p>
           </div>
-          <div className="bg-yellow-50 rounded-lg p-4">
-            <p className="text-sm font-medium text-yellow-600">Corrections</p>
-            <p className="text-2xl font-bold text-yellow-900 mt-1">156</p>
+          <div className="bg-yellow-500/10 rounded-lg p-4">
+            <p className="text-sm font-medium text-yellow-500">Corrections</p>
+            <p className="text-2xl font-bold text-ink mt-1">156</p>
           </div>
-          <div className="bg-purple-50 rounded-lg p-4">
-            <p className="text-sm font-medium text-purple-600">Exports</p>
-            <p className="text-2xl font-bold text-purple-900 mt-1">423</p>
+          <div className="bg-purple-500/10 rounded-lg p-4">
+            <p className="text-sm font-medium text-purple-500">Exports</p>
+            <p className="text-2xl font-bold text-ink mt-1">423</p>
           </div>
-          <div className="bg-red-50 rounded-lg p-4">
-            <p className="text-sm font-medium text-red-600">Approvals</p>
-            <p className="text-2xl font-bold text-red-900 mt-1">165</p>
+          <div className="bg-red-500/10 rounded-lg p-4">
+            <p className="text-sm font-medium text-red-500">Approvals</p>
+            <p className="text-2xl font-bold text-ink mt-1">165</p>
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
-        <h3 className="text-lg font-semibold mb-4">Recent Audit Logs</h3>
+      <div className="bg-paper rounded-lg shadow-md p-6 border border-ink/10">
+        <h3 className="text-lg font-semibold mb-4 text-ink">Recent Audit Logs</h3>
         <div className="space-y-3">
           {[
             { action: 'UPLOAD', user: 'user1', project: 'Project A', time: '2 hours ago' },
@@ -737,13 +737,13 @@ const EnterpriseAnalytics: React.FC = () => {
             { action: 'EXPORT', user: 'user1', project: 'Project C', time: '6 hours ago' },
             { action: 'APPROVAL', user: 'user2', project: 'Project B', time: '1 day ago' },
           ].map((log, index) => (
-            <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div key={index} className="flex items-center justify-between p-3 bg-paper-2 rounded-lg">
               <div className="flex items-center space-x-4">
-                <span className="px-3 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">{log.action}</span>
-                <span className="text-sm text-gray-900">{log.user}</span>
-                <span className="text-sm text-gray-500">{log.project}</span>
+                <span className="px-3 py-1 text-xs font-medium rounded-full bg-accent/10 text-accent">{log.action}</span>
+                <span className="text-sm text-ink">{log.user}</span>
+                <span className="text-sm text-ink/50">{log.project}</span>
               </div>
-              <span className="text-xs text-gray-400">{log.time}</span>
+              <span className="text-xs text-ink/40">{log.time}</span>
             </div>
           ))}
         </div>

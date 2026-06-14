@@ -1,6 +1,7 @@
 from .base import Base, get_db, engine
 from .organization import Organization
 from .user import User
+from .organization_member import OrganizationMember
 from .project import Project
 from .analysis import AnalysisVersion, Room, BOQItem
 from .blueprint_file import BlueprintFile
@@ -20,7 +21,7 @@ from .analytics import (
 from .cost_benchmark import CostBenchmark, IndustryCostData
 
 __all__ = [
-    "Base", "get_db", "engine", "Organization", "User", "Project",
+    "Base", "get_db", "engine", "Organization", "User", "OrganizationMember", "Project",
     "AnalysisVersion", "Room", "BOQItem", "BlueprintFile", "FloorComparison", "PublicShare", "Comment", "RateCard",
     "RateCardItem", "MaterialRateHistory", "Approval", "AuditLog",
     "AnalyticsSnapshot", "CostTrend", "CostBreakdown", "MaterialStatistic",

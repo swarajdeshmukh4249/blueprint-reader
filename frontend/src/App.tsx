@@ -14,6 +14,11 @@ import PublicShare from '@/pages/PublicShare'
 import PublicView from '@/pages/PublicView'
 import CostBenchmarking from '@/pages/CostBenchmarking'
 import ProjectDetail from '@/pages/ProjectDetail'
+import Settings from '@/pages/Settings'
+import Profile from '@/pages/Profile'
+import ExportCenter from '@/pages/ExportCenter'
+import Help from '@/pages/Help'
+import TeamManagement from '@/pages/TeamManagement'
 
 const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || ''
 
@@ -73,6 +78,46 @@ export default function App() {
               element={
                 <SignedIn>
                   <ProjectDetail />
+                </SignedIn>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <SignedIn>
+                  <Settings />
+                </SignedIn>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <SignedIn>
+                  <Profile />
+                </SignedIn>
+              }
+            />
+            <Route
+              path="/exports"
+              element={
+                <SignedIn>
+                  <ExportCenter />
+                </SignedIn>
+              }
+            />
+            <Route
+              path="/help"
+              element={
+                <SignedIn>
+                  <Help />
+                </SignedIn>
+              }
+            />
+            <Route
+              path="/team"
+              element={
+                <SignedIn>
+                  <TeamManagement />
                 </SignedIn>
               }
             />

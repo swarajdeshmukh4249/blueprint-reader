@@ -208,22 +208,126 @@ Important:
 
         return result
 
-    def _parse_response(self, response_text: str, filename: str) -> Dict[str, Any]:
-        """Parse the AI response into structured format"""
-        try:
-            import json
-            response_text = response_text.strip()
-            if response_text.startswith("```json"):
-                response_text = response_text[7:]
-            if response_text.startswith("```"):
-                response_text = response_text[3:]
-            if response_text.endswith("```"):
-                response_text = response_text[:-3]
-            response_text = response_text.strip()
+    def _validate_response_schema(self, data: Dict[str, Any], filename: str) -> Dict[str, Any]:
+        """Validate the response schema and apply corrections"""
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        # Ensure required top-level fields exist
+        if "rooms" not in data:
+            logger.warning("Missing 'rooms' field in response, adding empty array")
+            data["rooms"] = []
+        
+        if not isinstance(data["rooms"], list):
+            logger.error("'rooms' field is not a list, converting to empty array")
+            data["rooms"] = []
+        
+        # Validate each room has required fields
+        for i, room in enumerate(data["rooms"]):
+            if not isinstance(room, dict):
+                logger.warning(f"Room at index {i} is not a dict, skipping")
+                continue
+            
+            # Ensure required room fields
+            required_fields = ["name", "type", "x", "y", "width", "height", "area_px", "area_ft", "confidence"]
+            for field in required_fields:
+                if field not in room:
+                    logger.debug(f"Room {i} missing field '{field}', applying default")
+                    if field in ["x", "y", "width", "height", "area_px", "area_ft"]:
+                        room[field] = 0
+                    elif field == "confidence":
+                        room[field] = 0.5
+                    elif field == "type":
+                        room[field] = "unknown"
+                    elif field == "name":
+                        room[field] = "Unknown"
+        
+        # Ensure total_area_px is calculated correctly
+        if "total_area_px" not in data:
+            total_area = sum(room.get("area_px", 0) for room in data["rooms"])
+            data["total_area_px"] = total_area
+            logger.info(f"Calculated total_area_px: {total_area}")
+        
+        return data
 
+    def _parse_response(self, response_text: str, filename: str) -> Dict[str, Any]:
+        """Parse the AI response into structured format with defensive parsing"""
+        import logging
+        import json
+        import re
+        from config import ALLOWED_ROOM_TYPES
+        
+        logger = logging.getLogger(__name__)
+        
+        logger.info(f"Parsing AI response for {filename}, response length: {len(response_text)}")
+        
+        response_text = response_text.strip()
+        
+        # Strip markdown wrappers
+        if response_text.startswith("```json"):
+            response_text = response_text[7:]
+            logger.debug("Stripped ```json wrapper")
+        if response_text.startswith("```"):
+            response_text = response_text[3:]
+            logger.debug("Stripped ``` wrapper")
+        if response_text.endswith("```"):
+            response_text = response_text[:-3]
+            logger.debug("Stripped closing ``` wrapper")
+        response_text = response_text.strip()
+
+        # Try to parse JSON directly first
+        try:
             data = json.loads(response_text)
+            logger.debug("Successfully parsed JSON directly")
+        except json.JSONDecodeError as e:
+            logger.warning(f"Direct JSON parse failed, attempting recovery: {str(e)}")
+            # Attempt to recover malformed JSON
+            # Try to extract JSON from text
+            json_match = re.search(r'\{[\s\S]*\}', response_text)
+            if json_match:
+                try:
+                    data = json.loads(json_match.group())
+                    logger.info("Successfully recovered JSON using regex extraction")
+                except json.JSONDecodeError:
+                    logger.warning("Regex extraction failed, attempting JSON fixes")
+                    # Try to fix common JSON issues
+                    fixed_json = response_text
+                    # Fix trailing commas
+                    fixed_json = re.sub(r',\s*}', '}', fixed_json)
+                    fixed_json = re.sub(r',\s*]', ']', fixed_json)
+                    # Fix unquoted keys
+                    fixed_json = re.sub(r'(\w+):', r'"\1":', fixed_json)
+                    try:
+                        data = json.loads(fixed_json)
+                        logger.info("Successfully recovered JSON after fixing common issues")
+                    except json.JSONDecodeError as e:
+                        logger.error(f"Failed to parse AI response even after recovery attempts: {str(e)}")
+                        return {
+                            "error_code": "AI_PARSE_FAILED",
+                            "error_message": f"Failed to parse AI response as JSON even after recovery attempts: {str(e)}",
+                            "filename": filename,
+                            "rooms": [],
+                            "total_area_px": 0,
+                            "drawing_type": "unknown",
+                            "scale_detected": None,
+                            "notes": f"Parse error: {str(e)}"
+                        }
+            else:
+                logger.error("No valid JSON found in AI response")
+                return {
+                    "error_code": "AI_PARSE_FAILED",
+                    "error_message": "No valid JSON found in AI response",
+                    "filename": filename,
+                    "rooms": [],
+                    "total_area_px": 0,
+                    "drawing_type": "unknown",
+                    "scale_detected": None,
+                    "notes": "No JSON found in response"
+                }
 
             rooms = data.get("rooms", [])
+            logger.info(f"Processing {len(rooms)} rooms from AI response")
+            
             for room in rooms:
                 room["x"] = room.get("x", 0)
                 room["y"] = room.get("y", 0)
@@ -231,22 +335,41 @@ Important:
                 room["height"] = room.get("height", 0)
                 room["area_px"] = room.get("area_px", 0)
                 room["area_ft"] = room.get("area_ft", 0)
-                room["confidence"] = room.get("confidence", 0.5)
+                
+                # Clamp confidence values to 0-1 range
+                confidence = room.get("confidence", 0.5)
+                original_confidence = confidence
+                room["confidence"] = max(0.0, min(1.0, confidence))
+                if original_confidence != room["confidence"]:
+                    logger.debug(f"Clamped confidence from {original_confidence} to {room['confidence']} for room {room.get('name', 'unknown')}")
+                
                 room["name"] = room.get("name", room.get("type", "Unknown"))[:50]
+
+                # Validate and normalize room type
+                room_type = room.get("type", "unknown").lower()
+                if room_type not in ALLOWED_ROOM_TYPES:
+                    logger.debug(f"Invalid room type '{room_type}' normalized to 'unknown'")
+                    room["type"] = "unknown"
+                else:
+                    room["type"] = room_type
 
                 label_area = self._parse_room_area_from_label(room["name"])
                 if label_area:
+                    logger.debug(f"Extracted area {label_area} sq ft from room label '{room['name']}'")
                     room["area_ft"] = label_area
 
             plan_clusters = self._detect_plan_boundaries(rooms)
             if len(plan_clusters) > 1:
+                logger.info(f"Detected {len(plan_clusters)} separate floor plans")
                 for i, cluster in enumerate(plan_clusters):
                     for room in cluster:
                         room["floor"] = i + 1
 
             total_area = sum(room.get("area_px", 0) for room in rooms)
+            logger.info(f"Successfully parsed {len(rooms)} rooms with total area {total_area} px")
 
-            return {
+            # Validate schema and apply corrections
+            validated_data = self._validate_response_schema({
                 "rooms": rooms,
                 "total_area_px": total_area,
                 "drawing_type": data.get("drawing_type", "unknown"),
@@ -254,7 +377,9 @@ Important:
                 "notes": data.get("notes", ""),
                 "filename": filename,
                 "provider": "multi_provider"
-            }
+            }, filename)
+
+            return validated_data
 
         except json.JSONDecodeError as e:
             return {
@@ -367,7 +492,7 @@ Important:
 
     def analyze_blueprint(self, image_data: bytes, filename: str) -> Dict[str, Any]:
         """
-        Analyze blueprint using available providers with fallback
+        Analyze blueprint using available providers with fallback and retry logic
 
         Args:
             image_data: Binary image data
@@ -381,6 +506,9 @@ Important:
         for provider in AI_PROVIDERS:
             if provider == "openai":
                 result = self._analyze_with_openai(image_data, filename)
+                # Retry once on empty response
+                if result.get("error_code") == "AI_EMPTY_RESPONSE":
+                    result = self._analyze_with_openai(image_data, filename)
                 if "error_code" not in result or result["error_code"] not in ["OPENAI_NOT_CONFIGURED", "OPENAI_API_ERROR"]:
                     result["provider_used"] = "openai"
                     return result
@@ -388,6 +516,9 @@ Important:
 
             elif provider == "groq":
                 result = self._analyze_with_groq(image_data, filename)
+                # Retry once on empty response
+                if result.get("error_code") == "AI_EMPTY_RESPONSE":
+                    result = self._analyze_with_groq(image_data, filename)
                 if "error_code" not in result or result["error_code"] not in ["GROQ_NOT_CONFIGURED", "GROQ_API_ERROR"]:
                     result["provider_used"] = "groq"
                     return result
@@ -395,6 +526,9 @@ Important:
 
             elif provider == "gemini":
                 result = self._analyze_with_gemini(image_data, filename)
+                # Retry once on empty response
+                if result.get("error_code") == "AI_EMPTY_RESPONSE":
+                    result = self._analyze_with_gemini(image_data, filename)
                 if "error_code" not in result or result["error_code"] not in ["GEMINI_NOT_CONFIGURED", "GEMINI_API_ERROR"]:
                     result["provider_used"] = "gemini"
                     return result

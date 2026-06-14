@@ -5,8 +5,8 @@ from typing import Optional
 from datetime import datetime
 import uuid
 
-from models import get_db, Organization, User
-from auth.clerk import get_current_user, verify_jwt
+from models import get_db, Organization, User, OrganizationMember
+from auth.clerk import get_current_user, verify_jwt, get_current_user_db, require_organization_role
 
 router = APIRouter(prefix="/organizations", tags=["organizations"])
 
@@ -42,13 +42,17 @@ async def create_organization(
 ):
     """Create a new organization"""
     
-    # Optional authentication - if token provided, verify it
+    # Get current user
+    user = None
     if authorization:
         try:
             token = authorization.replace("Bearer ", "")
-            await verify_jwt(token)
+            user_data = await verify_jwt(token)
+            # Get user from database
+            from models import User
+            clerk_user_id = user_data.get('sub')
+            user = db.query(User).filter(User.clerk_user_id == clerk_user_id).first()
         except Exception:
-            # If token verification fails, still allow the request for now
             pass
     
     # Auto-generate slug if not provided
@@ -74,7 +78,15 @@ async def create_organization(
     db.refresh(new_org)
     
     # Add creator as admin
-    # This would require an organization_members table
+    if user:
+        member = OrganizationMember(
+            organization_id=new_org.id,
+            user_id=user.id,
+            role='admin',
+            invited_by=user.id
+        )
+        db.add(member)
+        db.commit()
     
     return OrganizationResponse(
         id=str(new_org.id),
@@ -155,16 +167,14 @@ async def get_organization(
 async def update_organization(
     org_id: str,
     org_update: OrganizationUpdate,
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(require_organization_role(["admin"])),
     db: Session = Depends(get_db)
 ):
-    """Update organization"""
+    """Update organization (admin only)"""
     
     org = db.query(Organization).filter(Organization.id == uuid.UUID(org_id)).first()
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
-    
-    # Check user has admin permissions
     
     if org_update.name is not None:
         org.name = org_update.name

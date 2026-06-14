@@ -5,8 +5,8 @@ from typing import Optional
 from datetime import datetime
 import uuid
 
-from models import get_db, Project, Organization, BlueprintFile, AnalysisVersion
-from auth.clerk import get_current_user, verify_jwt
+from models import get_db, Project, Organization, BlueprintFile, AnalysisVersion, User
+from auth.clerk import get_current_user, verify_jwt, get_current_user_db, require_organization_role
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -55,24 +55,15 @@ class ProjectDetailResponse(BaseModel):
 @router.post("/", response_model=ProjectDetailResponse)
 async def create_project(
     project: ProjectCreate,
-    authorization: Optional[str] = Header(None),
+    current_user: User = Depends(require_organization_role(["admin", "project_manager"])),
     db: Session = Depends(get_db)
 ):
-    """Create a new project"""
-    
-    # Optional authentication
-    if authorization:
-        try:
-            user = verify_jwt(authorization.replace("Bearer ", ""))
-        except:
-            pass  # Allow request to proceed even if auth fails
+    """Create a new project (admin or project_manager only)"""
     
     # Verify organization exists
     org = db.query(Organization).filter(Organization.id == uuid.UUID(project.organization_id)).first()
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
-    
-    # Check user has access to organization
     
     # Create project
     new_project = Project(
@@ -84,7 +75,8 @@ async def create_project(
         location_state=project.location_state,
         location_city=project.location_city,
         building_type=project.building_type,
-        unit_system=project.unit_system
+        unit_system=project.unit_system,
+        created_by=current_user.id
     )
     
     db.add(new_project)
@@ -112,22 +104,31 @@ async def list_projects(
     limit: int = Query(5, ge=1, le=100),
     sort: str = Query("updated_at:desc", pattern="^[a-z_]+:(asc|desc)$"),
     organization_id: Optional[str] = None,
-    authorization: Optional[str] = Header(None),
+    current_user: User = Depends(get_current_user_db),
     db: Session = Depends(get_db)
 ):
     """List projects for dashboard with limit and sort"""
     
-    # Optional authentication
-    if authorization:
-        try:
-            user = verify_jwt(authorization.replace("Bearer ", ""))
-        except:
-            pass  # Allow request to proceed even if auth fails
-    
     query = db.query(Project)
     
+    # Filter by organization if provided
     if organization_id:
+        # Check user has access to this organization
+        from auth.clerk import check_organization_access
+        if not check_organization_access(str(current_user.id), organization_id, db):
+            raise HTTPException(status_code=403, detail="Access denied to this organization")
         query = query.filter(Project.organization_id == uuid.UUID(organization_id))
+    else:
+        # Only show projects from organizations user has access to
+        from models import OrganizationMember
+        user_orgs = db.query(OrganizationMember.organization_id).filter(
+            OrganizationMember.user_id == current_user.id
+        ).all()
+        org_ids = [org.organization_id for org in user_orgs]
+        if org_ids:
+            query = query.filter(Project.organization_id.in_(org_ids))
+        else:
+            return []  # User has no organization access
     
     # Parse sort parameter
     sort_field, sort_direction = sort.split(":")
@@ -222,23 +223,19 @@ async def list_projects(
 @router.get("/{project_id}", response_model=ProjectDetailResponse)
 async def get_project(
     project_id: str,
-    authorization: Optional[str] = Header(None),
+    current_user: User = Depends(get_current_user_db),
     db: Session = Depends(get_db)
 ):
     """Get project by ID"""
-    
-    # Optional authentication
-    if authorization:
-        try:
-            user = verify_jwt(authorization.replace("Bearer ", ""))
-        except:
-            pass  # Allow request to proceed even if auth fails
     
     project = db.query(Project).filter(Project.id == uuid.UUID(project_id)).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     
     # Check user has access to this project
+    from auth.clerk import check_project_access
+    if not check_project_access(str(current_user.id), str(project.id), db):
+        raise HTTPException(status_code=403, detail="Access denied to this project")
     
     return ProjectDetailResponse(
         id=str(project.id),
@@ -260,16 +257,14 @@ async def get_project(
 async def update_project(
     project_id: str,
     project_update: ProjectUpdate,
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(require_organization_role(["admin", "project_manager"])),
     db: Session = Depends(get_db)
 ):
-    """Update project"""
+    """Update project (admin or project_manager only)"""
     
     project = db.query(Project).filter(Project.id == uuid.UUID(project_id)).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    
-    # Check user has edit permissions
     
     if project_update.name is not None:
         project.name = project_update.name
@@ -303,16 +298,14 @@ async def update_project(
 @router.delete("/{project_id}")
 async def delete_project(
     project_id: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: User = Depends(require_organization_role(["admin"])),
     db: Session = Depends(get_db)
 ):
-    """Delete project (soft delete)"""
+    """Delete project (soft delete, admin only)"""
     
     project = db.query(Project).filter(Project.id == uuid.UUID(project_id)).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    
-    # Check user has delete permissions
     
     project.deleted_at = datetime.utcnow()
     db.commit()

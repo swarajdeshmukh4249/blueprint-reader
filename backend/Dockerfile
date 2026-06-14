@@ -23,4 +23,4 @@ RUN pip install --no-cache-dir ifcopenshell --extra-index-url https://blenderbim
 
 COPY . .
 
-CMD ["python3", "supabase_worker.py"]
+CMD ["python3", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

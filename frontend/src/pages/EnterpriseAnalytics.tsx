@@ -753,11 +753,11 @@ const EnterpriseAnalytics: React.FC = () => {
 
   const BenchmarkingDashboard = () => (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900">Benchmarking Dashboard</h2>
+      <h2 className="text-2xl font-bold text-ink">Benchmarking Dashboard</h2>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
-          <h3 className="text-lg font-semibold mb-4">Cost per Sq Ft Benchmarking</h3>
+        <div className="bg-paper rounded-lg shadow-md p-6 border border-ink/10">
+          <h3 className="text-lg font-semibold mb-4 text-ink">Cost per Sq Ft Benchmarking</h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={[
               { name: 'Your Project', value: 2250 },
@@ -773,8 +773,8 @@ const EnterpriseAnalytics: React.FC = () => {
           </ResponsiveContainer>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
-          <h3 className="text-lg font-semibold mb-4">Material Usage Benchmarking</h3>
+        <div className="bg-paper rounded-lg shadow-md p-6 border border-ink/10">
+          <h3 className="text-lg font-semibold mb-4 text-ink">Material Usage Benchmarking</h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={[
               { name: 'Steel', your: 2800, benchmark: 3000 },
@@ -792,8 +792,8 @@ const EnterpriseAnalytics: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
-        <h3 className="text-lg font-semibold mb-4">Variance Analysis</h3>
+      <div className="bg-paper rounded-lg shadow-md p-6 border border-ink/10">
+        <h3 className="text-lg font-semibold mb-4 text-ink">Variance Analysis</h3>
         <div className="space-y-3">
           {[
             { metric: 'Cost/Sq Ft', your: 2250, benchmark: 2100, variance: 7.1 },
@@ -801,12 +801,12 @@ const EnterpriseAnalytics: React.FC = () => {
             { metric: 'Cement Usage', your: 5200, benchmark: 4800, variance: 8.3 },
             { metric: 'Construction Time', your: 18, benchmark: 24, variance: -25.0 },
           ].map((item, index) => (
-            <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <span className="text-sm font-medium text-gray-900">{item.metric}</span>
+            <div key={index} className="flex items-center justify-between p-3 bg-paper-2 rounded-lg">
+              <span className="text-sm font-medium text-ink">{item.metric}</span>
               <div className="flex items-center space-x-4">
-                <span className="text-sm text-gray-600">Your: {item.your}</span>
-                <span className="text-sm text-gray-600">Benchmark: {item.benchmark}</span>
-                <span className={`text-sm font-semibold ${item.variance >= 0 ? 'text-red-600' : 'text-green-600'}`}>
+                <span className="text-sm text-ink/70">Your: {item.your}</span>
+                <span className="text-sm text-ink/70">Benchmark: {item.benchmark}</span>
+                <span className={`text-sm font-semibold ${item.variance >= 0 ? 'text-red-500' : 'text-green-500'}`}>
                   {item.variance >= 0 ? '+' : ''}{item.variance}%
                 </span>
               </div>
@@ -834,7 +834,7 @@ const EnterpriseAnalytics: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent"></div>
       </div>
     )
   }
@@ -842,12 +842,12 @@ const EnterpriseAnalytics: React.FC = () => {
   const ActiveComponent = tabs.find(tab => tab.id === activeTab)?.component || ExecutiveDashboard
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white shadow-sm border-b border-gray-200">
+    <div className="min-h-screen bg-paper">
+      <div className="bg-paper shadow-sm border-b border-ink/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="py-6">
-            <h1 className="text-3xl font-bold text-gray-900">Enterprise Analytics</h1>
-            <p className="mt-1 text-sm text-gray-500">World-class analytics for construction professionals</p>
+            <h1 className="text-3xl font-bold text-ink">Enterprise Analytics</h1>
+            <p className="mt-1 text-sm text-ink/60">World-class analytics for construction professionals</p>
           </div>
         </div>
       </div>
@@ -865,36 +865,36 @@ const EnterpriseAnalytics: React.FC = () => {
         <div className="flex justify-end mb-4 gap-2">
           <button
             onClick={() => handleExport('pdf')}
-            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+            className="flex items-center px-4 py-2 bg-accent text-paper rounded-lg hover:bg-accent/90 text-sm"
           >
             <Download className="w-4 h-4 mr-2" />
             Export PDF
           </button>
           <button
             onClick={() => handleExport('excel')}
-            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
+            className="flex items-center px-4 py-2 bg-green-500 text-paper rounded-lg hover:bg-green-500/90 text-sm"
           >
             <Download className="w-4 h-4 mr-2" />
             Export Excel
           </button>
           <button
             onClick={() => handleExport('csv')}
-            className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm"
+            className="flex items-center px-4 py-2 bg-ink text-paper rounded-lg hover:bg-ink/90 text-sm"
           >
             <Download className="w-4 h-4 mr-2" />
             Export CSV
           </button>
         </div>
 
-        <div className="flex space-x-4 border-b border-gray-200 mb-6">
+        <div className="flex space-x-4 border-b border-ink/10 mb-6">
           {tabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === tab.id
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                  ? 'border-accent text-accent'
+                  : 'border-transparent text-ink/60 hover:text-ink'
               }`}
             >
               {tab.label}

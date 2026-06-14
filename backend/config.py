@@ -4,6 +4,10 @@ All named constants and environment variables
 """
 import os
 from typing import List
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # ─── FILE VALIDATION CONSTANTS ───
 MAX_FILE_SIZE_MB = 50
@@ -20,9 +24,15 @@ MAX_FLOORS = 20
 MAX_ROOMS_PER_FLOOR = 100
 
 # ─── AI CONFIGURATION ───
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_MODEL_FAST = "gpt-4o-mini"
+OPENAI_MODEL_ACCURATE = "gpt-4o"
+OPENAI_MAX_RETRIES = 2
+OPENAI_TIMEOUT_SECONDS = 60
+
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODEL_FAST = "gemini-1.5-flash"
-GEMINI_MODEL_ACCURATE = "gemini-1.5-pro"
+GEMINI_MODEL_FAST = "gemini-2.0-flash"
+GEMINI_MODEL_ACCURATE = "gemini-2.0-flash"
 GEMINI_MAX_RETRIES = 2
 GEMINI_TIMEOUT_SECONDS = 60
 
@@ -33,8 +43,11 @@ GROQ_MODEL_ACCURATE = "llama-3.2-90b-vision-preview"
 GROQ_MAX_RETRIES = 2
 GROQ_TIMEOUT_SECONDS = 60
 
+# Current working Groq models (as of 2024)
+GROQ_MODEL_VISION = "llama-3.2-90b-vision-preview"
+
 # Provider priority (tried in order)
-AI_PROVIDERS = ["groq", "gemini"]  # Try Groq first, then Gemini
+AI_PROVIDERS = ["gemini"]  # Use only Gemini
 
 # ─── ALLOWED ROOM TYPES ───
 ALLOWED_ROOM_TYPES = [

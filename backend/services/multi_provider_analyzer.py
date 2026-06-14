@@ -6,11 +6,17 @@ import base64
 import re
 from typing import Dict, Any, List, Optional
 from config import (
-    GROQ_API_KEY, GEMINI_API_KEY,
-    GROQ_MODEL_FAST, GEMINI_MODEL_FAST,
-    GROQ_MAX_RETRIES, GEMINI_MAX_RETRIES,
+    OPENAI_API_KEY, GROQ_API_KEY, GEMINI_API_KEY,
+    OPENAI_MODEL_FAST, GROQ_MODEL_FAST, GEMINI_MODEL_FAST,
+    OPENAI_MAX_RETRIES, GROQ_MAX_RETRIES, GEMINI_MAX_RETRIES,
     AI_PROVIDERS
 )
+
+try:
+    from openai import OpenAI as OpenAIClient
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
 
 try:
     from groq import Groq as GroqClient
@@ -33,8 +39,16 @@ class MultiProviderAnalyzer:
 
     def __init__(self, use_fast_model: bool = True):
         self.use_fast_model = use_fast_model
+        self.openai_client = None
         self.groq_client = None
         self.gemini_model = None
+
+        # Initialize OpenAI client if API key is available
+        if OPENAI_AVAILABLE and OPENAI_API_KEY:
+            try:
+                self.openai_client = OpenAIClient(api_key=OPENAI_API_KEY)
+            except Exception as e:
+                print(f"Failed to initialize OpenAI client: {e}")
 
         # Initialize Groq client if API key is available
         if GROQ_AVAILABLE and GROQ_API_KEY:
@@ -47,10 +61,12 @@ class MultiProviderAnalyzer:
         if GEMINI_AVAILABLE and GEMINI_API_KEY:
             try:
                 genai.configure(api_key=GEMINI_API_KEY)
-                model_name = GEMINI_MODEL_FAST if use_fast_model else "gemini-1.5-pro"
+                # Use vision-enabled model
+                model_name = GEMINI_MODEL_FAST if use_fast_model else GEMINI_MODEL_ACCURATE
                 self.gemini_model = genai.GenerativeModel(model_name)
             except Exception as e:
                 print(f"Failed to initialize Gemini model: {e}")
+                self.gemini_model = None
 
     def _build_analysis_prompt(self) -> str:
         """Build the analysis prompt for blueprint analysis"""
@@ -106,6 +122,58 @@ Important:
             except (ValueError, IndexError):
                 pass
         return None
+
+    def _analyze_with_openai(self, image_data: bytes, filename: str) -> Dict[str, Any]:
+        """Analyze blueprint using OpenAI"""
+        if not self.openai_client:
+            return {
+                "error_code": "OPENAI_NOT_CONFIGURED",
+                "error_message": "OpenAI client not initialized. Check OPENAI_API_KEY.",
+                "filename": filename,
+                "rooms": [],
+                "total_area_px": 0,
+                "drawing_type": "unknown",
+                "scale_detected": None,
+                "notes": "OpenAI not available"
+            }
+
+        try:
+            prompt = self._build_analysis_prompt()
+            base64_image = self._encode_image(image_data)
+
+            response = self.openai_client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt},
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/png;base64,{base64_image}"
+                                }
+                            }
+                        ]
+                    }
+                ],
+                max_tokens=4096,
+            )
+
+            response_text = response.choices[0].message.content
+            return self._parse_response(response_text, filename)
+
+        except Exception as e:
+            return {
+                "error_code": "OPENAI_API_ERROR",
+                "error_message": str(e),
+                "filename": filename,
+                "rooms": [],
+                "total_area_px": 0,
+                "drawing_type": "unknown",
+                "scale_detected": None,
+                "notes": f"OpenAI error: {str(e)}"
+            }
 
     def _detect_plan_boundaries(self, rooms: List[Dict[str, Any]]) -> List[List[Dict[str, Any]]]:
         """Detect plan boundaries by clustering rooms based on spatial position"""
@@ -233,7 +301,7 @@ Important:
                 }
             ]
 
-            model_name = GROQ_MODEL_FAST if self.use_fast_model else "llama-3.2-90b-vision-preview"
+            model_name = "llama-3.2-90b-vision-preview"  # Use the working vision model
 
             response = self.groq_client.chat.completions.create(
                 model=model_name,
@@ -311,7 +379,14 @@ Important:
         last_error = None
 
         for provider in AI_PROVIDERS:
-            if provider == "groq":
+            if provider == "openai":
+                result = self._analyze_with_openai(image_data, filename)
+                if "error_code" not in result or result["error_code"] not in ["OPENAI_NOT_CONFIGURED", "OPENAI_API_ERROR"]:
+                    result["provider_used"] = "openai"
+                    return result
+                last_error = result.get("error_message", last_error)
+
+            elif provider == "groq":
                 result = self._analyze_with_groq(image_data, filename)
                 if "error_code" not in result or result["error_code"] not in ["GROQ_NOT_CONFIGURED", "GROQ_API_ERROR"]:
                     result["provider_used"] = "groq"

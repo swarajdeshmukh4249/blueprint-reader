@@ -29,6 +29,8 @@ matplotlib
 
 # ── Gemini Vision ──────────────────────────────────────────────────────────
 google-genai
+groq
+openai
 
 
 scipy

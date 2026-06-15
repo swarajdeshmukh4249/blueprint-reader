@@ -308,7 +308,7 @@ export default function PublicView() {
             <Eye className="w-4 h-4 mr-1" />
             Viewed on {new Date(data.viewed_at).toLocaleString()}
           </div>
-          <p>Shared via Blueprint Reader</p>
+          <p>Shared via ArchVision</p>
         </div>
       </div>
     </div>

@@ -54,27 +54,29 @@ async def run_analysis_task(
         # Update analysis with results
         analysis.status = 'completed'
         analysis.completed_at = datetime.utcnow()
-        analysis.total_area_sqft = result.get('total_area_sqft')
-        analysis.room_count = result.get('room_count')
+        analysis.total_area_sqft = result.get('total_area')
+        room_data = result.get('room_data', [])
+        analysis.room_count = len(room_data)
         analysis.floor_count = result.get('floor_count')
         analysis.door_count = result.get('door_count')
         analysis.window_count = result.get('window_count')
-        analysis.confidence_score = result.get('confidence_score')
+        quality = result.get('extraction_quality', {})
+        analysis.confidence_score = quality.get('score', quality.get('avg_confidence', 0))
         analysis.raw_result = result
         
         db.commit()
         
         # Create room records
-        rooms = result.get('rooms', [])
+        rooms = room_data
         for room_data in rooms:
             room = Room(
                 analysis_version_id=analysis.id,
-                name=room_data.get('name', 'Unknown'),
-                room_type=room_data.get('type'),
-                area_sqft=room_data.get('area_sqft'),
-                width_ft=room_data.get('width_ft'),
-                height_ft=room_data.get('height_ft'),
-                confidence_score=room_data.get('confidence_score'),
+                name=room_data.get('room', room_data.get('label', 'Unknown')),
+                room_type=room_data.get('room'),
+                area_sqft=room_data.get('area'),
+                width_ft=room_data.get('width'),
+                height_ft=room_data.get('height'),
+                confidence_score=room_data.get('confidence'),
                 source='ai_analysis',
                 polygon_coordinates=room_data.get('polygon')
             )

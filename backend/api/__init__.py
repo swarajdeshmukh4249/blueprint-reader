@@ -15,5 +15,6 @@ from .blueprint_files import router as blueprint_files_router
 from .floor_comparison import router as floor_comparison_router
 from .public_shares import router as public_shares_router
 from .cost_benchmark import router as cost_benchmark_router
+from .room_editor import router as room_editor_router
 
-__all__ = ["organizations_router", "projects_router", "files_router", "analysis_router", "diff_router", "correction_router", "calibration_router", "audit_router", "comments_router", "cost_engine_router", "rate_cards_router", "approvals_router", "analytics_router", "blueprint_files_router", "floor_comparison_router", "public_shares_router", "cost_benchmark_router"]
+__all__ = ["organizations_router", "projects_router", "files_router", "analysis_router", "diff_router", "correction_router", "calibration_router", "audit_router", "comments_router", "cost_engine_router", "rate_cards_router", "approvals_router", "analytics_router", "blueprint_files_router", "floor_comparison_router", "public_shares_router", "cost_benchmark_router", "room_editor_router"]

@@ -9,7 +9,9 @@ import {
   HelpCircle, 
   Users,
   Menu,
-  X
+  X,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useState } from 'react'
@@ -33,8 +35,19 @@ function NavItem({ to, icon: Icon, children }: { to: string; icon: any; children
   )
 }
 
-export default function SideNav() {
+interface SideNavProps {
+  onCollapsedChange?: (collapsed: boolean) => void
+}
+
+export default function SideNav({ onCollapsedChange }: SideNavProps) {
   const [collapsed, setCollapsed] = useState(false)
+  const [desktopCollapsed, setDesktopCollapsed] = useState(false)
+
+  const handleDesktopToggle = () => {
+    const newCollapsed = !desktopCollapsed
+    setDesktopCollapsed(newCollapsed)
+    onCollapsedChange?.(newCollapsed)
+  }
 
   return (
     <>
@@ -47,15 +60,35 @@ export default function SideNav() {
         {collapsed ? <Menu className="h-5 w-5" /> : <X className="h-5 w-5" />}
       </button>
 
+      {/* Desktop Toggle Button - shown when sidebar is collapsed */}
+      {desktopCollapsed && (
+        <button
+          onClick={handleDesktopToggle}
+          className="hidden lg:flex fixed top-20 left-4 z-40 h-8 w-8 items-center justify-center rounded-lg border border-ink/15 bg-paper/60 text-ink/70 transition hover:bg-paper hover:text-ink shadow-lg"
+          aria-label="Toggle sidebar"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      )}
+
       {/* Side Navigation */}
       <aside 
         className={cn(
-          'fixed left-0 top-16 bottom-0 z-30 w-64 bg-paper/95 backdrop-blur-xl border-r border-ink/10 transition-transform duration-300 ease-in-out',
-          'lg:translate-x-0',
-          collapsed ? '-translate-x-full' : 'translate-x-0'
+          'fixed left-0 top-16 bottom-0 z-30 w-64 bg-paper/95 backdrop-blur-xl border-r border-ink/10 transition-all duration-300 ease-in-out',
+          collapsed ? '-translate-x-full' : 'translate-x-0',
+          desktopCollapsed ? 'lg:-translate-x-full lg:opacity-0' : 'lg:translate-x-0 lg:opacity-100'
         )}
       >
         <nav className="flex h-full flex-col p-4">
+          {/* Collapse Button */}
+          <button
+            onClick={handleDesktopToggle}
+            className="hidden lg:flex mb-4 h-8 w-8 items-center justify-center rounded-lg border border-ink/15 bg-paper/60 text-ink/70 transition hover:bg-paper hover:text-ink self-end"
+            aria-label="Collapse sidebar"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+
           {/* Main Navigation */}
           <div className="flex-1 space-y-1">
             <NavItem to="/" icon={Home}>Home</NavItem>

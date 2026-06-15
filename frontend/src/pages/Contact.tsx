@@ -92,7 +92,7 @@ export default function Contact() {
                   onSubmit={(e) => {
                     e.preventDefault()
                     if (!valid) return
-                    const subject = encodeURIComponent(`Blueprint Reader inquiry — ${name}`)
+                    const subject = encodeURIComponent(`ArchVision inquiry — ${name}`)
                     const body = encodeURIComponent(
                       `Name: ${name}\nEmail: ${fromEmail}\n\n${message}\n`,
                     )

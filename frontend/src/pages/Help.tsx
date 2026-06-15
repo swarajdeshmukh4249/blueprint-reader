@@ -19,7 +19,7 @@ export default function Help() {
       {
         id: '1',
         title: 'Quick Start Guide',
-        description: 'Learn the basics of Blueprint Reader in 5 minutes',
+        description: 'Learn the basics of ArchVision in 5 minutes',
         category: 'Basics'
       },
       {
@@ -70,7 +70,7 @@ export default function Help() {
     'video-tutorials': [
       {
         id: '9',
-        title: 'Introduction to Blueprint Reader',
+        title: 'Introduction to ArchVision',
         description: 'Overview video of all features',
         category: 'Overview',
         duration: '5:30'
@@ -131,7 +131,7 @@ export default function Help() {
           <div className="mb-8">
             <h1 className="font-display text-3xl tracking-tight text-ink">Help Center</h1>
             <p className="mt-2 text-sm text-ink/70">
-              Find answers, guides, and tutorials to help you get the most out of Blueprint Reader
+              Find answers, guides, and tutorials to help you get the most out of ArchVision
             </p>
           </div>
 

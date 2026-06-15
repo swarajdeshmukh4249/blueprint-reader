@@ -17,7 +17,7 @@ from typing import Any, Optional
 from blueprint_logic import analyze_blueprint
 from rates.dsr_registry import list_schedules
 from export.boq_export import export_csv, export_xlsx, export_pdf
-from api import organizations_router, projects_router, files_router, analysis_router, diff_router, correction_router, calibration_router, audit_router, comments_router, cost_engine_router, rate_cards_router, approvals_router, analytics_router, blueprint_files_router, floor_comparison_router, public_shares_router, cost_benchmark_router
+from api import organizations_router, projects_router, files_router, analysis_router, diff_router, correction_router, calibration_router, audit_router, comments_router, cost_engine_router, rate_cards_router, approvals_router, analytics_router, blueprint_files_router, floor_comparison_router, public_shares_router, cost_benchmark_router, room_editor_router
 from auth.clerk import get_current_user, verify_jwt
 from utils.error_handler import setup_error_handlers
 
@@ -44,6 +44,7 @@ app.include_router(blueprint_files_router, prefix="/api/v1")
 app.include_router(floor_comparison_router, prefix="/api/v1")
 app.include_router(public_shares_router, prefix="/api/v1")
 app.include_router(cost_benchmark_router, prefix="/api/v1")
+app.include_router(room_editor_router, prefix="/api/v1")
 
 app.add_middleware(
     CORSMiddleware,
@@ -107,10 +108,8 @@ async def analyze_blueprint_api(
             detail=f"File exceeds {max_mb} MB limit. Compress or split the drawing.",
         )
 
-    # Use multi-provider analyzer with Groq primary and Gemini fallback
-    from services.multi_provider_analyzer import MultiProviderAnalyzer
-    analyzer = MultiProviderAnalyzer(use_fast_model=True)
-    result = analyzer.analyze_blueprint(file_bytes, file.filename or "")
+    # Use the traditional blueprint_logic analyzer which returns room_data with proper structure
+    result = analyze_blueprint(file_bytes, file.filename or "")
     return result
 
 

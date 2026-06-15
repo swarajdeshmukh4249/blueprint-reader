@@ -3,12 +3,12 @@
 @tailwind utilities;
 
 :root {
-  --paper: 42 38% 96%;
-  --paper-2: 40 26% 92%;
-  --ink: 222 18% 12%;
-  --muted: 222 10% 46%;
-  --accent: 191 92% 44%;
-  --shadow: 222 18% 12%;
+  --paper: 220 20% 97%;
+  --paper-2: 220 15% 94%;
+  --ink: 220 30% 10%;
+  --muted: 220 10% 50%;
+  --accent: 199 89% 48%;
+  --shadow: 220 30% 10%;
 
   font-family: "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI",
     "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji",
@@ -22,12 +22,12 @@
 }
 
 html.dark {
-  --paper: 224 18% 9%;
-  --paper-2: 223 18% 12%;
-  --ink: 45 28% 92%;
-  --muted: 44 10% 70%;
-  --accent: 191 92% 48%;
-  --shadow: 190 80% 12%;
+  --paper: 220 25% 12%;
+  --paper-2: 220 20% 15%;
+  --ink: 220 15% 95%;
+  --muted: 220 10% 75%;
+  --accent: 199 89% 52%;
+  --shadow: 220 20% 8%;
 }
 
 body {

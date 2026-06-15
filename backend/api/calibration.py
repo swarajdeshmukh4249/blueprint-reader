@@ -5,9 +5,10 @@ from typing import Optional, Tuple
 from datetime import datetime
 import uuid
 
-from models import get_db, AnalysisVersion, Room
+from models import get_db, AnalysisVersion, Room, ScaleCalibration
 from auth.clerk import get_current_user
 from services.scale_calibrator import ScaleCalibrator
+from services.calibration_confidence import CalibrationConfidenceService
 from utils.errors import (
     CalibrationPointsError,
     CalibrationDistanceError,
@@ -21,6 +22,7 @@ class ScaleCalibration(BaseModel):
     pt_b: Tuple[float, float]
     real_distance: float
     unit: str
+    reference_type: Optional[str] = "manual"
 
 class CalibrationResult(BaseModel):
     calibration_id: str
@@ -38,7 +40,7 @@ async def calibrate_scale(
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Calculate scale factor and apply to analysis"""
+    """Calculate scale factor and apply to analysis with confidence scoring"""
     
     calibrator = ScaleCalibrator()
     
@@ -60,6 +62,17 @@ async def calibrate_scale(
     if not analysis:
         raise HTTPException(status_code=404, detail="Analysis version not found")
     
+    # Calculate calibration confidence
+    confidence_result = CalibrationConfidenceService.calculate_confidence(
+        point1_x=calibration.pt_a[0],
+        point1_y=calibration.pt_a[1],
+        point2_x=calibration.pt_b[0],
+        point2_y=calibration.pt_b[1],
+        known_distance=calibration.real_distance,
+        known_unit=calibration.unit,
+        reference_type=calibration.reference_type or "manual"
+    )
+    
     # Calculate calibration
     try:
         calibration_result = calibrator.calibrate(
@@ -70,6 +83,25 @@ async def calibrate_scale(
         )
     except (CalibrationPointsError, CalibrationDistanceError, UnitValidationError) as e:
         raise HTTPException(status_code=400, detail=e.message)
+    
+    # Store calibration with confidence in database
+    scale_calibration = ScaleCalibration(
+        analysis_version_id=uuid.UUID(version_id),
+        point1_x=calibration.pt_a[0],
+        point1_y=calibration.pt_a[1],
+        point2_x=calibration.pt_b[0],
+        point2_y=calibration.pt_b[1],
+        known_distance=calibration.real_distance,
+        known_unit=calibration.unit,
+        calculated_scale=calibration_result["scale_factor"],
+        reference_type=calibration.reference_type or "manual",
+        confidence_score=confidence_result["confidence_score"],
+        confidence_level=confidence_result["confidence_level"],
+        confidence_badge=confidence_result["badge"],
+        confidence_warnings=confidence_result["warnings"],
+        confidence_factors=confidence_result["factors"]
+    )
+    db.add(scale_calibration)
     
     # Get rooms for this analysis
     rooms = db.query(Room).filter(
@@ -111,6 +143,7 @@ async def calibrate_scale(
     
     return {
         "calibration": calibration_result,
+        "confidence": confidence_result,
         "updated_rooms": updated_rooms,
         "diff_summary": diff_summary,
         "boq_preview": boq_preview

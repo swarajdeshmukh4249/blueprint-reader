@@ -6,7 +6,7 @@ export default function Footer() {
     <footer className="border-t border-ink/10 py-10">
       <Container className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
         <div className="space-y-2">
-          <div className="font-display text-xl tracking-tight">Blueprint Reader</div>
+          <div className="font-display text-xl tracking-tight">ArchVision</div>
           <div className="max-w-md text-sm leading-relaxed text-ink/70">
             Blueprint intelligence for fast takeoffs, clear room schedules, and BOQ-ready outputs.
           </div>

@@ -14,7 +14,7 @@ export default function TopNav() {
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-ink/10" />
       <Container className="relative pointer-events-auto flex h-full items-center justify-between">
         <NavLink to="/" className="group flex items-baseline gap-2">
-          <span className="font-display text-lg tracking-tight text-ink">Blueprint Reader</span>
+          <span className="font-display text-2xl tracking-tight text-ink">ArchVision</span>
           <span className="text-xs tracking-[0.18em] text-ink/50">
             STUDIO
           </span>

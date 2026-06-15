@@ -39,7 +39,7 @@ export default function About() {
               <span className="block text-ink/80">without the noise.</span>
             </h1>
             <p className="max-w-xl text-sm leading-relaxed text-ink/70">
-              Blueprint Reader turns common construction and architectural formats into structured
+              ArchVision turns common construction and architectural formats into structured
               outputs. The UI stays calm, but the pipeline is built for messy real-world files.
             </p>
 

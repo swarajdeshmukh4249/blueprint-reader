@@ -5,6 +5,7 @@ from .organization_member import OrganizationMember
 from .project import Project
 from .analysis import AnalysisVersion, Room, BOQItem
 from .blueprint_file import BlueprintFile
+from .scale_calibration import ScaleCalibration
 from .floor_comparison import FloorComparison
 from .public_share import PublicShare
 from .comment import Comment
@@ -22,7 +23,7 @@ from .cost_benchmark import CostBenchmark, IndustryCostData
 
 __all__ = [
     "Base", "get_db", "engine", "Organization", "User", "OrganizationMember", "Project",
-    "AnalysisVersion", "Room", "BOQItem", "BlueprintFile", "FloorComparison", "PublicShare", "Comment", "RateCard",
+    "AnalysisVersion", "Room", "BOQItem", "BlueprintFile", "ScaleCalibration", "FloorComparison", "PublicShare", "Comment", "RateCard",
     "RateCardItem", "MaterialRateHistory", "Approval", "AuditLog",
     "AnalyticsSnapshot", "CostTrend", "CostBreakdown", "MaterialStatistic",
     "MaterialCostBreakdown", "RegionalCostRate", "RegionalCostHistory",

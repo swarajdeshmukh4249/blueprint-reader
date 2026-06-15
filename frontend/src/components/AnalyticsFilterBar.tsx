@@ -49,13 +49,13 @@ export default function AnalyticsFilterBar({
   const regions = ['North', 'South', 'East', 'West', 'Central']
 
   return (
-    <div className="bg-white rounded-xl border mb-6">
-      <div className="px-6 py-4 border-b flex items-center justify-between">
+    <div className="bg-paper rounded-xl border border-ink/10 mb-6">
+      <div className="px-6 py-4 border-b border-ink/10 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Filter className="w-5 h-5 text-gray-500" />
-          <span className="font-medium text-gray-900">Filters</span>
+          <Filter className="w-5 h-5 text-ink/60" />
+          <span className="font-medium text-ink">Filters</span>
           {hasActiveFilters && (
-            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">
+            <span className="px-2 py-0.5 bg-accent/10 text-accent text-xs rounded-full">
               Active
             </span>
           )}
@@ -64,7 +64,7 @@ export default function AnalyticsFilterBar({
           {hasActiveFilters && (
             <button
               onClick={clearFilters}
-              className="text-sm text-gray-600 hover:text-gray-900 flex items-center"
+              className="text-sm text-ink/70 hover:text-ink flex items-center"
             >
               <X className="w-4 h-4 mr-1" />
               Clear All
@@ -72,7 +72,7 @@ export default function AnalyticsFilterBar({
           )}
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className="text-sm text-blue-600 hover:text-blue-700"
+            className="text-sm text-accent hover:text-accent/80"
           >
             {isExpanded ? 'Collapse' : 'Expand'}
           </button>
@@ -84,38 +84,38 @@ export default function AnalyticsFilterBar({
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {/* Date Range */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-ink mb-1">
                 Start Date
               </label>
               <input
                 type="date"
                 value={filters.startDate}
                 onChange={(e) => handleFilterChange('startDate', e.target.value)}
-                className="w-full border rounded-lg px-3 py-2"
+                className="w-full border border-ink/15 rounded-lg px-3 py-2 bg-paper text-ink"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-ink mb-1">
                 End Date
               </label>
               <input
                 type="date"
                 value={filters.endDate}
                 onChange={(e) => handleFilterChange('endDate', e.target.value)}
-                className="w-full border rounded-lg px-3 py-2"
+                className="w-full border border-ink/15 rounded-lg px-3 py-2 bg-paper text-ink"
               />
             </div>
 
             {/* Organization */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-ink mb-1">
                 Organization
               </label>
               <select
                 value={filters.organizationId || ''}
                 onChange={(e) => handleFilterChange('organizationId', e.target.value || null)}
-                className="w-full border rounded-lg px-3 py-2"
+                className="w-full border border-ink/15 rounded-lg px-3 py-2 bg-paper text-ink"
               >
                 <option value="">All Organizations</option>
                 {organizations.map((org) => (
@@ -128,13 +128,13 @@ export default function AnalyticsFilterBar({
 
             {/* Project */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-ink mb-1">
                 Project
               </label>
               <select
                 value={filters.projectId || ''}
                 onChange={(e) => handleFilterChange('projectId', e.target.value || null)}
-                className="w-full border rounded-lg px-3 py-2"
+                className="w-full border border-ink/15 rounded-lg px-3 py-2 bg-paper text-ink"
               >
                 <option value="">All Projects</option>
                 {projects.map((project) => (
@@ -147,13 +147,13 @@ export default function AnalyticsFilterBar({
 
             {/* Region */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-ink mb-1">
                 Region
               </label>
               <select
                 value={filters.region || ''}
                 onChange={(e) => handleFilterChange('region', e.target.value || null)}
-                className="w-full border rounded-lg px-3 py-2"
+                className="w-full border border-ink/15 rounded-lg px-3 py-2 bg-paper text-ink"
               >
                 <option value="">All Regions</option>
                 {regions.map((region) => (
@@ -166,13 +166,13 @@ export default function AnalyticsFilterBar({
 
             {/* Building Type */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-ink mb-1">
                 Building Type
               </label>
               <select
                 value={filters.buildingType || ''}
                 onChange={(e) => handleFilterChange('buildingType', e.target.value || null)}
-                className="w-full border rounded-lg px-3 py-2"
+                className="w-full border border-ink/15 rounded-lg px-3 py-2 bg-paper text-ink"
               >
                 <option value="">All Types</option>
                 {buildingTypes.map((type) => (

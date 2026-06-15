@@ -242,89 +242,89 @@ export default function Dashboard() {
           />
         </div>
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-paper rounded-xl p-6 border border-ink/10">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <div className="bg-paper rounded-lg p-5 border border-ink/20 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-ink/60">Total Projects</p>
-                <p className="text-3xl font-bold text-ink">{projects.length}</p>
+                <p className="text-xs font-medium text-ink/50 uppercase tracking-wider">Total Projects</p>
+                <p className="text-2xl font-bold text-ink mt-1">{projects.length}</p>
               </div>
-              <FolderOpen className="w-8 h-8 text-accent" />
+              <FolderOpen className="w-7 h-7 text-accent" />
             </div>
           </div>
-          <div className="bg-paper rounded-xl p-6 border border-ink/10">
+          <div className="bg-paper rounded-lg p-5 border border-ink/20 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-ink/60">Active</p>
-                <p className="text-3xl font-bold text-ink">
+                <p className="text-xs font-medium text-ink/50 uppercase tracking-wider">Active</p>
+                <p className="text-2xl font-bold text-ink mt-1">
                   {projects.filter(p => p.status === 'active').length}
                 </p>
               </div>
-              <Building2 className="w-8 h-8 text-green-500" />
+              <Building2 className="w-7 h-7 text-green-500" />
             </div>
           </div>
-          <div className="bg-paper rounded-xl p-6 border border-ink/10">
+          <div className="bg-paper rounded-lg p-5 border border-ink/20 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-ink/60">Blueprints Analyzed</p>
-                <p className="text-3xl font-bold text-ink">{recentFiles.length}</p>
+                <p className="text-xs font-medium text-ink/50 uppercase tracking-wider">Blueprints Analyzed</p>
+                <p className="text-2xl font-bold text-ink mt-1">{recentFiles.length}</p>
               </div>
-              <FileText className="w-8 h-8 text-yellow-500" />
+              <FileText className="w-7 h-7 text-yellow-500" />
             </div>
           </div>
-          <div className="bg-paper rounded-xl p-6 border border-ink/10">
+          <div className="bg-paper rounded-lg p-5 border border-ink/20 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-ink/60">Total Area (sq ft)</p>
-                <p className="text-3xl font-bold text-ink">
+                <p className="text-xs font-medium text-ink/50 uppercase tracking-wider">Total Area (sq ft)</p>
+                <p className="text-2xl font-bold text-ink mt-1">
                   {recentFiles.reduce((sum, f) => sum + (f.total_area || 0), 0).toLocaleString()}
                 </p>
               </div>
-              <MapPin className="w-8 h-8 text-purple-500" />
+              <MapPin className="w-7 h-7 text-purple-500" />
             </div>
           </div>
         </div>
 
         {/* Quick Actions */}
-        <div className="bg-paper rounded-xl border border-ink/10 mb-8 p-6">
-          <h2 className="text-lg font-semibold text-ink mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-paper rounded-lg border border-ink/20 mb-8 p-5 shadow-sm">
+          <h2 className="text-sm font-semibold text-ink uppercase tracking-wider mb-4">Quick Actions</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <button
               onClick={() => setShowCreateModal(true)}
-              className="flex flex-col items-center p-4 rounded-lg border border-ink/10 hover:bg-paper-2 transition"
+              className="flex flex-col items-center p-4 rounded-lg border border-ink/15 hover:bg-paper-2 hover:border-ink/30 transition-all"
             >
-              <Plus className="w-8 h-8 text-accent mb-2" />
-              <span className="text-sm font-medium text-ink">New Project</span>
+              <Plus className="w-7 h-7 text-accent mb-2" />
+              <span className="text-xs font-medium text-ink">New Project</span>
             </button>
             <button
               onClick={() => navigate('/upload')}
-              className="flex flex-col items-center p-4 rounded-lg border border-ink/10 hover:bg-paper-2 transition"
+              className="flex flex-col items-center p-4 rounded-lg border border-ink/15 hover:bg-paper-2 hover:border-ink/30 transition-all"
             >
-              <FileText className="w-8 h-8 text-green-500 mb-2" />
-              <span className="text-sm font-medium text-ink">Upload Blueprint</span>
+              <FileText className="w-7 h-7 text-green-500 mb-2" />
+              <span className="text-xs font-medium text-ink">Upload Blueprint</span>
             </button>
             <button
               onClick={() => navigate('/exports')}
-              className="flex flex-col items-center p-4 rounded-lg border border-ink/10 hover:bg-paper-2 transition"
+              className="flex flex-col items-center p-4 rounded-lg border border-ink/15 hover:bg-paper-2 hover:border-ink/30 transition-all"
             >
-              <FolderOpen className="w-8 h-8 text-purple-500 mb-2" />
-              <span className="text-sm font-medium text-ink">View Exports</span>
+              <FolderOpen className="w-7 h-7 text-purple-500 mb-2" />
+              <span className="text-xs font-medium text-ink">View Exports</span>
             </button>
             <button
               onClick={() => navigate('/enterprise-dashboard')}
-              className="flex flex-col items-center p-4 rounded-lg border border-ink/10 hover:bg-paper-2 transition"
+              className="flex flex-col items-center p-4 rounded-lg border border-ink/15 hover:bg-paper-2 hover:border-ink/30 transition-all"
             >
-              <BarChart3 className="w-8 h-8 text-yellow-500 mb-2" />
-              <span className="text-sm font-medium text-ink">Analytics</span>
+              <BarChart3 className="w-7 h-7 text-yellow-500 mb-2" />
+              <span className="text-xs font-medium text-ink">Analytics</span>
             </button>
           </div>
         </div>
 
         {/* Recent Files */}
         {recentFiles.length > 0 && (
-          <div className="bg-paper rounded-xl border border-ink/10 mb-8">
-            <div className="px-6 py-4 border-b border-ink/10">
-              <h2 className="text-lg font-semibold text-ink">Recent Files</h2>
+          <div className="bg-paper rounded-lg border border-ink/20 mb-8 shadow-sm">
+            <div className="px-5 py-4 border-b border-ink/15">
+              <h2 className="text-sm font-semibold text-ink uppercase tracking-wider">Recent Files</h2>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -405,9 +405,9 @@ export default function Dashboard() {
 
         {/* Recent BOQ Section */}
         {recentFiles.length > 0 && (
-          <div className="bg-paper rounded-xl border border-ink/10 mb-8">
-            <div className="px-6 py-4 border-b border-ink/10 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-ink">Recent Files</h2>
+          <div className="bg-paper rounded-lg border border-ink/20 mb-8 shadow-sm">
+            <div className="px-5 py-4 border-b border-ink/15 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-ink uppercase tracking-wider">Recent Files</h2>
               <div className="flex gap-3">
                 {recentFiles.filter(f => f.status === 'analyzed').length >= 2 && (
                   <button
@@ -438,8 +438,8 @@ export default function Dashboard() {
                 )}
               </div>
             </div>
-            <div className="p-6">
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="p-5">
+              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
                 {recentFiles.slice(0, 6).map((file) => {
                   const boqTotal = file.analysis_result?.boq?.reduce(
                     (sum: number, item: any) => sum + (item.amount || 0),
@@ -448,7 +448,7 @@ export default function Dashboard() {
                   return (
                     <div
                       key={file.id}
-                      className="border border-ink/10 rounded-lg p-4 hover:shadow-md transition cursor-pointer"
+                      className="border border-ink/15 rounded-lg p-4 hover:shadow-md hover:border-ink/30 transition cursor-pointer bg-paper"
                       onClick={async () => {
                         try {
                           const fullFile = await blueprintFilesApi.get(file.id)
@@ -461,12 +461,12 @@ export default function Dashboard() {
                     >
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center">
-                          <FileText className="w-5 h-5 text-ink/40 mr-2" />
-                          <div className="font-medium text-ink truncate text-sm">
+                          <FileText className="w-4 h-4 text-ink/40 mr-2" />
+                          <div className="font-medium text-ink truncate text-xs">
                             {file.filename}
                           </div>
                         </div>
-                        <span className={`text-xs px-2 py-1 rounded-full ${
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${
                           file.status === 'analyzed' ? 'bg-green-500/10 text-green-500' :
                           file.status === 'processing' ? 'bg-yellow-500/10 text-yellow-500' :
                           'bg-ink/10 text-ink/60'
@@ -474,24 +474,24 @@ export default function Dashboard() {
                           {file.status}
                         </span>
                       </div>
-                      <div className="space-y-2">
+                      <div className="space-y-1.5">
                         {file.status === 'analyzed' && file.analysis_result?.boq ? (
                           <>
-                            <div className="flex justify-between text-sm">
+                            <div className="flex justify-between text-xs">
                               <span className="text-ink/70">Items:</span>
                               <span className="font-medium text-ink">{file.analysis_result.boq.length}</span>
                             </div>
-                            <div className="flex justify-between text-sm">
+                            <div className="flex justify-between text-xs">
                               <span className="text-ink/70">Total:</span>
                               <span className="font-semibold text-green-500">{formatInr(boqTotal)}</span>
                             </div>
                           </>
                         ) : (
-                          <div className="text-sm text-ink/50">
+                          <div className="text-xs text-ink/50">
                             {file.status === 'uploaded' ? 'Ready to analyze' : 'Processing...'}
                           </div>
                         )}
-                        <div className="flex justify-between text-sm">
+                        <div className="flex justify-between text-xs">
                           <span className="text-ink/70">Area:</span>
                           <span className="font-medium text-ink">{file.total_area ? `${file.total_area} sq ft` : '-'}</span>
                         </div>
@@ -505,9 +505,9 @@ export default function Dashboard() {
         )}
 
         {/* Projects Table */}
-        <div className="bg-paper rounded-xl border border-ink/10">
-          <div className="px-6 py-4 border-b border-ink/10">
-            <h2 className="text-lg font-semibold text-ink">Projects</h2>
+        <div className="bg-paper rounded-lg border border-ink/20 shadow-sm">
+          <div className="px-5 py-4 border-b border-ink/15">
+            <h2 className="text-sm font-semibold text-ink uppercase tracking-wider">Projects</h2>
           </div>
           {projects.length === 0 ? (
             <div className="p-12 text-center">

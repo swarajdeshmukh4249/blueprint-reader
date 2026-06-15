@@ -319,15 +319,15 @@ const EnterpriseAnalytics: React.FC = () => {
   }, [organizationId])
 
   const KPICard: React.FC<KPICard> = ({ title, value, trend, unit }) => (
-    <div className="bg-paper rounded-lg shadow-md p-6 border border-ink/10">
+    <div className="bg-paper rounded-lg shadow-sm p-4 border border-ink/20 hover:shadow-md transition-shadow">
       <div className="flex justify-between items-start">
         <div>
-          <p className="text-sm font-medium text-ink/60">{title}</p>
-          <p className="text-2xl font-bold text-ink mt-1">
-            {value} {unit && <span className="text-sm font-normal text-ink/60">{unit}</span>}
+          <p className="text-xs font-medium text-ink/50 uppercase tracking-wider">{title}</p>
+          <p className="text-xl font-bold text-ink mt-1">
+            {value} {unit && <span className="text-xs font-normal text-ink/60">{unit}</span>}
           </p>
         </div>
-        <div className={`flex items-center text-sm ${trend >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+        <div className={`flex items-center text-xs ${trend >= 0 ? 'text-green-500' : 'text-red-500'}`}>
           {trend >= 0 ? '↑' : '↓'} {Math.abs(trend)}%
         </div>
       </div>
@@ -337,8 +337,8 @@ const EnterpriseAnalytics: React.FC = () => {
 
   const ExecutiveDashboard = () => (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-ink">Executive KPI Dashboard</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <h2 className="text-xl font-bold text-ink">Executive KPI Dashboard</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
         {kpis.map((kpi, index) => <KPICard key={index} {...kpi} />)}
       </div>
     </div>
@@ -346,9 +346,9 @@ const EnterpriseAnalytics: React.FC = () => {
 
   const CostAnalytics = () => (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-ink">Cost Analytics</h2>
+      <h2 className="text-xl font-bold text-ink">Cost Analytics</h2>
       
-      <div className="bg-paper rounded-lg shadow-md p-6 border border-ink/10">
+      <div className="bg-paper rounded-lg shadow-sm p-5 border border-ink/20">
         <h3 className="text-lg font-semibold mb-4 text-ink">Total Cost Trend</h3>
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={costTrends}>
@@ -364,9 +364,9 @@ const EnterpriseAnalytics: React.FC = () => {
         </ResponsiveContainer>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-paper rounded-lg shadow-md p-6 border border-ink/10">
-          <h3 className="text-lg font-semibold mb-4 text-ink">Cost Breakdown</h3>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="bg-paper rounded-lg shadow-sm p-5 border border-ink/20">
+          <h3 className="text-sm font-semibold mb-4 text-ink uppercase tracking-wider">Cost Breakdown</h3>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
@@ -388,8 +388,8 @@ const EnterpriseAnalytics: React.FC = () => {
           </ResponsiveContainer>
         </div>
 
-        <div className="bg-paper rounded-lg shadow-md p-6 border border-ink/10">
-          <h3 className="text-lg font-semibold mb-4 text-ink">Cost by Category</h3>
+        <div className="bg-paper rounded-lg shadow-sm p-5 border border-ink/20">
+          <h3 className="text-sm font-semibold mb-4 text-ink uppercase tracking-wider">Cost by Category</h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={costBreakdown}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -406,21 +406,21 @@ const EnterpriseAnalytics: React.FC = () => {
 
   const MaterialAnalytics = () => (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-ink">Material Analytics</h2>
+      <h2 className="text-xl font-bold text-ink">Material Analytics</h2>
       
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         {materialQuantities.map((material, index) => (
-          <div key={index} className="bg-paper rounded-lg shadow-md p-4 border border-ink/10">
-            <p className="text-sm font-medium text-ink/60">{material.material_name}</p>
-            <p className="text-xl font-bold text-ink mt-1">{material.quantity.toLocaleString()}</p>
+          <div key={index} className="bg-paper rounded-lg shadow-sm p-3 border border-ink/20 hover:shadow-md transition-shadow">
+            <p className="text-xs font-medium text-ink/50 uppercase tracking-wider">{material.material_name}</p>
+            <p className="text-lg font-bold text-ink mt-1">{material.quantity.toLocaleString()}</p>
             <p className="text-xs text-ink/40">{material.unit}</p>
-            <p className="text-sm font-semibold text-accent mt-2">₹{(material.cost / 100000).toFixed(1)}L</p>
+            <p className="text-xs font-semibold text-accent mt-2">₹{(material.cost / 100000).toFixed(1)}L</p>
           </div>
         ))}
       </div>
 
-      <div className="bg-paper rounded-lg shadow-md p-6 border border-ink/10">
-        <h3 className="text-lg font-semibold mb-4 text-ink">Material Cost Breakdown</h3>
+      <div className="bg-paper rounded-lg shadow-sm p-5 border border-ink/20">
+        <h3 className="text-sm font-semibold mb-4 text-ink uppercase tracking-wider">Material Cost Breakdown</h3>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={materialQuantities}>
             <CartesianGrid strokeDasharray="3 3" />
@@ -436,9 +436,9 @@ const EnterpriseAnalytics: React.FC = () => {
 
   const RegionalCostIntelligence = () => (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-ink">Regional Cost Intelligence</h2>
+      <h2 className="text-xl font-bold text-ink">Regional Cost Intelligence</h2>
       
-      <div className="bg-paper rounded-lg shadow-md overflow-hidden border border-ink/10">
+      <div className="bg-paper rounded-lg shadow-sm overflow-hidden border border-ink/20">
         <table className="min-w-full divide-y divide-ink/10">
           <thead className="bg-paper-2">
             <tr>
@@ -473,12 +473,12 @@ const EnterpriseAnalytics: React.FC = () => {
 
   const AIQualityDashboard = () => (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-ink">AI Analysis Quality Dashboard</h2>
+      <h2 className="text-xl font-bold text-ink">AI Analysis Quality Dashboard</h2>
       
       {aiQuality && (
         <>
-          <div className="bg-paper rounded-lg shadow-md p-6 border border-ink/10">
-            <h3 className="text-lg font-semibold mb-4 text-ink">Confidence Distribution</h3>
+          <div className="bg-paper rounded-lg shadow-sm p-5 border border-ink/20">
+            <h3 className="text-sm font-semibold mb-4 text-ink uppercase tracking-wider">Confidence Distribution</h3>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
@@ -504,27 +504,27 @@ const EnterpriseAnalytics: React.FC = () => {
             </ResponsiveContainer>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-paper rounded-lg shadow-md p-4 border border-ink/10">
-              <p className="text-sm font-medium text-ink/60">Total Rooms Detected</p>
-              <p className="text-2xl font-bold text-ink mt-1">{aiQuality.total_rooms_detected}</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="bg-paper rounded-lg shadow-sm p-3 border border-ink/20">
+              <p className="text-xs font-medium text-ink/50 uppercase tracking-wider">Total Rooms Detected</p>
+              <p className="text-xl font-bold text-ink mt-1">{aiQuality.total_rooms_detected}</p>
             </div>
-            <div className="bg-paper rounded-lg shadow-md p-4 border border-ink/10">
-              <p className="text-sm font-medium text-ink/60">Rooms Corrected</p>
-              <p className="text-2xl font-bold text-ink mt-1">{aiQuality.rooms_corrected}</p>
+            <div className="bg-paper rounded-lg shadow-sm p-3 border border-ink/20">
+              <p className="text-xs font-medium text-ink/50 uppercase tracking-wider">Rooms Corrected</p>
+              <p className="text-xl font-bold text-ink mt-1">{aiQuality.rooms_corrected}</p>
             </div>
-            <div className="bg-paper rounded-lg shadow-md p-4 border border-ink/10">
-              <p className="text-sm font-medium text-ink/60">Manual Corrections</p>
-              <p className="text-2xl font-bold text-ink mt-1">{aiQuality.manual_corrections}</p>
+            <div className="bg-paper rounded-lg shadow-sm p-3 border border-ink/20">
+              <p className="text-xs font-medium text-ink/50 uppercase tracking-wider">Manual Corrections</p>
+              <p className="text-xl font-bold text-ink mt-1">{aiQuality.manual_corrections}</p>
             </div>
-            <div className="bg-paper rounded-lg shadow-md p-4 border border-ink/10">
-              <p className="text-sm font-medium text-ink/60">Accuracy Rate</p>
-              <p className="text-2xl font-bold text-green-500 mt-1">{aiQuality.accuracy_rate}%</p>
+            <div className="bg-paper rounded-lg shadow-sm p-3 border border-ink/20">
+              <p className="text-xs font-medium text-ink/50 uppercase tracking-wider">Accuracy Rate</p>
+              <p className="text-xl font-bold text-green-500 mt-1">{aiQuality.accuracy_rate}%</p>
             </div>
           </div>
 
-          <div className="bg-paper rounded-lg shadow-md p-6 border border-ink/10">
-            <h3 className="text-lg font-semibold mb-4 text-ink">Most Corrected Room Types</h3>
+          <div className="bg-paper rounded-lg shadow-sm p-5 border border-ink/20">
+            <h3 className="text-sm font-semibold mb-4 text-ink uppercase tracking-wider">Most Corrected Room Types</h3>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={roomTypeCorrections}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -542,9 +542,9 @@ const EnterpriseAnalytics: React.FC = () => {
 
   const RevisionAnalytics = () => (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-ink">Revision Analytics</h2>
+      <h2 className="text-xl font-bold text-ink">Revision Analytics</h2>
       
-      <div className="bg-paper rounded-lg shadow-md overflow-hidden border border-ink/10">
+      <div className="bg-paper rounded-lg shadow-sm overflow-hidden border border-ink/20">
         <table className="min-w-full divide-y divide-ink/10">
           <thead className="bg-paper-2">
             <tr>
@@ -581,31 +581,31 @@ const EnterpriseAnalytics: React.FC = () => {
 
   const PortfolioAnalytics = () => (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-ink">Portfolio Analytics</h2>
+      <h2 className="text-xl font-bold text-ink">Portfolio Analytics</h2>
       
       {portfolioMetrics && (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-paper rounded-lg shadow-md p-4 border border-ink/10">
-              <p className="text-sm font-medium text-ink/60">Total Portfolio Value</p>
-              <p className="text-2xl font-bold text-ink mt-1">₹{(portfolioMetrics.total_portfolio_value / 10000000).toFixed(1)} Cr</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="bg-paper rounded-lg shadow-sm p-3 border border-ink/20">
+              <p className="text-xs font-medium text-ink/50 uppercase tracking-wider">Total Portfolio Value</p>
+              <p className="text-xl font-bold text-ink mt-1">₹{(portfolioMetrics.total_portfolio_value / 10000000).toFixed(1)} Cr</p>
             </div>
-            <div className="bg-paper rounded-lg shadow-md p-4 border border-ink/10">
-              <p className="text-sm font-medium text-ink/60">Total Area</p>
+            <div className="bg-paper rounded-lg shadow-sm p-3 border border-ink/20">
+              <p className="text-xs font-medium text-ink/50 uppercase tracking-wider">Total Area</p>
               <p className="text-2xl font-bold text-ink mt-1">{(portfolioMetrics.total_area_sqft / 1000000).toFixed(1)}M sq ft</p>
             </div>
-            <div className="bg-paper rounded-lg shadow-md p-4 border border-ink/10">
-              <p className="text-sm font-medium text-ink/60">Total Buildings</p>
-              <p className="text-2xl font-bold text-ink mt-1">{portfolioMetrics.total_buildings}</p>
+            <div className="bg-paper rounded-lg shadow-sm p-3 border border-ink/20">
+              <p className="text-xs font-medium text-ink/50 uppercase tracking-wider">Total Buildings</p>
+              <p className="text-xl font-bold text-ink mt-1">{portfolioMetrics.total_buildings}</p>
             </div>
-            <div className="bg-paper rounded-lg shadow-md p-4 border border-ink/10">
-              <p className="text-sm font-medium text-ink/60">Total Floors</p>
-              <p className="text-2xl font-bold text-ink mt-1">{portfolioMetrics.total_floors}</p>
+            <div className="bg-paper rounded-lg shadow-sm p-3 border border-ink/20">
+              <p className="text-xs font-medium text-ink/50 uppercase tracking-wider">Total Floors</p>
+              <p className="text-xl font-bold text-ink mt-1">{portfolioMetrics.total_floors}</p>
             </div>
           </div>
 
-          <div className="bg-paper rounded-lg shadow-md p-6 border border-ink/10">
-            <h3 className="text-lg font-semibold mb-4 text-ink">Project Distribution by Type</h3>
+          <div className="bg-paper rounded-lg shadow-sm p-5 border border-ink/20">
+            <h3 className="text-sm font-semibold mb-4 text-ink uppercase tracking-wider">Project Distribution by Type</h3>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
@@ -639,9 +639,9 @@ const EnterpriseAnalytics: React.FC = () => {
 
   const TeamAnalytics = () => (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-ink">Team Analytics</h2>
+      <h2 className="text-xl font-bold text-ink">Team Analytics</h2>
       
-      <div className="bg-paper rounded-lg shadow-md overflow-hidden border border-ink/10">
+      <div className="bg-paper rounded-lg shadow-sm overflow-hidden border border-ink/20">
         <table className="min-w-full divide-y divide-ink/10">
           <thead className="bg-paper-2">
             <tr>
@@ -672,25 +672,25 @@ const EnterpriseAnalytics: React.FC = () => {
 
   const ApprovalAnalytics = () => (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-ink">Approval Workflow Analytics</h2>
+      <h2 className="text-xl font-bold text-ink">Approval Workflow Analytics</h2>
       
       {approvalMetrics && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-paper rounded-lg shadow-md p-4 border border-ink/10">
-            <p className="text-sm font-medium text-ink/60">Pending Approvals</p>
-            <p className="text-2xl font-bold text-yellow-500 mt-1">{approvalMetrics.pending_approvals}</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="bg-paper rounded-lg shadow-sm p-3 border border-ink/20">
+            <p className="text-xs font-medium text-ink/50 uppercase tracking-wider">Pending Approvals</p>
+            <p className="text-xl font-bold text-yellow-500 mt-1">{approvalMetrics.pending_approvals}</p>
           </div>
-          <div className="bg-paper rounded-lg shadow-md p-4 border border-ink/10">
-            <p className="text-sm font-medium text-ink/60">Approved Reports</p>
-            <p className="text-2xl font-bold text-green-500 mt-1">{approvalMetrics.approved_reports}</p>
+          <div className="bg-paper rounded-lg shadow-sm p-3 border border-ink/20">
+            <p className="text-xs font-medium text-ink/50 uppercase tracking-wider">Approved Reports</p>
+            <p className="text-xl font-bold text-green-500 mt-1">{approvalMetrics.approved_reports}</p>
           </div>
-          <div className="bg-paper rounded-lg shadow-md p-4 border border-ink/10">
-            <p className="text-sm font-medium text-ink/60">Rejected Reports</p>
-            <p className="text-2xl font-bold text-red-500 mt-1">{approvalMetrics.rejected_reports}</p>
+          <div className="bg-paper rounded-lg shadow-sm p-3 border border-ink/20">
+            <p className="text-xs font-medium text-ink/50 uppercase tracking-wider">Rejected Reports</p>
+            <p className="text-xl font-bold text-red-500 mt-1">{approvalMetrics.rejected_reports}</p>
           </div>
-          <div className="bg-paper rounded-lg shadow-md p-4 border border-ink/10">
-            <p className="text-sm font-medium text-ink/60">Avg Approval Time</p>
-            <p className="text-2xl font-bold text-ink mt-1">{approvalMetrics.avg_approval_time_hours}h</p>
+          <div className="bg-paper rounded-lg shadow-sm p-3 border border-ink/20">
+            <p className="text-xs font-medium text-ink/50 uppercase tracking-wider">Avg Approval Time</p>
+            <p className="text-xl font-bold text-ink mt-1">{approvalMetrics.avg_approval_time_hours}h</p>
           </div>
         </div>
       )}
@@ -699,36 +699,36 @@ const EnterpriseAnalytics: React.FC = () => {
 
   const AuditComplianceAnalytics = () => (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-ink">Audit & Compliance Analytics</h2>
+      <h2 className="text-xl font-bold text-ink">Audit & Compliance Analytics</h2>
       
-      <div className="bg-paper rounded-lg shadow-md p-6 border border-ink/10">
-        <h3 className="text-lg font-semibold mb-4 text-ink">Audit Summary</h3>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <div className="bg-accent/10 rounded-lg p-4">
-            <p className="text-sm font-medium text-accent">Uploads</p>
-            <p className="text-2xl font-bold text-ink mt-1">1,245</p>
+      <div className="bg-paper rounded-lg shadow-sm p-5 border border-ink/20">
+        <h3 className="text-sm font-semibold mb-4 text-ink uppercase tracking-wider">Audit Summary</h3>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div className="bg-accent/10 rounded-lg p-3">
+            <p className="text-xs font-medium text-accent uppercase tracking-wider">Uploads</p>
+            <p className="text-xl font-bold text-ink mt-1">1,245</p>
           </div>
-          <div className="bg-green-500/10 rounded-lg p-4">
-            <p className="text-sm font-medium text-green-500">Analyses</p>
-            <p className="text-2xl font-bold text-ink mt-1">892</p>
+          <div className="bg-green-500/10 rounded-lg p-3">
+            <p className="text-xs font-medium text-green-500 uppercase tracking-wider">Analyses</p>
+            <p className="text-xl font-bold text-ink mt-1">892</p>
           </div>
-          <div className="bg-yellow-500/10 rounded-lg p-4">
-            <p className="text-sm font-medium text-yellow-500">Corrections</p>
-            <p className="text-2xl font-bold text-ink mt-1">156</p>
+          <div className="bg-yellow-500/10 rounded-lg p-3">
+            <p className="text-xs font-medium text-yellow-500 uppercase tracking-wider">Corrections</p>
+            <p className="text-xl font-bold text-ink mt-1">156</p>
           </div>
-          <div className="bg-purple-500/10 rounded-lg p-4">
-            <p className="text-sm font-medium text-purple-500">Exports</p>
-            <p className="text-2xl font-bold text-ink mt-1">423</p>
+          <div className="bg-purple-500/10 rounded-lg p-3">
+            <p className="text-xs font-medium text-purple-500 uppercase tracking-wider">Exports</p>
+            <p className="text-xl font-bold text-ink mt-1">423</p>
           </div>
-          <div className="bg-red-500/10 rounded-lg p-4">
-            <p className="text-sm font-medium text-red-500">Approvals</p>
-            <p className="text-2xl font-bold text-ink mt-1">165</p>
+          <div className="bg-red-500/10 rounded-lg p-3">
+            <p className="text-xs font-medium text-red-500 uppercase tracking-wider">Approvals</p>
+            <p className="text-xl font-bold text-ink mt-1">165</p>
           </div>
         </div>
       </div>
 
-      <div className="bg-paper rounded-lg shadow-md p-6 border border-ink/10">
-        <h3 className="text-lg font-semibold mb-4 text-ink">Recent Audit Logs</h3>
+      <div className="bg-paper rounded-lg shadow-sm p-5 border border-ink/20">
+        <h3 className="text-sm font-semibold mb-4 text-ink uppercase tracking-wider">Recent Audit Logs</h3>
         <div className="space-y-3">
           {[
             { action: 'UPLOAD', user: 'user1', project: 'Project A', time: '2 hours ago' },
@@ -753,11 +753,11 @@ const EnterpriseAnalytics: React.FC = () => {
 
   const BenchmarkingDashboard = () => (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-ink">Benchmarking Dashboard</h2>
+      <h2 className="text-xl font-bold text-ink">Benchmarking Dashboard</h2>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-paper rounded-lg shadow-md p-6 border border-ink/10">
-          <h3 className="text-lg font-semibold mb-4 text-ink">Cost per Sq Ft Benchmarking</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-paper rounded-lg shadow-sm p-5 border border-ink/20">
+          <h3 className="text-sm font-semibold mb-4 text-ink uppercase tracking-wider">Cost per Sq Ft Benchmarking</h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={[
               { name: 'Your Project', value: 2250 },
@@ -773,8 +773,8 @@ const EnterpriseAnalytics: React.FC = () => {
           </ResponsiveContainer>
         </div>
 
-        <div className="bg-paper rounded-lg shadow-md p-6 border border-ink/10">
-          <h3 className="text-lg font-semibold mb-4 text-ink">Material Usage Benchmarking</h3>
+        <div className="bg-paper rounded-lg shadow-sm p-5 border border-ink/20">
+          <h3 className="text-sm font-semibold mb-4 text-ink uppercase tracking-wider">Material Usage Benchmarking</h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={[
               { name: 'Steel', your: 2800, benchmark: 3000 },
@@ -792,8 +792,8 @@ const EnterpriseAnalytics: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-paper rounded-lg shadow-md p-6 border border-ink/10">
-        <h3 className="text-lg font-semibold mb-4 text-ink">Variance Analysis</h3>
+      <div className="bg-paper rounded-lg shadow-sm p-5 border border-ink/20">
+        <h3 className="text-sm font-semibold mb-4 text-ink uppercase tracking-wider">Variance Analysis</h3>
         <div className="space-y-3">
           {[
             { metric: 'Cost/Sq Ft', your: 2250, benchmark: 2100, variance: 7.1 },
@@ -843,10 +843,10 @@ const EnterpriseAnalytics: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-paper">
-      <div className="bg-paper shadow-sm border-b border-ink/10">
+      <div className="bg-paper shadow-sm border-b border-ink/20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="py-6">
-            <h1 className="text-3xl font-bold text-ink">Enterprise Analytics</h1>
+            <h1 className="text-2xl font-bold text-ink">Enterprise Analytics</h1>
             <p className="mt-1 text-sm text-ink/60">World-class analytics for construction professionals</p>
           </div>
         </div>
@@ -886,12 +886,12 @@ const EnterpriseAnalytics: React.FC = () => {
           </button>
         </div>
 
-        <div className="flex space-x-4 border-b border-ink/10 mb-6">
+        <div className="flex space-x-1 border-b border-ink/20 mb-6">
           {tabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              className={`px-4 py-2 text-xs font-medium border-b-2 transition-colors ${
                 activeTab === tab.id
                   ? 'border-accent text-accent'
                   : 'border-transparent text-ink/60 hover:text-ink'

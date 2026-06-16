@@ -49,17 +49,10 @@ app.include_router(room_editor_router, prefix="/api/v1")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        o for o in [
-            "http://localhost:3000",
-            "http://127.0.0.1:3000",
-            "http://localhost:5173",
-            "http://127.0.0.1:5173",
-            "http://localhost:5174",
-            "http://127.0.0.1:5174",
-            "http://localhost:5175",
-            "http://127.0.0.1:5175",
-            os.environ.get("FRONTEND_ORIGIN", ""),
-        ] if o
+        "https://archvision.me",
+        "https://www.archvision.me",
+        "http://localhost:3000",       # keep for local dev
+        "http://localhost:5173",       # keep for local dev
     ],
     allow_credentials=True,
     allow_methods=["*"],

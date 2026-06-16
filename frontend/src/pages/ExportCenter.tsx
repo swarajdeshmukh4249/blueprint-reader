@@ -3,14 +3,22 @@ import { Download, FileText, FileSpreadsheet, Image as ImageIcon, Package, Searc
 import Container from '@/components/Container'
 import { useState, useEffect } from 'react'
 import { blueprintFilesApi, projectsApi } from '@/lib/api'
+import { useAuth } from '@clerk/clerk-react'
 
 export default function ExportCenter() {
+  const { getToken } = useAuth()
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedFormat, setSelectedFormat] = useState('all')
   const [blueprintFiles, setBlueprintFiles] = useState<any[]>([])
   const [projects, setProjects] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [exporting, setExporting] = useState<string | null>(null)
 
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  // Refresh data when component mounts or when navigating to it
   useEffect(() => {
     loadData()
   }, [])
@@ -77,6 +85,103 @@ export default function ExportCenter() {
     }
   }
 
+  const handleExport = async (fileId: string, format: string) => {
+    try {
+      setExporting(fileId)
+      const token = await getToken()
+      
+      // Get the file details
+      const file = blueprintFiles.find(f => f.id === fileId)
+      if (!file || !file.analysis_result) {
+        alert('No analysis data available for export')
+        return
+      }
+
+      const analysisResult = file.analysis_result
+      let content = ''
+      let mimeType = ''
+      let filename = `${file.filename.replace(/\.[^/.]+$/, '')}_${format}`
+
+      switch (format) {
+        case 'csv':
+          // Export as CSV
+          const rooms = analysisResult.rooms || []
+          const headers = ['name', 'area', 'unit', 'confidence']
+          const csvRows = [headers.join(',')]
+          rooms.forEach((room: any) => {
+            csvRows.push([room.name, room.area, room.unit, room.confidence].join(','))
+          })
+          content = csvRows.join('\n')
+          mimeType = 'text/csv'
+          filename += '.csv'
+          break
+
+        case 'xlsx':
+          // For Excel, we'll create a simple CSV for now (would need a library for true Excel)
+          const boq = analysisResult.boq || []
+          const boqHeaders = ['item', 'quantity', 'rate', 'unit', 'amount']
+          const boqRows = [boqHeaders.join(',')]
+          boq.forEach((item: any) => {
+            boqRows.push([item.item, item.quantity, item.rate, item.unit, item.amount].join(','))
+          })
+          content = boqRows.join('\n')
+          mimeType = 'text/csv'
+          filename += '_boq.csv'
+          break
+
+        case 'pdf':
+          // For PDF, we'll create a simple text report for now
+          const report = `
+Blueprint Analysis Report
+========================
+File: ${file.filename}
+Date: ${new Date().toLocaleString()}
+
+Summary:
+-------
+Total Area: ${analysisResult.total_area || 'N/A'}
+Room Count: ${analysisResult.room_count || analysisResult.rooms?.length || 0}
+
+Rooms:
+------
+${(analysisResult.rooms || []).map((r: any) => 
+  `- ${r.name}: ${r.area} ${r.unit || ''} (confidence: ${Math.round((r.confidence || 0) * 100)}%)
+`).join('\n')}
+
+Bill of Quantities:
+------------------
+${(analysisResult.boq || []).map((b: any) => 
+  `- ${b.item}: ${b.quantity} ${b.unit || ''} @ ${b.rate} = ${b.amount}
+`).join('\n')}
+          `
+          content = report
+          mimeType = 'text/plain'
+          filename += '.txt'
+          break
+
+        default:
+          content = JSON.stringify(analysisResult, null, 2)
+          mimeType = 'application/json'
+          filename += '.json'
+      }
+
+      // Create download
+      const blob = new Blob([content], { type: mimeType })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      a.click()
+      URL.revokeObjectURL(url)
+
+    } catch (error) {
+      console.error('Export failed:', error)
+      alert('Export failed. Please try again.')
+    } finally {
+      setExporting(null)
+    }
+  }
+
   return (
     <SignedIn>
       <div className="min-h-screen">
@@ -133,8 +238,16 @@ export default function ExportCenter() {
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-paper">
                     {getIcon(exp.type)}
                   </div>
-                  <button className="rounded-full border border-ink/15 bg-paper p-2 text-ink/70 transition hover:bg-accent hover:text-paper">
-                    <Download className="h-4 w-4" />
+                  <button 
+                    onClick={() => handleExport(exp.id, exp.type)}
+                    disabled={exporting === exp.id}
+                    className="rounded-full border border-ink/15 bg-paper p-2 text-ink/70 transition hover:bg-accent hover:text-paper disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {exporting === exp.id ? (
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-ink/10 border-t-accent" />
+                    ) : (
+                      <Download className="h-4 w-4" />
+                    )}
                   </button>
                 </div>
 
@@ -164,55 +277,10 @@ export default function ExportCenter() {
               </p>
             </div>
           )}
-
-          {/* Export Options */}
-          <div className="mt-8 rounded-lg border border-ink/10 bg-paper-2/50 p-6">
-            <h2 className="font-display text-xl tracking-tight text-ink">Export Options</h2>
-            <p className="mt-1 text-sm text-ink/70">
-              Create new exports from your analysis results
-            </p>
-
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <ExportOption
-                title="PDF Report"
-                description="Complete analysis report in PDF format"
-                icon={<FileText className="h-6 w-6 text-red-500" />}
-              />
-              <ExportOption
-                title="Excel BOQ"
-                description="Bill of Quantities in Excel format"
-                icon={<FileSpreadsheet className="h-6 w-6 text-green-500" />}
-              />
-              <ExportOption
-                title="Image Export"
-                description="Blueprint images in high resolution"
-                icon={<ImageIcon className="h-6 w-6 text-blue-500" />}
-              />
-              <ExportOption
-                title="Complete Package"
-                description="All files in a single ZIP archive"
-                icon={<Package className="h-6 w-6 text-yellow-500" />}
-              />
-            </div>
-          </div>
             </>
           )}
         </Container>
       </div>
     </SignedIn>
-  )
-}
-
-function ExportOption({ title, description, icon }: { title: string; description: string; icon: React.ReactNode }) {
-  return (
-    <button className="flex flex-col items-start rounded-lg border border-ink/15 bg-paper p-4 text-left transition hover:border-accent/30 hover:shadow-md">
-      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-paper-2">
-        {icon}
-      </div>
-      <div className="mt-3">
-        <h3 className="text-sm font-medium text-ink">{title}</h3>
-        <p className="mt-1 text-xs text-ink/70">{description}</p>
-      </div>
-    </button>
   )
 }

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import AnalyticsFilterBar from '@/components/AnalyticsFilterBar'
-import { organizationsApi, projectsApi } from '@/lib/api'
+import { organizationsApi, projectsApi, blueprintFilesApi } from '@/lib/api'
 import { Download } from 'lucide-react'
+import { useLocation } from 'react-router-dom'
 
 // Types
 interface KPICard {
@@ -106,6 +107,7 @@ interface ApprovalMetrics {
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16']
 
 const EnterpriseAnalytics: React.FC = () => {
+  const location = useLocation()
   const [activeTab, setActiveTab] = useState('executive')
   const [organizationId, setOrganizationId] = useState('demo-org-1')
   const [loading, setLoading] = useState(true)
@@ -134,6 +136,7 @@ const EnterpriseAnalytics: React.FC = () => {
   // Organizations and projects for filter dropdowns
   const [organizations, setOrganizations] = useState<{ id: string; name: string }[]>([])
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([])
+  const [blueprintFiles, setBlueprintFiles] = useState<any[]>([])
 
   // Load organizations and projects for filters
   useEffect(() => {
@@ -144,12 +147,28 @@ const EnterpriseAnalytics: React.FC = () => {
         
         const projs = await projectsApi.list()
         setProjects(projs.map((p: any) => ({ id: p.id, name: p.name })))
+        
+        const files = await blueprintFilesApi.list()
+        setBlueprintFiles(files)
       } catch (err) {
         console.error('Failed to load filter data:', err)
       }
     }
     loadFilterData()
   }, [])
+
+  // Refresh data when navigating to analytics page
+  useEffect(() => {
+    const loadFilterData = async () => {
+      try {
+        const files = await blueprintFilesApi.list()
+        setBlueprintFiles(files)
+      } catch (err) {
+        console.error('Failed to load blueprint files:', err)
+      }
+    }
+    loadFilterData()
+  }, [location.key])
 
   // Handle export
   const handleExport = async (format: 'pdf' | 'excel' | 'csv') => {
@@ -202,121 +221,52 @@ const EnterpriseAnalytics: React.FC = () => {
     }
   }
 
-  // Fetch real data from backend APIs
+  // Calculate analytics from real blueprint files data
   useEffect(() => {
-    const fetchAnalyticsData = async () => {
-      try {
-        const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
-        
-        // Build query params from filters
-        const queryParams = new URLSearchParams()
-        if (filters.startDate) queryParams.append('start_date', filters.startDate)
-        if (filters.endDate) queryParams.append('end_date', filters.endDate)
-        if (filters.organizationId) queryParams.append('organization_id', filters.organizationId)
-        if (filters.projectId) queryParams.append('project_id', filters.projectId)
-        if (filters.region) queryParams.append('region', filters.region)
-        if (filters.buildingType) queryParams.append('building_type', filters.buildingType)
-        
-        // Use filtered organization ID or default
-        const orgId = filters.organizationId || organizationId
-        const queryString = queryParams.toString()
-        
-        // Fetch Executive KPIs
-        const kpisResponse = await fetch(`${API_BASE}/analytics/executive-kpis/${orgId}?period=monthly${queryString ? '&' + queryString : ''}`)
-        if (kpisResponse.ok) {
-          const kpisData = await kpisResponse.json()
-          setKPIs([
-            { title: 'Total Projects', value: kpisData.total_projects, trend: kpisData.projects_trend },
-            { title: 'Active Projects', value: kpisData.active_projects, trend: 0 },
-            { title: 'Completed Projects', value: kpisData.completed_projects, trend: 0 },
-            { title: 'Total Floor Area', value: (kpisData.total_floor_area_sqft / 1000000).toFixed(1) + 'M', trend: kpisData.cost_per_sqft_trend, unit: 'sq ft' },
-            { title: 'Total BOQ Value', value: '₹' + (kpisData.total_boq_value / 10000000).toFixed(1) + ' Cr', trend: kpisData.boq_value_trend },
-            { title: 'Avg Cost/Sq Ft', value: '₹' + kpisData.avg_cost_per_sqft.toFixed(0), trend: kpisData.cost_per_sqft_trend },
-            { title: 'Avg Project Cost', value: '₹' + (kpisData.avg_project_cost / 10000000).toFixed(1) + ' Cr', trend: 0 },
-          ])
+    const calculateAnalytics = () => {
+      if (blueprintFiles.length === 0) return
+      
+      const analyzedFiles = blueprintFiles.filter(f => f.status === 'analyzed')
+      
+      // Calculate KPIs from real data
+      const totalProjects = new Set(analyzedFiles.map(f => f.project_id)).size
+      const totalArea = analyzedFiles.reduce((sum, f) => sum + (f.total_area || 0), 0)
+      const totalRooms = analyzedFiles.reduce((sum, f) => sum + (f.room_count || 0), 0)
+      
+      setKPIs([
+        { title: 'Total Projects', value: totalProjects, trend: 0 },
+        { title: 'Analyzed Files', value: analyzedFiles.length, trend: 0 },
+        { title: 'Total Area (sq ft)', value: Math.round(totalArea).toLocaleString(), trend: 0 },
+        { title: 'Total Rooms', value: totalRooms, trend: 0 },
+      ])
+      
+      // Calculate cost breakdown from BOQ data
+      const costBreakdown: CostBreakdownData[] = []
+      analyzedFiles.forEach(file => {
+        if (file.analysis_result?.boq) {
+          file.analysis_result.boq.forEach((item: any) => {
+            const existing = costBreakdown.find(c => c.category === item.category)
+            if (existing) {
+              existing.cost += item.amount || 0
+            } else {
+              costBreakdown.push({ category: item.category, cost: item.amount || 0, percentage: 0 })
+            }
+          })
         }
-
-        // Fetch Cost Trends
-        const costTrendsResponse = await fetch(`${API_BASE}/analytics/cost-trends/${orgId}?${queryString || 'start_date=2024-01-01&end_date=2024-06-30'}`)
-        if (costTrendsResponse.ok) {
-          const costTrendsData = await costTrendsResponse.json()
-          setCostTrends(costTrendsData.map((item: any) => ({
-            date: new Date(item.date).toLocaleDateString('en-US', { month: 'short' }),
-            total_cost: item.total_cost,
-            material_cost: item.material_cost,
-            labour_cost: item.labour_cost,
-            overhead_cost: item.overhead_cost,
-          })))
-        }
-
-        // Fetch Cost Breakdown
-        const costBreakdownResponse = await fetch(`${API_BASE}/analytics/cost-breakdown/${organizationId}`)
-        if (costBreakdownResponse.ok) {
-          const costBreakdownData = await costBreakdownResponse.json()
-          setCostBreakdown(costBreakdownData)
-        }
-
-        // Fetch Material Quantities
-        const materialQuantitiesResponse = await fetch(`${API_BASE}/analytics/material-quantities/${organizationId}`)
-        if (materialQuantitiesResponse.ok) {
-          const materialQuantitiesData = await materialQuantitiesResponse.json()
-          setMaterialQuantities(materialQuantitiesData)
-        }
-
-        // Fetch Regional Rates
-        const regionalRatesResponse = await fetch(`${API_BASE}/analytics/regional-rates/${organizationId}`)
-        if (regionalRatesResponse.ok) {
-          const regionalRatesData = await regionalRatesResponse.json()
-          setRegionalRates(regionalRatesData)
-        }
-
-        // Fetch AI Quality Metrics
-        const aiQualityResponse = await fetch(`${API_BASE}/analytics/ai-quality/${organizationId}`)
-        if (aiQualityResponse.ok) {
-          const aiQualityData = await aiQualityResponse.json()
-          setAIQuality(aiQualityData)
-        }
-
-        // Fetch Room Type Corrections
-        const roomTypeCorrectionsResponse = await fetch(`${API_BASE}/analytics/room-type-corrections/${organizationId}`)
-        if (roomTypeCorrectionsResponse.ok) {
-          const roomTypeCorrectionsData = await roomTypeCorrectionsResponse.json()
-          setRoomTypeCorrections(roomTypeCorrectionsData)
-        }
-
-        // Fetch Portfolio Metrics
-        const portfolioResponse = await fetch(`${API_BASE}/analytics/portfolio/${organizationId}`)
-        if (portfolioResponse.ok) {
-          const portfolioData = await portfolioResponse.json()
-          setPortfolioMetrics(portfolioData)
-        }
-
-        // Fetch Approval Metrics
-        const approvalResponse = await fetch(`${API_BASE}/analytics/approval-metrics/${organizationId}`)
-        if (approvalResponse.ok) {
-          const approvalData = await approvalResponse.json()
-          setApprovalMetrics(approvalData)
-        }
-
-      } catch (error) {
-        console.error('Error fetching analytics data:', error)
-        // Fall back to mock data if API fails
-        setKPIs([
-          { title: 'Total Projects', value: 0, trend: 0 },
-          { title: 'Active Projects', value: 0, trend: 0 },
-          { title: 'Completed Projects', value: 0, trend: 0 },
-          { title: 'Total Floor Area', value: '0', trend: 0, unit: 'sq ft' },
-          { title: 'Total BOQ Value', value: '₹0', trend: 0 },
-          { title: 'Avg Cost/Sq Ft', value: '₹0', trend: 0 },
-          { title: 'Avg Project Cost', value: '₹0', trend: 0 },
-        ])
-      } finally {
-        setLoading(false)
-      }
+      })
+      
+      // Calculate percentages
+      const totalCost = costBreakdown.reduce((sum, c) => sum + c.cost, 0)
+      costBreakdown.forEach(c => {
+        c.percentage = totalCost > 0 ? (c.cost / totalCost) * 100 : 0
+      })
+      
+      setCostBreakdown(costBreakdown)
+      setLoading(false)
     }
-
-    fetchAnalyticsData()
-  }, [organizationId])
+    
+    calculateAnalytics()
+  }, [blueprintFiles])
 
   const KPICard: React.FC<KPICard> = ({ title, value, trend, unit }) => (
     <div className="bg-paper rounded-lg shadow-sm p-4 border border-ink/20 hover:shadow-md transition-shadow">

@@ -108,17 +108,26 @@ async def list_organizations(
 ):
     """List organizations for current user"""
     
-    # Optional authentication - if token provided, verify it
+    # Get current user
+    user = None
     if authorization:
         try:
             token = authorization.replace("Bearer ", "")
-            await verify_jwt(token)
+            user_data = await verify_jwt(token)
+            # Get user from database
+            clerk_user_id = user_data.get('sub')
+            user = db.query(User).filter(User.clerk_user_id == clerk_user_id).first()
         except Exception:
-            # If token verification fails, still allow the request for now
-            pass
+            # If token verification fails, return empty list
+            return []
     
-    # This would filter by user's memberships
-    organizations = db.query(Organization).all()
+    # Filter by user's memberships
+    if user:
+        user_org_ids = [m.organization_id for m in db.query(OrganizationMember).filter(OrganizationMember.user_id == user.id).all()]
+        organizations = db.query(Organization).filter(Organization.id.in_(user_org_ids)).all()
+    else:
+        # No authenticated user, return empty list
+        organizations = []
     
     return [
         OrganizationResponse(

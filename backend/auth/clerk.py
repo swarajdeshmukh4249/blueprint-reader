@@ -51,7 +51,47 @@ async def get_current_user_db(
     user = db.query(User).filter(User.clerk_user_id == clerk_user_id).first()
     
     if not user:
-        raise HTTPException(status_code=404, detail="User not found in database")
+        # Auto-create user if not exists
+        from models import Organization, OrganizationMember
+        import uuid
+        
+        # Get user info from Clerk
+        clerk_user = await get_user_from_clerk(clerk_user_id)
+        
+        # Create user
+        user = User(
+            clerk_user_id=clerk_user_id,
+            email=clerk_user.get('email_addresses', [{}])[0].get('email_address') if clerk_user.get('email_addresses') else '',
+            first_name=clerk_user.get('first_name'),
+            last_name=clerk_user.get('last_name'),
+            avatar_url=clerk_user.get('profile_image_url')
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        
+        # Create personal organization for user
+        org_name = f"{user.first_name or 'User'}'s Organization" if user.first_name else "Personal Organization"
+        org_slug = f"{user.email.split('@')[0]}-org" if user.email else f"user-{user.id}"
+        
+        org = Organization(
+            name=org_name,
+            slug=org_slug
+        )
+        db.add(org)
+        db.commit()
+        db.refresh(org)
+        
+        # Add user as admin of their organization
+        member = OrganizationMember(
+            id=str(uuid.uuid4()),
+            user_id=user.id,
+            organization_id=org.id,
+            role='admin',
+            invited_by=user.id
+        )
+        db.add(member)
+        db.commit()
     
     return user
 

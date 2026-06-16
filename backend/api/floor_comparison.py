@@ -16,7 +16,7 @@ from utils.errors import (
     FloorNotAnalyzedError,
     FloorNotCalibratedError
 )
-from auth.clerk import get_current_user
+from auth.clerk import get_current_user, verify_jwt
 
 router = APIRouter(prefix="/floor-comparison", tags=["floor-comparison"])
 
@@ -35,6 +35,9 @@ class RoomDiff(BaseModel):
 class FloorComparisonRequest(BaseModel):
     floor_a_id: str
     floor_b_id: str
+    project_id: Optional[str] = None
+    floor_a_label: Optional[str] = None
+    floor_b_label: Optional[str] = None
 
 class FloorComparisonResponse(BaseModel):
     comparison_id: str
@@ -47,10 +50,18 @@ class FloorComparisonResponse(BaseModel):
 @router.post("/compare")
 async def compare_floors(
     request: FloorComparisonRequest,
-    current_user: dict = Depends(get_current_user),
+    authorization: Optional[str] = Header(None),
     db: Session = Depends(get_db)
 ):
     """Compare two floors using weighted room matching algorithm"""
+    
+    # Optional authentication
+    if authorization:
+        try:
+            verify_jwt(authorization.replace("Bearer ", ""))
+        except Exception as e:
+            print(f"Auth failed: {e}")
+            pass  # Allow request to proceed even if auth fails
     
     # Validate that floors are different
     if request.floor_a_id == request.floor_b_id:
@@ -74,17 +85,12 @@ async def compare_floors(
     
     # Check if floors have been analyzed
     if not floor_a.analysis_result or not floor_b.analysis_result:
-        raise FloorNotAnalyzedError(floor_a.name if floor_a.name else "A")
-    
-    # Check calibration status (warning, not error)
-    if not floor_a.is_calibrated or not floor_b.is_calibrated:
-        # This is a warning, not an error
-        pass
+        raise FloorNotAnalyzedError(floor_a.filename if floor_a.filename else "A")
     
     # Prepare floor data for comparison
     floor_a_data = {
         "id": str(floor_a.id),
-        "label": floor_a.name or "Floor A",
+        "label": floor_a.filename or "Floor A",
         "rooms": floor_a.analysis_result.get("rooms", []),
         "total_area_m2": floor_a.analysis_result.get("total_area", 0),
         "boq_cost": floor_a.analysis_result.get("boq_total", 0)
@@ -92,7 +98,7 @@ async def compare_floors(
     
     floor_b_data = {
         "id": str(floor_b.id),
-        "label": floor_b.name or "Floor B",
+        "label": floor_b.filename or "Floor B",
         "rooms": floor_b.analysis_result.get("rooms", []),
         "total_area_m2": floor_b.analysis_result.get("total_area", 0),
         "boq_cost": floor_b.analysis_result.get("boq_total", 0)

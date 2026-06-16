@@ -290,6 +290,19 @@ async def get_analysis(
     if not analysis:
         raise HTTPException(status_code=404, detail="Analysis not found")
     
+    # Check user has access to the project
+    clerk_user_id = current_user.get('sub')
+    if clerk_user_id:
+        from models import User, OrganizationMember
+        user = db.query(User).filter(User.clerk_user_id == clerk_user_id).first()
+        if user:
+            # Get project and check organization access
+            project = db.query(Project).filter(Project.id == analysis.project_id).first()
+            if project:
+                user_org_ids = [m.organization_id for m in db.query(OrganizationMember).filter(OrganizationMember.user_id == user.id).all()]
+                if project.organization_id not in user_org_ids:
+                    raise HTTPException(status_code=403, detail="Access denied to this analysis")
+    
     return AnalysisResponse(
         id=str(analysis.id),
         project_id=str(analysis.project_id),
@@ -308,6 +321,18 @@ async def list_project_analyses(
     db: Session = Depends(get_db)
 ):
     """List all analyses for a project"""
+    
+    # Check user has access to the project
+    clerk_user_id = current_user.get('sub')
+    if clerk_user_id:
+        from models import User, OrganizationMember
+        user = db.query(User).filter(User.clerk_user_id == clerk_user_id).first()
+        if user:
+            project = db.query(Project).filter(Project.id == uuid.UUID(project_id)).first()
+            if project:
+                user_org_ids = [m.organization_id for m in db.query(OrganizationMember).filter(OrganizationMember.user_id == user.id).all()]
+                if project.organization_id not in user_org_ids:
+                    raise HTTPException(status_code=403, detail="Access denied to this project")
     
     analyses = db.query(AnalysisVersion).filter(
         AnalysisVersion.project_id == uuid.UUID(project_id)

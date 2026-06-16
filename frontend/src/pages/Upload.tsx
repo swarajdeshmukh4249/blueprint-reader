@@ -1,12 +1,12 @@
-import { FileUp, Loader2, Sparkles, X, Lock } from 'lucide-react'
-import { useMemo, useRef, useState } from 'react'
+import { FileUp, Loader2, Sparkles, X, Lock, Plus, FolderOpen } from 'lucide-react'
+import { useMemo, useRef, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
 import { analyzeBlueprint } from '@/api/analyzeBlueprint'
 import Container from '@/components/Container'
 import { cn } from '@/lib/utils'
 import { useAnalysisStore } from '@/stores/useAnalysisStore'
-import { blueprintFilesApi } from '@/lib/api'
+import { blueprintFilesApi, projectsApi } from '@/lib/api'
 
 const ACCEPTED = [
   '.pdf',
@@ -32,6 +32,11 @@ export default function Upload() {
   const inputRef = useRef<HTMLInputElement | null>(null)
   const [file, setFile] = useState<File | null>(null)
   const [dragging, setDragging] = useState(false)
+  const [projects, setProjects] = useState<any[]>([])
+  const [selectedProject, setSelectedProject] = useState<string | null>(null)
+  const [showCreateProject, setShowCreateProject] = useState(false)
+  const [newProjectName, setNewProjectName] = useState('')
+  const [loadingProjects, setLoadingProjects] = useState(true)
 
   const status = useAnalysisStore((s) => s.status)
   const errorMessage = useAnalysisStore((s) => s.errorMessage)
@@ -40,6 +45,42 @@ export default function Upload() {
   const setError = useAnalysisStore((s) => s.setError)
 
   const canSubmit = useMemo(() => status !== 'processing' && !!file && isSignedIn, [status, file, isSignedIn])
+
+  // Load projects on mount
+  useEffect(() => {
+    if (isLoaded && isSignedIn) {
+      loadProjects()
+    }
+  }, [isLoaded, isSignedIn])
+
+  const loadProjects = async () => {
+    try {
+      setLoadingProjects(true)
+      const projectsData = await projectsApi.list()
+      setProjects(projectsData)
+    } catch (error) {
+      console.error('Failed to load projects:', error)
+    } finally {
+      setLoadingProjects(false)
+    }
+  }
+
+  const handleCreateProject = async () => {
+    if (!newProjectName.trim()) return
+    try {
+      const newProject = await projectsApi.create({
+        name: newProjectName,
+        building_type: 'residential',
+        status: 'active'
+      })
+      setProjects([...projects, newProject])
+      setSelectedProject(newProject.id)
+      setNewProjectName('')
+      setShowCreateProject(false)
+    } catch (error) {
+      console.error('Failed to create project:', error)
+    }
+  }
 
   async function onSubmit() {
     if (!file) return
@@ -51,7 +92,7 @@ export default function Upload() {
       
       // Save the analysis results to database for analytics
       try {
-        await fetch('/api/v1/blueprint-files/save-analysis', {
+        const saveResponse = await fetch('/api/v1/blueprint-files/save-analysis', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -59,14 +100,28 @@ export default function Upload() {
           },
           body: JSON.stringify({
             filename: file.name,
+            project_id: selectedProject,
             analysis_result: res,
             total_area: res.totals?.total_area || null,
             room_count: res.totals?.room_count || res.rooms?.length || null,
           })
         })
+        console.log('Save analysis response status:', saveResponse.status)
+        console.log('Save analysis response URL:', '/api/v1/blueprint-files/save-analysis')
+        
+        if (!saveResponse.ok) {
+          const errorText = await saveResponse.text()
+          console.error('Save analysis failed:', saveResponse.status, errorText)
+          alert(`Failed to save analysis: ${saveResponse.status} - ${errorText}`)
+          return
+        }
+        
+        const savedData = await saveResponse.json()
+        console.log('Analysis saved successfully:', savedData)
       } catch (saveError) {
         console.error('Failed to save analysis to database:', saveError)
-        // Don't block the user if saving fails
+        alert('Failed to save analysis to database. Please try again.')
+        return
       }
       
       navigate('/results')
@@ -119,6 +174,50 @@ export default function Upload() {
           </div>
 
           <div className="md:col-span-7">
+            {/* Project Selection */}
+            <div className="mb-6 rounded-lg border border-ink/20 bg-paper shadow-sm p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <FolderOpen className="h-4 w-4 text-ink/60" />
+                  <span className="text-sm font-medium text-ink">Select Project</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCreateProject(true)}
+                  className="flex items-center gap-1 text-xs text-accent hover:text-accent/80"
+                >
+                  <Plus className="h-3 w-3" />
+                  Create New
+                </button>
+              </div>
+              {loadingProjects ? (
+                <div className="text-sm text-ink/60">Loading projects...</div>
+              ) : projects.length === 0 ? (
+                <div className="text-sm text-ink/60">
+                  No projects yet. <button
+                    type="button"
+                    onClick={() => setShowCreateProject(true)}
+                    className="text-accent hover:underline"
+                  >
+                    Create your first project
+                  </button>
+                </div>
+              ) : (
+                <select
+                  value={selectedProject || ''}
+                  onChange={(e) => setSelectedProject(e.target.value || null)}
+                  className="w-full rounded-lg border border-ink/15 bg-paper-2/50 px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+                >
+                  <option value="">No project (independent file)</option>
+                  {projects.map((project) => (
+                    <option key={project.id} value={project.id}>
+                      {project.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+
             <div
               className={cn(
                 'relative rounded-3xl border border-ink/12 bg-paper/60 p-6 shadow-soft',
@@ -233,6 +332,53 @@ export default function Upload() {
           </div>
         </div>
       </Container>
+
+      {/* Create Project Modal */}
+      {showCreateProject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="rounded-lg border border-ink/20 bg-paper shadow-sm p-6 w-full max-w-md mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-ink">Create New Project</h3>
+              <button
+                type="button"
+                onClick={() => setShowCreateProject(false)}
+                className="text-ink/60 hover:text-ink"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-ink mb-1">Project Name</label>
+                <input
+                  type="text"
+                  value={newProjectName}
+                  onChange={(e) => setNewProjectName(e.target.value)}
+                  placeholder="Enter project name"
+                  className="w-full rounded-lg border border-ink/15 bg-paper-2/50 px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+                />
+              </div>
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateProject(false)}
+                  className="px-4 py-2 rounded-lg border border-ink/15 bg-paper-2/50 text-sm text-ink hover:bg-paper-2"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCreateProject}
+                  disabled={!newProjectName.trim()}
+                  className="px-4 py-2 rounded-lg bg-accent text-paper text-sm font-medium hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Create Project
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -71,6 +71,7 @@ export default function FloorComparison() {
   const loadFiles = async () => {
     try {
       const data: BlueprintFile[] = await blueprintFilesApi.list(projectId, 50)
+      console.log('Loaded files for comparison:', data)
       setFiles(data.filter(f => f.status === 'analyzed'))
     } catch (err) {
       console.error('Failed to load files:', err)

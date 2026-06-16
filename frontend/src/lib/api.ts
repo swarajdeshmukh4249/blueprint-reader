@@ -1,5 +1,7 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
 
+console.log('API_BASE_URL:', API_BASE_URL)
+
 export async function fetchWithAuth(url: string, options: RequestInit = {}) {
   const token = localStorage.getItem('__clerk_db_jwt')
   const headers: HeadersInit = {
@@ -8,17 +10,28 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
     ...options.headers,
   }
 
-  const response = await fetch(`${API_BASE_URL}${url}`, {
-    ...options,
-    headers,
-  })
+  const fullUrl = `${API_BASE_URL}${url}`
+  console.log(`API Request: ${fullUrl}`, { method: options.method, hasToken: !!token })
 
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => '')
-    throw new Error(`API error: ${response.status} - ${errorText}`)
+  try {
+    const response = await fetch(fullUrl, {
+      ...options,
+      headers,
+    })
+
+    console.log(`API Response: ${response.status} ${response.statusText}`)
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => '')
+      console.error(`API Error: ${response.status} - ${errorText}`)
+      throw new Error(`API error: ${response.status} - ${errorText}`)
+    }
+
+    return response.json()
+  } catch (error) {
+    console.error('Fetch error:', error)
+    throw error
   }
-
-  return response.json()
 }
 
 // Organizations
@@ -151,7 +164,10 @@ interface FloorComparison {
 export const floorComparisonApi = {
   compare: (request: FloorComparisonRequest) => fetchWithAuth('/floor-comparison/compare', {
     method: 'POST',
-    body: JSON.stringify(request),
+    body: JSON.stringify({
+      floor_a_id: request.file_a_id,
+      floor_b_id: request.file_b_id,
+    }),
   }),
   list: (projectId: string) => fetchWithAuth(`/floor-comparison/project/${projectId}`),
   get: (id: string) => fetchWithAuth(`/floor-comparison/${id}`),

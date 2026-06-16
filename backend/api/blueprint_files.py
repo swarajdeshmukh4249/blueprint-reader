@@ -22,6 +22,7 @@ class BlueprintFileCreate(BaseModel):
 
 class SaveAnalysisRequest(BaseModel):
     filename: str
+    project_id: Optional[str] = None
     analysis_result: dict
     total_area: Optional[float] = None
     room_count: Optional[int] = None
@@ -55,7 +56,15 @@ async def save_analysis_result(
     
     # Create file record with analysis results
     try:
+        project_uuid = None
+        if request.project_id:
+            try:
+                project_uuid = uuid.UUID(request.project_id)
+            except ValueError:
+                print(f"Invalid project_id format: {request.project_id}")
+        
         new_file = BlueprintFile(
+            project_id=project_uuid,
             filename=request.filename,
             file_path="",  # No actual file uploaded
             file_size=0,
@@ -226,15 +235,33 @@ async def list_blueprint_files(
 ):
     """List recent blueprint files"""
     
-    # Optional authentication
+    # Get current user
+    current_user = None
     if authorization:
         try:
             from auth.clerk import verify_jwt
-            user = verify_jwt(authorization.replace("Bearer ", ""))
+            current_user = verify_jwt(authorization.replace("Bearer ", ""))
         except:
             pass  # Allow request to proceed even if auth fails
     
     query = db.query(BlueprintFile)
+    
+    # Filter by user's organizations if authenticated
+    if current_user:
+        clerk_user_id = current_user.get('sub')
+        if clerk_user_id:
+            from models import User, OrganizationMember
+            user = db.query(User).filter(User.clerk_user_id == clerk_user_id).first()
+            if user:
+                # Get user's organization memberships
+                user_org_ids = [m.organization_id for m in db.query(OrganizationMember).filter(OrganizationMember.user_id == user.id).all()]
+                
+                # Filter files by projects in user's organizations
+                if user_org_ids:
+                    query = query.join(Project).filter(Project.organization_id.in_(user_org_ids))
+                else:
+                    # User has no organization memberships, return empty
+                    query = query.filter(False)
     
     if project_id:
         query = query.filter(BlueprintFile.project_id == uuid.UUID(project_id))
@@ -266,16 +293,30 @@ async def get_blueprint_file(
 ):
     """Get blueprint file by ID"""
     
-    # Optional authentication
+    # Get current user
+    current_user = None
     if authorization:
         try:
-            user = verify_jwt(authorization.replace("Bearer ", ""))
+            current_user = verify_jwt(authorization.replace("Bearer ", ""))
         except:
             pass  # Allow request to proceed even if auth fails
     
     file = db.query(BlueprintFile).filter(BlueprintFile.id == uuid.UUID(file_id)).first()
     if not file:
         raise HTTPException(status_code=404, detail="Blueprint file not found")
+    
+    # Check user has access to the file's project
+    if current_user:
+        clerk_user_id = current_user.get('sub')
+        if clerk_user_id:
+            from models import User, OrganizationMember
+            user = db.query(User).filter(User.clerk_user_id == clerk_user_id).first()
+            if user and file.project_id:
+                project = db.query(Project).filter(Project.id == file.project_id).first()
+                if project:
+                    user_org_ids = [m.organization_id for m in db.query(OrganizationMember).filter(OrganizationMember.user_id == user.id).all()]
+                    if project.organization_id not in user_org_ids:
+                        raise HTTPException(status_code=403, detail="Access denied to this file")
     
     return BlueprintFileResponse(
         id=str(file.id),

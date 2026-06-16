@@ -41,13 +41,25 @@ async def get_executive_kpis(
 ):
     """Get executive KPIs for organization"""
     
-    # Optional authentication
+    # Get current user and verify access
+    current_user = None
     if authorization:
         try:
             from auth.clerk import verify_jwt
             current_user = verify_jwt(authorization.replace("Bearer ", ""))
         except:
             pass  # Allow request to proceed even if auth fails
+    
+    # Check user has access to this organization
+    if current_user:
+        clerk_user_id = current_user.get('sub')
+        if clerk_user_id:
+            from models import User, OrganizationMember
+            user = db.query(User).filter(User.clerk_user_id == clerk_user_id).first()
+            if user:
+                user_org_ids = [m.organization_id for m in db.query(OrganizationMember).filter(OrganizationMember.user_id == user.id).all()]
+                if uuid.UUID(organization_id) not in user_org_ids:
+                    raise HTTPException(status_code=403, detail="Access denied to this organization")
     
     # Get latest snapshot
     snapshot = db.query(AnalyticsSnapshot).filter(
@@ -897,15 +909,42 @@ async def get_dashboard_stats(
 ):
     """Get dashboard statistics with trends"""
     
-    # Optional authentication
-    user_id = None
+    # Get current user
+    current_user = None
     if authorization:
         try:
             from auth.clerk import verify_jwt
-            user = verify_jwt(authorization.replace("Bearer ", ""))
-            user_id = user.get('id')
+            current_user = verify_jwt(authorization.replace("Bearer ", ""))
         except:
             pass  # Allow request to proceed even if auth fails
+    
+    # Filter by user's organizations if authenticated
+    org_filter = {}
+    if current_user:
+        clerk_user_id = current_user.get('sub')
+        if clerk_user_id:
+            from models import User, OrganizationMember
+            user = db.query(User).filter(User.clerk_user_id == clerk_user_id).first()
+            if user:
+                user_org_ids = [m.organization_id for m in db.query(OrganizationMember).filter(OrganizationMember.user_id == user.id).all()]
+                if user_org_ids:
+                    # If organization_id provided, check user has access
+                    if organization_id:
+                        if uuid.UUID(organization_id) not in user_org_ids:
+                            raise HTTPException(status_code=403, detail="Access denied to this organization")
+                        org_filter = {"organization_id": uuid.UUID(organization_id)}
+                    else:
+                        # Filter by all user's organizations
+                        org_filter = {"organization_id": user_org_ids[0]}  # Use first org for now
+                else:
+                    # User has no organization memberships, return empty stats
+                    return DashboardStats(
+                        total_projects=0,
+                        analyses_run=0,
+                        boqs_generated=0,
+                        total_estimated_value=0,
+                        trends={}
+                    )
     
     # Filter by organization if provided
     org_filter = {}

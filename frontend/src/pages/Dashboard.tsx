@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
-import { projectsApi, organizationsApi, blueprintFilesApi } from '@/lib/api'
-import { Plus, FolderOpen, Calendar, MapPin, Building2, FileText, X, Eye, GitCompare, Share2, BarChart3 } from 'lucide-react'
+import { projectsApi, blueprintFilesApi } from '@/lib/api'
+import { Plus, FolderOpen, Calendar, MapPin, Building2, FileText, X, Eye, GitCompare, Share2, BarChart3, Trash2 } from 'lucide-react'
 import AdvancedSearch from '@/components/AdvancedSearch'
 
 interface Project {
@@ -15,12 +15,6 @@ interface Project {
   building_type?: string
   status: string
   created_at: string
-}
-
-interface Organization {
-  id: string
-  name: string
-  slug: string
 }
 
 interface BlueprintFile {
@@ -40,13 +34,11 @@ export default function Dashboard() {
   const location = useLocation()
   const { isLoaded, isSignedIn } = useAuth()
   const [projects, setProjects] = useState<Project[]>([])
-  const [organizations, setOrganizations] = useState<Organization[]>([])
   const [recentFiles, setRecentFiles] = useState<BlueprintFile[]>([])
-  const [selectedOrg, setSelectedOrg] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
-  const [showCreateOrgModal, setShowCreateOrgModal] = useState(false)
   const [selectedFileForBoq, setSelectedFileForBoq] = useState<BlueprintFile | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<{type: 'project' | 'file', id: string, name: string} | null>(null)
   const [newProject, setNewProject] = useState({
     name: '',
     code: '',
@@ -54,10 +46,6 @@ export default function Dashboard() {
     location_city: '',
     location_state: '',
     building_type: 'residential',
-  })
-  const [newOrganization, setNewOrganization] = useState({
-    name: '',
-    slug: '',
   })
 
   useEffect(() => {
@@ -71,22 +59,17 @@ export default function Dashboard() {
     if (isLoaded && isSignedIn) {
       loadData()
     }
-  }, [location.pathname]) // Refresh on navigation changes
+  }, [location.pathname, location.key]) // Refresh on navigation changes and back/forward
 
   const loadData = async () => {
     try {
       setLoading(true)
-      const [orgsData, projectsData, filesData] = await Promise.all([
-        organizationsApi.list(),
+      const [projectsData, filesData] = await Promise.all([
         projectsApi.list(),
         blueprintFilesApi.list(undefined, 5),
       ])
-      setOrganizations(orgsData)
       setProjects(projectsData)
       setRecentFiles(filesData)
-      if (orgsData.length > 0) {
-        setSelectedOrg(orgsData[0].id)
-      }
     } catch (error) {
       console.error('Failed to load data:', error)
     } finally {
@@ -96,14 +79,7 @@ export default function Dashboard() {
 
   const handleCreateProject = async () => {
     console.log('handleCreateProject called')
-    console.log('selectedOrg:', selectedOrg)
     console.log('newProject.name:', newProject.name)
-    console.log('organizations:', organizations)
-    
-    if (!selectedOrg) {
-      alert('Please select an organization first')
-      return
-    }
     
     if (!newProject.name || newProject.name.trim() === '') {
       alert('Please enter a project name')
@@ -111,15 +87,9 @@ export default function Dashboard() {
     }
     
     try {
-      console.log('Creating project with data:', {
-        organization_id: selectedOrg,
-        ...newProject,
-      })
+      console.log('Creating project with data:', newProject)
       
-      const createdProject = await projectsApi.create({
-        organization_id: selectedOrg,
-        ...newProject,
-      })
+      const createdProject = await projectsApi.create(newProject)
       
       console.log('Project created successfully:', createdProject)
       setProjects([...projects, createdProject])
@@ -138,33 +108,28 @@ export default function Dashboard() {
     }
   }
 
-  const handleCreateOrganization = async () => {
-    if (!newOrganization.name || newOrganization.name.trim() === '') {
-      alert('Please enter an organization name')
-      return
-    }
-    
+  const handleDeleteProject = async (id: string) => {
     try {
-      console.log('Creating organization with data:', newOrganization)
-      console.log('API_BASE_URL:', import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1')
-      
-      const createdOrg = await organizationsApi.create({
-        name: newOrganization.name,
-        slug: newOrganization.slug || newOrganization.name.toLowerCase().replace(/\s+/g, '-'),
-      })
-      
-      console.log('Organization created successfully:', createdOrg)
-      setOrganizations([...organizations, createdOrg])
-      setSelectedOrg(createdOrg.id)
-      setShowCreateOrgModal(false)
-      setNewOrganization({
-        name: '',
-        slug: '',
-      })
+      await projectsApi.delete(id)
+      setProjects(projects.filter(p => p.id !== id))
+      setDeleteConfirm(null)
     } catch (error) {
-      console.error('Failed to create organization:', error)
-      console.error('Error details:', error)
-      alert(`Failed to create organization: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      console.error('Failed to delete project:', error)
+      alert(`Failed to delete project: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
+  const handleDeleteFile = async (id: string) => {
+    try {
+      console.log('Attempting to delete file:', id)
+      const response = await blueprintFilesApi.delete(id)
+      console.log('Delete response:', response)
+      setRecentFiles(recentFiles.filter(f => f.id !== id))
+      setDeleteConfirm(null)
+    } catch (error) {
+      console.error('Failed to delete file:', error)
+      console.error('Error details:', error instanceof Error ? error.stack : 'No stack trace')
+      alert(`Failed to delete file: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
@@ -192,34 +157,6 @@ export default function Dashboard() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-4">
               <h1 className="text-2xl font-bold text-ink">Dashboard</h1>
-              {organizations.length > 0 ? (
-                <>
-                  <select
-                    value={selectedOrg || ''}
-                    onChange={(e) => setSelectedOrg(e.target.value)}
-                    className="border border-ink/15 rounded-lg px-3 py-1.5 text-sm bg-paper text-ink"
-                  >
-                    {organizations.map((org) => (
-                      <option key={org.id} value={org.id}>
-                        {org.name}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={() => setShowCreateOrgModal(true)}
-                    className="text-sm text-accent hover:text-accent/80"
-                  >
-                    + New Organization
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={() => setShowCreateOrgModal(true)}
-                  className="text-sm text-accent hover:text-accent/80"
-                >
-                  + Create Organization
-                </button>
-              )}
             </div>
             <button 
               onClick={() => setShowCreateModal(true)}
@@ -376,24 +313,32 @@ export default function Dashboard() {
                         {file.analyzed_at ? new Date(file.analyzed_at).toLocaleDateString() : '-'}
                       </td>
                       <td className="px-6 py-4">
-                        {file.status === 'analyzed' && (
+                        <div className="flex items-center gap-2">
+                          {file.status === 'analyzed' && (
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const fullFile = await blueprintFilesApi.get(file.id)
+                                  setSelectedFileForBoq(fullFile)
+                                } catch (error) {
+                                  console.error('Failed to fetch file details:', error)
+                                  // Fallback to using the file from the list
+                                  setSelectedFileForBoq(file)
+                                }
+                              }}
+                              className="text-accent hover:text-accent/80 text-sm font-medium"
+                            >
+                              <Eye className="w-4 h-4 inline mr-1" />
+                              View BOQ
+                            </button>
+                          )}
                           <button
-                            onClick={async () => {
-                              try {
-                                const fullFile = await blueprintFilesApi.get(file.id)
-                                setSelectedFileForBoq(fullFile)
-                              } catch (error) {
-                                console.error('Failed to fetch file details:', error)
-                                // Fallback to using the file from the list
-                                setSelectedFileForBoq(file)
-                              }
-                            }}
-                            className="text-accent hover:text-accent/80 text-sm font-medium"
+                            onClick={() => setDeleteConfirm({type: 'file', id: file.id, name: file.filename})}
+                            className="text-red-500 hover:text-red-600 text-sm font-medium"
                           >
-                            <Eye className="w-4 h-4 inline mr-1" />
-                            View BOQ
+                            <Trash2 className="w-4 h-4" />
                           </button>
-                        )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -448,31 +393,41 @@ export default function Dashboard() {
                   return (
                     <div
                       key={file.id}
-                      className="border border-ink/15 rounded-lg p-4 hover:shadow-md hover:border-ink/30 transition cursor-pointer bg-paper"
-                      onClick={async () => {
-                        try {
-                          const fullFile = await blueprintFilesApi.get(file.id)
-                          setSelectedFileForBoq(fullFile)
-                        } catch (error) {
-                          console.error('Failed to fetch file details:', error)
-                          setSelectedFileForBoq(file)
-                        }
-                      }}
+                      className="border border-ink/15 rounded-lg p-4 hover:shadow-md hover:border-ink/30 transition bg-paper"
                     >
                       <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center">
+                        <div className="flex items-center flex-1 cursor-pointer" onClick={async () => {
+                          try {
+                            const fullFile = await blueprintFilesApi.get(file.id)
+                            setSelectedFileForBoq(fullFile)
+                          } catch (error) {
+                            console.error('Failed to fetch file details:', error)
+                            setSelectedFileForBoq(file)
+                          }
+                        }}>
                           <FileText className="w-4 h-4 text-ink/40 mr-2" />
                           <div className="font-medium text-ink truncate text-xs">
                             {file.filename}
                           </div>
                         </div>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${
-                          file.status === 'analyzed' ? 'bg-green-500/10 text-green-500' :
-                          file.status === 'processing' ? 'bg-yellow-500/10 text-yellow-500' :
-                          'bg-ink/10 text-ink/60'
-                        }`}>
-                          {file.status}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${
+                            file.status === 'analyzed' ? 'bg-green-500/10 text-green-500' :
+                            file.status === 'processing' ? 'bg-yellow-500/10 text-yellow-500' :
+                            'bg-ink/10 text-ink/60'
+                          }`}>
+                            {file.status}
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setDeleteConfirm({type: 'file', id: file.id, name: file.filename})
+                            }}
+                            className="text-red-500 hover:text-red-600"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                       <div className="space-y-1.5">
                         {file.status === 'analyzed' && file.analysis_result?.boq ? (
@@ -590,12 +545,20 @@ export default function Dashboard() {
                         {new Date(project.created_at).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4">
-                        <button
-                          onClick={() => navigate(`/project/${project.id}`)}
-                          className="text-accent hover:text-accent/80 text-sm font-medium"
-                        >
-                          Open
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => navigate(`/project/${project.id}`)}
+                            className="text-accent hover:text-accent/80 text-sm font-medium"
+                          >
+                            Open
+                          </button>
+                          <button
+                            onClick={() => setDeleteConfirm({type: 'project', id: project.id, name: project.name})}
+                            className="text-red-500 hover:text-red-600 text-sm font-medium"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -605,53 +568,6 @@ export default function Dashboard() {
           )}
         </div>
       </main>
-
-      {/* Create Organization Modal */}
-      {showCreateOrgModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-paper rounded-xl p-6 w-full max-w-md mx-4 border border-ink/10">
-            <h2 className="text-xl font-bold text-ink mb-4">Create Organization</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-ink mb-1">Organization Name *</label>
-                <input
-                  type="text"
-                  value={newOrganization.name}
-                  onChange={(e) => setNewOrganization({ ...newOrganization, name: e.target.value })}
-                  className="w-full border border-ink/15 rounded-lg px-3 py-2 bg-paper text-ink"
-                  placeholder="Enter organization name"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-ink mb-1">Slug (optional)</label>
-                <input
-                  type="text"
-                  value={newOrganization.slug}
-                  onChange={(e) => setNewOrganization({ ...newOrganization, slug: e.target.value })}
-                  className="w-full border border-ink/15 rounded-lg px-3 py-2 bg-paper text-ink"
-                  placeholder="Auto-generated from name"
-                />
-                <p className="text-xs text-ink/50 mt-1">Leave blank to auto-generate from name</p>
-              </div>
-            </div>
-            <div className="flex justify-end gap-3 mt-6">
-              <button
-                onClick={() => setShowCreateOrgModal(false)}
-                className="px-4 py-2 border border-ink/15 rounded-lg hover:bg-paper-2"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreateOrganization}
-                disabled={!newOrganization.name}
-                className="px-4 py-2 bg-accent text-paper rounded-lg hover:bg-accent/90 disabled:bg-ink/20"
-              >
-                Create Organization
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Create Project Modal */}
       {showCreateModal && (
@@ -819,6 +735,40 @@ export default function Dashboard() {
                   No BOQ data available for this file
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-paper rounded-xl p-6 w-full max-w-md mx-4 border border-ink/10">
+            <h2 className="text-xl font-bold text-ink mb-4">
+              Delete {deleteConfirm.type === 'project' ? 'Project' : 'File'}?
+            </h2>
+            <p className="text-ink/70 mb-6">
+              Are you sure you want to delete "{deleteConfirm.name}"? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="px-4 py-2 border border-ink/15 rounded-lg hover:bg-paper-2"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (deleteConfirm.type === 'project') {
+                    handleDeleteProject(deleteConfirm.id)
+                  } else {
+                    handleDeleteFile(deleteConfirm.id)
+                  }
+                }}
+                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+              >
+                Delete
+              </button>
             </div>
           </div>
         </div>

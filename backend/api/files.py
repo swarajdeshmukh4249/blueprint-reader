@@ -30,10 +30,11 @@ async def upload_file(
 ):
     """Upload a blueprint file to a project"""
     
-    # Optional authentication
+    # Get current user
+    current_user = None
     if authorization:
         try:
-            user = verify_jwt(authorization.replace("Bearer ", ""))
+            current_user = verify_jwt(authorization.replace("Bearer ", ""))
         except:
             pass  # Allow request to proceed even if auth fails
     
@@ -43,6 +44,15 @@ async def upload_file(
         raise HTTPException(status_code=404, detail="Project not found")
     
     # Check user has access to project
+    if current_user:
+        clerk_user_id = current_user.get('sub')
+        if clerk_user_id:
+            from models import User, OrganizationMember
+            user = db.query(User).filter(User.clerk_user_id == clerk_user_id).first()
+            if user:
+                user_org_ids = [m.organization_id for m in db.query(OrganizationMember).filter(OrganizationMember.user_id == user.id).all()]
+                if project.organization_id not in user_org_ids:
+                    raise HTTPException(status_code=403, detail="Access denied to this project")
     
     # Read file content
     file_content = await file.read()

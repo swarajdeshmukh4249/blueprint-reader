@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@clerk/clerk-react": "^5.22.0",
-    "@types/three": "^0.160.0",
+    "@types/three": "^0.149.0",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "dxf-parser": "^1.1.2",
@@ -27,7 +27,7 @@
     "react-router-dom": "^7.3.0",
     "recharts": "^2.12.0",
     "tailwind-merge": "^3.0.2",
-    "three": "^0.160.0",
+    "three": "^0.149.0",
     "web-ifc-three": "^0.0.126",
     "zustand": "^5.0.3"
   },

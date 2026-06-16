@@ -20,6 +20,7 @@ import ExportCenter from '@/pages/ExportCenter'
 import Help from '@/pages/Help'
 import TeamManagement from '@/pages/TeamManagement'
 import Viewer from '@/pages/Viewer'
+import ScaleCalibrationPage from '@/pages/ScaleCalibrationPage'
 
 const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || ''
 
@@ -123,6 +124,14 @@ export default function App() {
               }
             />
             <Route path="/viewer" element={<Viewer />} />
+            <Route
+              path="/scale-calibration"
+              element={
+                <SignedIn>
+                  <ScaleCalibrationPage />
+                </SignedIn>
+              }
+            />
             <Route path="*" element={<NotFound />} />
           </Route>
           {/* Public routes (no auth required) */}

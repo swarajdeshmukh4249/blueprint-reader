@@ -97,7 +97,8 @@ export default function DXFViewer({ fileUrl, onLayerToggle }: DXFViewerProps) {
       l.name === layerName ? { ...l, visible: !l.visible } : l
     )
     setLayers(newLayers)
-    onLayerToggle?.(layerName, !layers.find(l => l.name === layerName)?.visible ?? false)
+    const layer = layers.find(l => l.name === layerName)
+    onLayerToggle?.(layerName, !layer?.visible)
     drawDXF()
   }
   

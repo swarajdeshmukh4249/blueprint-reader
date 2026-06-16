@@ -74,6 +74,11 @@ def home():
     return {"message": "AI Blueprint Reader API is running"}
 
 
+@app.get("/health")
+async def health():
+    return {"status": "ok", "service": "ArchVision API"}
+
+
 @app.get("/rate-schedules")
 def rate_schedules():
     return {"schedules": list_schedules()}

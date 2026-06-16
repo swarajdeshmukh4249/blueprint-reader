@@ -153,10 +153,10 @@ export function VisualDiff({ diff, mode, onModeChange }: VisualDiffProps) {
             <Layer>
               {diff.changes.added.map(room => renderRoom(room, '#22c55e', 0.7))}
               {diff.changes.removed.map(room => renderRoom(room, '#ef4444', 0.7))}
-              {diff.changes.modified.map(({ old, new }) => (
+              {diff.changes.modified.map(({ old, new: newRoom }) => (
                 <React.Fragment key={old.id}>
                   {renderRoom(old, '#ef4444', 0.4)}
-                  {renderRoom(new, '#f59e0b', 0.4)}
+                  {renderRoom(newRoom, '#f59e0b', 0.4)}
                 </React.Fragment>
               ))}
             </Layer>

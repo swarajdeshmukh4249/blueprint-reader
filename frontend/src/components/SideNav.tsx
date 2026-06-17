@@ -11,7 +11,8 @@ import {
   Menu,
   X,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Ruler
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useState } from 'react'
@@ -101,6 +102,13 @@ export default function SideNav({ onCollapsedChange }: SideNavProps) {
                 </p>
                 <NavItem to="/dashboard" icon={BarChart3}>Dashboard</NavItem>
                 <NavItem to="/enterprise-dashboard" icon={BarChart3}>Analytics</NavItem>
+              </div>
+              
+              <div className="pt-4">
+                <p className="px-3 text-xs font-semibold text-ink/40 uppercase tracking-wider mb-2">
+                  Tools
+                </p>
+                <NavItem to="/scale-calibration" icon={Ruler}>Scale Calibration</NavItem>
               </div>
               
               <div className="pt-4">

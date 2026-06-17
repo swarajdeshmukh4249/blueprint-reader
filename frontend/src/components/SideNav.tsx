@@ -12,7 +12,8 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
-  Ruler
+  Ruler,
+  FileText
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useState } from 'react'
@@ -108,6 +109,7 @@ export default function SideNav({ onCollapsedChange }: SideNavProps) {
                 <p className="px-3 text-xs font-semibold text-ink/40 uppercase tracking-wider mb-2">
                   Tools
                 </p>
+                <NavItem to="/viewer" icon={FileText}>File Viewer</NavItem>
                 <NavItem to="/scale-calibration" icon={Ruler}>Scale Calibration</NavItem>
               </div>
               

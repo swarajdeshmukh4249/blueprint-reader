@@ -92,7 +92,8 @@ export default function Upload() {
       
       // Save the analysis results to database for analytics
       try {
-        const saveResponse = await fetch('/api/v1/blueprint-files/save-analysis', {
+        const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
+        const saveResponse = await fetch(`${API_BASE_URL}/blueprint-files/save-analysis`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -107,7 +108,7 @@ export default function Upload() {
           })
         })
         console.log('Save analysis response status:', saveResponse.status)
-        console.log('Save analysis response URL:', '/api/v1/blueprint-files/save-analysis')
+        console.log('Save analysis response URL:', `${API_BASE_URL}/blueprint-files/save-analysis`)
         
         if (!saveResponse.ok) {
           const errorText = await saveResponse.text()

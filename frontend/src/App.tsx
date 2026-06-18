@@ -32,7 +32,7 @@ export default function App() {
           <Route element={<AppShell />}>
             <Route path="/" element={<Home />} />
             <Route path="/upload" element={<Upload />} />
-            <Route path="/results" element={<Results />} />
+            <Route path="/results/:fileId?" element={<Results />} />
             <Route path="/about" element={<About />} />
             <Route path="/contact" element={<Contact />} />
             <Route 

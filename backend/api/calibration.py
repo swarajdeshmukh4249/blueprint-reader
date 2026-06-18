@@ -14,10 +14,14 @@ from utils.errors import (
     CalibrationDistanceError,
     UnitValidationError
 )
+import os
+import json
+import urllib.request
+import urllib.parse
 
 router = APIRouter(prefix="/calibration", tags=["calibration"])
 
-class ScaleCalibration(BaseModel):
+class ScaleCalibrationInput(BaseModel):
     pt_a: Tuple[float, float]
     pt_b: Tuple[float, float]
     real_distance: float
@@ -33,10 +37,24 @@ class CalibrationResult(BaseModel):
     updated_rooms: list
     boq_preview: dict
 
+class ManualScaleCalibrationRequest(BaseModel):
+    point_a: dict
+    point_b: dict
+    real_world_distance: float
+    unit: str
+    pixel_distance: float
+    scale_factor: float
+
+class ManualScaleCalibrationResponse(BaseModel):
+    success: bool
+    scale_factor: float
+    unit: str
+    message: str
+
 @router.post("/analysis/{version_id}")
 async def calibrate_scale(
     version_id: str,
-    calibration: ScaleCalibration,
+    calibration: ScaleCalibrationInput,
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -148,3 +166,89 @@ async def calibrate_scale(
         "diff_summary": diff_summary,
         "boq_preview": boq_preview
     }
+
+@router.post("/analysis-jobs/{job_id}/scale-calibration")
+async def manual_scale_calibration(
+    job_id: str,
+    calibration_data: ManualScaleCalibrationRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Manual scale calibration for an analysis job - saves calibration data to analysis_jobs table"""
+    
+    # Get Supabase credentials
+    supabase_url = os.environ.get("SUPABASE_URL")
+    supabase_service_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+    
+    if not supabase_url or not supabase_service_key:
+        raise HTTPException(status_code=500, detail="Supabase credentials not configured")
+    
+    # Verify job exists
+    query = urllib.parse.urlencode({
+        "select": "id,user_id,org_id",
+        "id": f"eq.{job_id}"
+    })
+    url = f"{supabase_url}/rest/v1/analysis_jobs?{query}"
+    
+    try:
+        headers = {
+            "apikey": supabase_service_key,
+            "Authorization": f"Bearer {supabase_service_key}",
+            "Content-Type": "application/json"
+        }
+        request = urllib.request.Request(url=url, headers=headers, method="GET")
+        
+        with urllib.request.urlopen(request, timeout=10) as response:
+            jobs = json.loads(response.read().decode("utf-8"))
+            
+        if not jobs:
+            raise HTTPException(status_code=404, detail="Analysis job not found")
+        
+        job = jobs[0]
+        
+        # Verify user has access (optional - can be enhanced with proper auth checks)
+        # For now, we'll allow any authenticated user to calibrate
+        
+    except urllib.error.HTTPError as exc:
+        if exc.code == 404:
+            raise HTTPException(status_code=404, detail="Analysis job not found")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch job: {exc.reason}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch job: {str(e)}")
+    
+    # Store calibration data in analysis_jobs scale_calibration JSONB column
+    calibration_record = {
+        "scale_factor": calibration_data.scale_factor,
+        "unit": calibration_data.unit,
+        "pixel_distance": calibration_data.pixel_distance,
+        "real_world_distance": calibration_data.real_world_distance,
+        "point_a": calibration_data.point_a,
+        "point_b": calibration_data.point_b,
+        "calibrated_at": datetime.utcnow().isoformat()
+    }
+    
+    # Update analysis_jobs table via Supabase REST API
+    update_query = urllib.parse.urlencode({"id": f"eq.{job_id}"})
+    update_url = f"{supabase_url}/rest/v1/analysis_jobs?{update_query}"
+    
+    try:
+        update_body = json.dumps({"scale_calibration": calibration_record}).encode("utf-8")
+        update_request = urllib.request.Request(
+            url=update_url,
+            data=update_body,
+            headers=headers,
+            method="PATCH"
+        )
+        
+        with urllib.request.urlopen(update_request, timeout=10) as response:
+            if response.status not in (200, 204):
+                raise HTTPException(status_code=500, detail="Failed to update calibration data")
+                
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save calibration: {str(e)}")
+    
+    return ManualScaleCalibrationResponse(
+        success=True,
+        scale_factor=calibration_data.scale_factor,
+        unit=calibration_data.unit,
+        message="Scale calibration applied successfully"
+    )

@@ -1,11 +1,12 @@
-import { Download, RotateCcw, FileText, Calculator, MessageSquare, BarChart3, Save, Check } from 'lucide-react'
-import { NavLink } from 'react-router-dom'
+import { Download, RotateCcw, FileText, Calculator, MessageSquare, BarChart3, Save, Check, Ruler } from 'lucide-react'
+import { NavLink, useParams } from 'react-router-dom'
 import Container from '@/components/Container'
 import { cn } from '@/lib/utils'
 import { useAnalysisStore } from '@/stores/useAnalysisStore'
 import type { AnalyzeBlueprintRoom } from '@/types/analysis'
 import { useState, useEffect } from 'react'
 import { PieChart, Pie, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts'
+import ScaleCalibrationPanel from '@/components/ScaleCalibration/ScaleCalibrationPanel'
 
 function toCsv(rooms: AnalyzeBlueprintRoom[]) {
   const header = ['name', 'area', 'unit', 'confidence', 'notes']
@@ -46,6 +47,7 @@ function download(filename: string, content: string, mime: string) {
 }
 
 export default function Results() {
+  const { fileId } = useParams<{ fileId?: string }>()
   const filename = useAnalysisStore((s) => s.filename)
   const result = useAnalysisStore((s) => s.result)
   const reset = useAnalysisStore((s) => s.reset)
@@ -55,6 +57,8 @@ export default function Results() {
   const [comments, setComments] = useState<{id: string, user: string, text: string, timestamp: string}[]>([])
   const [newComment, setNewComment] = useState('')
   const [boqFinalized, setBoqFinalized] = useState(false)
+  const [showCalibration, setShowCalibration] = useState(false)
+  const [blueprintImageUrl, setBlueprintImageUrl] = useState<string | null>(null)
 
   useEffect(() => {
     if (result?.boq) {
@@ -64,6 +68,60 @@ export default function Results() {
       })))
     }
   }, [result])
+
+  useEffect(() => {
+    // Fetch blueprint file data to get image URL if fileId is provided
+    if (fileId) {
+      fetchBlueprintFileData(fileId)
+    }
+  }, [fileId])
+
+  const fetchBlueprintFileData = async (fileId: string) => {
+    try {
+      const token = await (window as any).Clerk?.session?.getToken()
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
+      const response = await fetch(`${API_BASE_URL}/blueprint-files/${fileId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      if (response.ok) {
+        const fileData = await response.json()
+        if (fileData.file_path) {
+          setBlueprintImageUrl(fileData.file_path)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch blueprint file data:', error)
+    }
+  }
+
+  const handleCalibrationApplied = async (calibrationData: any) => {
+    try {
+      const token = await (window as any).Clerk?.session?.getToken()
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
+      const response = await fetch(
+        `${API_BASE_URL}/calibration/analysis-jobs/${fileId}/scale-calibration`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(calibrationData)
+        }
+      )
+      if (response.ok) {
+        const result = await response.json()
+        console.log('Calibration saved:', result)
+        setShowCalibration(false)
+      } else {
+        console.error('Failed to save calibration')
+      }
+    } catch (error) {
+      console.error('Error saving calibration:', error)
+    }
+  }
 
   if (!result) {
     return (
@@ -135,6 +193,16 @@ export default function Results() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {fileId && blueprintImageUrl && (
+              <button
+                type="button"
+                onClick={() => setShowCalibration(true)}
+                className="inline-flex items-center gap-2 rounded-full border border-ink/12 bg-paper/60 px-4 py-2 text-sm text-ink/80 transition hover:bg-paper hover:text-ink"
+              >
+                <Ruler className="h-4 w-4" />
+                Calibrate Scale
+              </button>
+            )}
             {rooms.length > 0 && (
               <button
                 type="button"
@@ -496,6 +564,15 @@ export default function Results() {
           </div>
         </div>
       </Container>
+
+      {/* Scale Calibration Modal */}
+      {showCalibration && fileId && blueprintImageUrl && (
+        <ScaleCalibrationPanel
+          imageUrl={blueprintImageUrl}
+          onClose={() => setShowCalibration(false)}
+          onScaleApplied={handleCalibrationApplied}
+        />
+      )}
     </div>
   )
 }

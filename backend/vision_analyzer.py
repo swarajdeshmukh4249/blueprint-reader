@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 def google_api_key() -> str:
     return (os.environ.get("GOOGLE_API_KEY") or "").strip()
 
-
+ 
 # 2.0-flash free tier exhausts quickly; 1.5-flash often has separate quota
 # gemini-2.0-flash often has 0 free-tier quota — prefer 1.5-flash unless overridden
 MODEL = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash")

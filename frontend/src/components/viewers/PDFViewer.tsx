@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 
+
 // pdfjs-dist needs its worker script available at a URL the browser can
 // fetch. Importing it with Vite's `?url` suffix bundles the worker file
 // and gives back a hashed, content-addressed URL — no manual /public
@@ -22,7 +23,7 @@ interface TextMatch {
 
 export default function PDFViewer({ file, width = 800, height = 600 }: PDFViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const renderTaskRef = useRef<pdfjsLib.RenderTask | null>(null);
+  const renderTaskRef = useRef<any>(null);
   const pdfDocRef = useRef<pdfjsLib.PDFDocumentProxy | null>(null);
 
   const [loading, setLoading] = useState(true);
@@ -72,7 +73,12 @@ export default function PDFViewer({ file, width = 800, height = 600 }: PDFViewer
 
     return () => {
       cancelled = true;
-      pdfDocRef.current?.destroy();
+
+      if (pdfDocRef.current) {
+        (pdfDocRef.current as any)?.destroy?.();
+        pdfDocRef.current?.cleanup?.();
+      }
+
       pdfDocRef.current = null;
     };
   }, [file]);
@@ -111,7 +117,11 @@ export default function PDFViewer({ file, width = 800, height = 600 }: PDFViewer
       const context = canvas.getContext('2d');
       if (!context) return;
 
-      const renderTask = page.render({ canvasContext: context, viewport });
+      const renderTask = page.render({
+        canvas,
+        canvasContext: context,
+        viewport,
+      } as any);
       renderTaskRef.current = renderTask;
       await renderTask.promise;
       renderTaskRef.current = null;

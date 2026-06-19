@@ -3,8 +3,9 @@ Regression test for multi-user data isolation.
 
 This test ensures that users cannot access each other's analysis_jobs data.
 Critical security test to prevent the bug where all users see the same dashboard data.
+
+Usage: python3 tests/test_user_isolation.py
 """
-import pytest
 import os
 import json
 import urllib.request
@@ -12,17 +13,39 @@ import urllib.parse
 from typing import Dict, Any
 
 
+def load_env_file():
+    """Load environment variables from .env file."""
+    backend_dir = os.path.dirname(os.path.abspath(__file__))
+    env_path = os.path.join(backend_dir, ".env")
+    
+    if not os.path.exists(env_path):
+        return
+    
+    with open(env_path, "r", encoding="utf-8") as env_file:
+        for raw_line in env_file:
+            line = raw_line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            key, value = key.strip(), value.strip().strip('"').strip("'")
+            if key and key not in os.environ:
+                os.environ[key] = value
+
+
+# Load environment variables at module level
+load_env_file()
+
+
 class TestUserIsolation:
     """Test that users are properly isolated from each other's data."""
     
-    @pytest.fixture
-    def supabase_config(self):
+    def get_supabase_config(self):
         """Get Supabase configuration from environment."""
         supabase_url = os.environ.get("SUPABASE_URL")
         supabase_service_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
         
         if not supabase_url or not supabase_service_key:
-            pytest.skip("Supabase credentials not configured")
+            raise Exception("Supabase credentials not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.")
         
         return {
             "url": supabase_url.rstrip("/"),
@@ -63,13 +86,15 @@ class TestUserIsolation:
             else:
                 raise Exception(f"Request failed with status {response.status}")
     
-    def test_user_cannot_access_other_users_analysis_jobs(self, supabase_config):
+    def test_user_cannot_access_other_users_analysis_jobs(self):
         """
         Test that User A cannot access User B's analysis_jobs.
         
         This is a regression test for the critical security bug where all signed-in users
         see the same dashboard/analytics data regardless of who uploaded what.
         """
+        supabase_config = self.get_supabase_config()
+        
         # Simulate two different Clerk users
         user_a_id = "user_test_clerk_id_001"
         user_b_id = "user_test_clerk_id_002"
@@ -157,10 +182,12 @@ class TestUserIsolation:
                 method="DELETE"
             )
     
-    def test_organization_isolation(self, supabase_config):
+    def test_organization_isolation(self):
         """
         Test that users in different organizations cannot access each other's jobs.
         """
+        supabase_config = self.get_supabase_config()
+        
         user_a_id = "user_test_clerk_id_003"
         user_b_id = "user_test_clerk_id_004"
         org_a_id = "org_test_id_001"
@@ -216,23 +243,11 @@ if __name__ == "__main__":
     
     test = TestUserIsolation()
     
-    # Get config from environment
-    supabase_url = os.environ.get("SUPABASE_URL")
-    supabase_service_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
-    
-    if not supabase_url or not supabase_service_key:
-        print("ERROR: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set")
-        sys.exit(1)
-    
-    config = {
-        "url": supabase_url.rstrip("/"),
-        "service_key": supabase_service_key
-    }
-    
     print("Running user isolation tests...")
+    print("=" * 60)
     
     try:
-        test.test_user_cannot_access_other_users_analysis_jobs(config)
+        test.test_user_cannot_access_other_users_analysis_jobs()
         print("✅ User isolation test passed")
     except AssertionError as e:
         print(f"❌ User isolation test failed: {e}")
@@ -242,7 +257,7 @@ if __name__ == "__main__":
         sys.exit(1)
     
     try:
-        test.test_organization_isolation(config)
+        test.test_organization_isolation()
         print("✅ Organization isolation test passed")
     except AssertionError as e:
         print(f"❌ Organization isolation test failed: {e}")
@@ -251,4 +266,5 @@ if __name__ == "__main__":
         print(f"❌ Organization isolation test error: {e}")
         sys.exit(1)
     
-    print("\n✅ All isolation tests passed!")
+    print("=" * 60)
+    print("✅ All isolation tests passed!")

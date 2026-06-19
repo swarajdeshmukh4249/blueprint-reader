@@ -182,10 +182,15 @@ async def manual_scale_calibration(
     if not supabase_url or not supabase_service_key:
         raise HTTPException(status_code=500, detail="Supabase credentials not configured")
     
-    # Verify job exists
+    # Verify job exists and user has access
+    clerk_user_id = current_user.get('sub')
+    if not clerk_user_id:
+        raise HTTPException(status_code=401, detail="User ID not found in token")
+    
     query = urllib.parse.urlencode({
         "select": "id,user_id,org_id",
-        "id": f"eq.{job_id}"
+        "id": f"eq.{job_id}",
+        "user_id": f"eq.{clerk_user_id}"
     })
     url = f"{supabase_url}/rest/v1/analysis_jobs?{query}"
     
@@ -201,12 +206,13 @@ async def manual_scale_calibration(
             jobs = json.loads(response.read().decode("utf-8"))
             
         if not jobs:
-            raise HTTPException(status_code=404, detail="Analysis job not found")
+            raise HTTPException(status_code=404, detail="Analysis job not found or access denied")
         
         job = jobs[0]
         
-        # Verify user has access (optional - can be enhanced with proper auth checks)
-        # For now, we'll allow any authenticated user to calibrate
+        # Verify user_id matches
+        if job.get('user_id') != clerk_user_id:
+            raise HTTPException(status_code=403, detail="Access denied to this analysis job")
         
     except urllib.error.HTTPError as exc:
         if exc.code == 404:

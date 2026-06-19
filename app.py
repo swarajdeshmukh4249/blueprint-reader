@@ -5,6 +5,16 @@ from io import BytesIO
 import re
 import cv2
 import numpy as np
+import logging
+import sys
+
+# Set up logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    stream=sys.stdout
+)
+logger = logging.getLogger(__name__)
 
 ROOM_KEYWORDS = [
     "MASTER BEDROOM", "BED ROOM", "BEDROOM", "BEDROOM 1", "BEDROOM 2", "BEDROOM 3", "BEDRM",
@@ -30,13 +40,21 @@ def clean_text(text):
 def extract_pdf_text(file_bytes):
     reader = PdfReader(BytesIO(file_bytes))
     full_text = []
+    
+    logger.info(f"PDF has {len(reader.pages)} pages")
 
-    for page in reader.pages:
+    for page_num, page in enumerate(reader.pages):
         txt = page.extract_text()
         if txt:
+            logger.info(f"Page {page_num + 1} extracted text length: {len(txt)} characters")
+            logger.info(f"Page {page_num + 1} text preview: {txt[:200]}")
             full_text.append(txt)
+        else:
+            logger.warning(f"Page {page_num + 1} returned no text")
 
-    return "\n".join(full_text)
+    result = "\n".join(full_text)
+    logger.info(f"Total PDF text length: {len(result)} characters")
+    return result
 
 
 def preprocess_image_for_ocr(pil_image):
@@ -58,20 +76,30 @@ def preprocess_image_for_ocr(pil_image):
 
 
 def extract_ocr_text(file_bytes):
-    images = convert_from_bytes(file_bytes, dpi=300)
+    # Increase DPI for better resolution on vector/CAD-style PDFs
+    dpi = 400  # Increased from 300 for better text extraction
+    logger.info(f"Starting OCR text extraction with DPI={dpi}")
+    images = convert_from_bytes(file_bytes, dpi=dpi)
+    logger.info(f"Converted PDF to {len(images)} images at DPI={dpi}")
+    
     ocr_text = []
 
-    for image in images:
+    for idx, image in enumerate(images):
+        logger.info(f"Processing image {idx + 1}/{len(images)}, size: {image.size}")
         processed = preprocess_image_for_ocr(image)
 
         text = pytesseract.image_to_string(
             processed,
             config="--psm 6"
         )
-
+        
+        logger.info(f"Image {idx + 1} OCR text length: {len(text)} characters")
+        logger.info(f"Image {idx + 1} OCR text preview: {text[:300]}")
         ocr_text.append(text)
 
-    return "\n".join(ocr_text)
+    result = "\n".join(ocr_text)
+    logger.info(f"Total OCR text length: {len(result)} characters")
+    return result
 
 
 def find_keywords(text, keywords):
@@ -100,15 +128,21 @@ def extract_room_data(text):
     normalized_text = text.upper()
     normalized_text = re.sub(r"\s+", " ", normalized_text)
 
+    logger.info(f"Normalized text length: {len(normalized_text)} characters")
+    logger.info(f"Normalized text preview: {normalized_text[:500]}")
+
     # ROOM 12 x 10 pattern
     dim_pattern = r"([A-Z0-9 ]{3,40}?)\s+(\d+(?:\.\d+)?)\s*[\'\"]?\s*[Xx]\s*(\d+(?:\.\d+)?)\s*[\'\"]?"
 
     dim_matches = re.findall(dim_pattern, normalized_text)
+    logger.info(f"Found {len(dim_matches)} dimension pattern matches")
 
     for match in dim_matches:
         room_name = normalize_room_name(match[0])
         width = float(match[1])
         height = float(match[2])
+
+        logger.info(f"Dimension match: room='{room_name}', width={width}, height={height}")
 
         if is_valid_room_name(room_name):
 
@@ -125,11 +159,14 @@ def extract_room_data(text):
     area_pattern = r"([A-Z0-9 ]{3,50}?)\s+(\d+(?:\.\d+)?)\s*SQ\.?\s*F\s*T"
 
     area_matches = re.findall(area_pattern, normalized_text)
+    logger.info(f"Found {len(area_matches)} area pattern matches")
 
     for match in area_matches:
 
         room_name = normalize_room_name(match[0])
         area = float(match[1])
+
+        logger.info(f"Area match: room='{room_name}', area={area}")
 
         if is_valid_room_name(room_name):
 
@@ -142,17 +179,23 @@ def extract_room_data(text):
                 "source": "sq_ft_label"
             })
 
+    logger.info(f"Total room entries before deduplication: {len(results)}")
+    
+    # Fix: Remove area from deduplication key to prevent merging rooms with same name but different areas
     unique_results = []
     seen = set()
 
     for item in results:
-
-        key = (item["room"], item["area"], item["source"])
+        # Use only room name and source for deduplication, not area
+        key = (item["room"], item["source"])
 
         if key not in seen:
             seen.add(key)
             unique_results.append(item)
+        else:
+            logger.warning(f"Duplicate room detected and skipped: {item['room']} (source: {item['source']})")
 
+    logger.info(f"Total room entries after deduplication: {len(unique_results)}")
     return unique_results
 
 
@@ -213,27 +256,42 @@ def estimate_costs(total_area):
 
 def analyze_blueprint(file_bytes):
 
+    logger.info("Starting blueprint analysis")
     pdf_text = clean_text(extract_pdf_text(file_bytes))
 
     if len(pdf_text) > 20:
         final_text = pdf_text
         method_used = "Direct PDF text extraction"
+        logger.info("Using direct PDF text extraction")
     else:
         final_text = clean_text(extract_ocr_text(file_bytes))
         method_used = "OCR fallback with preprocessing"
+        logger.info("Using OCR fallback with preprocessing")
 
     rooms_found = find_keywords(final_text, ROOM_KEYWORDS)
     features_found = find_keywords(final_text, FEATURE_KEYWORDS)
+    
+    logger.info(f"Rooms found: {rooms_found}")
+    logger.info(f"Features found: {features_found}")
 
     room_data = extract_room_data(final_text)
 
     total_area = calculate_total_area(room_data)
+    logger.info(f"Total calculated area: {total_area} sq ft")
+    
+    # Sanity check: if total area is suspiciously low, flag as low confidence
+    MIN_REASONABLE_AREA = 50  # Minimum reasonable total area in sq ft
+    if total_area < MIN_REASONABLE_AREA and len(room_data) > 0:
+        logger.warning(f"LOW CONFIDENCE: Total area {total_area} sq ft is below minimum threshold of {MIN_REASONABLE_AREA} sq ft")
+        logger.warning(f"Detected {len(room_data)} rooms but total area is implausibly low")
+        # Add warning to result
+        low_confidence_warning = f"Low confidence: Total area ({total_area} sq ft) is below minimum threshold. Scale calibration may be incorrect."
 
     materials = estimate_materials(total_area)
 
     costs = estimate_costs(total_area)
 
-    return {
+    result = {
         "method": method_used,
         "rooms": rooms_found,
         "features": features_found,
@@ -243,3 +301,11 @@ def analyze_blueprint(file_bytes):
         "costs": costs,
         "raw_text": final_text
     }
+    
+    # Add low confidence warning if applicable
+    if total_area < MIN_REASONABLE_AREA and len(room_data) > 0:
+        result["warning"] = low_confidence_warning
+        result["confidence"] = "low"
+    
+    logger.info("Blueprint analysis completed")
+    return result

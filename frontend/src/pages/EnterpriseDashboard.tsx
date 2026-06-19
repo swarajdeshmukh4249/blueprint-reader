@@ -141,10 +141,10 @@ export default function EnterpriseDashboard() {
         <div className="bg-white rounded-xl p-6 border">
           <h3 className="font-semibold mb-4">Projects by Status</h3>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={data.projectsByStatus}>
+            <BarChart data={data.projectsByStatus} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="status" />
-              <YAxis />
+              <XAxis type="number" />
+              <YAxis dataKey="status" type="category" width={120} />
               <Tooltip />
               <Legend />
               <Bar dataKey="count" fill="#3b82f6" />

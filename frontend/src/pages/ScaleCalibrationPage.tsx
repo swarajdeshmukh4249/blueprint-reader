@@ -182,11 +182,7 @@ export default function ScaleCalibrationPage() {
             <p className="text-gray-600">File type: {fileType.toUpperCase()}</p>
             <button
               onClick={() => {
-                if (fileType === 'pdf') {
-                  setShowCalibration(true);
-                } else {
-                  alert('Calibration is currently available for PDF and image files only.');
-                }
+                setShowCalibration(true);
               }}
               className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
             >

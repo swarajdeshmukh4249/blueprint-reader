@@ -99,7 +99,7 @@ INSUNITS_TO_SQFT = {
 MIN_ROOM_SQFT = 5.0
 MAX_ROOM_SQFT = 15000.0
 MIN_TOTAL_SQFT = 80.0  # minimum plausible built-up area for quality scoring / BOQ
-PDF_OCR_DPI = 200
+PDF_OCR_DPI = 300  # Increased from 200 for better resolution on CAD-style PDFs
 MAX_PDF_PAGES_OCR = 10
 MAX_PDF_PAGES_VISION = 5
 
@@ -797,6 +797,7 @@ def filter_room_polygons(polygons: list[dict], span: float) -> list[dict]:
 def resolve_dxf_scale(polygons: list[dict], header_scale: float) -> float:
     """Pick scale so the most polygons look like real rooms (40–2500 sq ft)."""
     if not polygons:
+        logger.warning(f"No polygons provided, using header_scale: {header_scale}")
         return header_scale
 
     candidates = []
@@ -811,12 +812,14 @@ def resolve_dxf_scale(polygons: list[dict], header_scale: float) -> float:
         if cand not in candidates and cand > 0:
             candidates.append(cand)
 
+    logger.info(f"Scale candidates: {candidates}")
     best_scale = header_scale
     best_score = -1.0
 
     for cand in candidates:
         sqft = [p["area"] * cand for p in polygons]
         room_like = [a for a in sqft if 40 <= a <= 2500]
+        logger.info(f"Scale {cand}: {len(room_like)} room-like polygons out of {len(polygons)}")
         if len(room_like) < 2:
             continue
         med = float(np.median(room_like))
@@ -827,19 +830,28 @@ def resolve_dxf_scale(polygons: list[dict], header_scale: float) -> float:
             score += 80
         elif 400 <= top_sum <= 50000:
             score += 40
+        logger.info(f"Scale {cand}: median={med:.1f}, top_sum={top_sum:.1f}, score={score:.1f}")
         if score > best_score:
             best_score = score
             best_scale = cand
 
     # NEW: Fallback for huge raw areas (mm) if nothing was 'room-like'
     if best_score < 0:
+        logger.warning("No scale candidate produced room-like areas, using fallback")
         raw_areas = [p["area"] for p in polygons]
         if raw_areas:
             med_raw = float(np.median(raw_areas))
+            logger.warning(f"Median raw polygon area: {med_raw:.1f}")
             if med_raw > 1000000: # millions of mm2
                 best_scale = 1 / 92903.04
-                print(f"Fallback to mm-scale (med_raw={med_raw})", flush=True)
-
+                logger.warning(f"Fallback to mm-scale (med_raw={med_raw:.1f})")
+            elif med_raw > 10000: # likely cm2
+                best_scale = 1 / 929.0304
+                logger.warning(f"Fallback to cm-scale (med_raw={med_raw:.1f})")
+            else:
+                logger.warning(f"Using header_scale as final fallback: {header_scale}")
+    
+    logger.info(f"Selected scale: {best_scale}")
     return best_scale
 
 

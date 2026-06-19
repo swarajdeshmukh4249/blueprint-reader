@@ -54,7 +54,7 @@ export default function Results() {
   const [editableBoq, setEditableBoq] = useState<any[]>([])
   const [showFinalBoq, setShowFinalBoq] = useState(false)
   const [activeTab, setActiveTab] = useState<'rooms' | 'boq' | 'charts' | 'comments'>('rooms')
-  const [comments, setComments] = useState<{id: string, user: string, text: string, timestamp: string}[]>([])
+  const [comments, setComments] = useState<{id: string, user_id: string, user_name: string, content: string, created_at: string}[]>([])
   const [newComment, setNewComment] = useState('')
   const [boqFinalized, setBoqFinalized] = useState(false)
   const [showCalibration, setShowCalibration] = useState(false)
@@ -73,8 +73,27 @@ export default function Results() {
     // Fetch blueprint file data to get image URL if fileId is provided
     if (fileId) {
       fetchBlueprintFileData(fileId)
+      fetchComments(fileId)
     }
   }, [fileId])
+
+  const fetchComments = async (jobId: string) => {
+    try {
+      const token = await (window as any).Clerk?.session?.getToken()
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
+      const response = await fetch(`${API_BASE_URL}/analysis/analysis-jobs/${jobId}/comments`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setComments(data)
+      }
+    } catch (error) {
+      console.error('Failed to fetch comments:', error)
+    }
+  }
 
   const fetchBlueprintFileData = async (fileId: string) => {
     try {
@@ -160,16 +179,29 @@ export default function Results() {
     amount: item.amount || 0
   })) : []
 
-  const handleAddComment = () => {
-    if (newComment.trim()) {
-      const comment = {
-        id: Date.now().toString(),
-        user: 'You',
-        text: newComment,
-        timestamp: new Date().toLocaleString()
+  const handleAddComment = async () => {
+    if (newComment.trim() && fileId) {
+      try {
+        const token = await (window as any).Clerk?.session?.getToken()
+        const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
+        const response = await fetch(`${API_BASE_URL}/analysis/analysis-jobs/${fileId}/comments`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ content: newComment })
+        })
+        if (response.ok) {
+          const newCommentData = await response.json()
+          setComments([...comments, newCommentData])
+          setNewComment('')
+        } else {
+          console.error('Failed to add comment')
+        }
+      } catch (error) {
+        console.error('Error adding comment:', error)
       }
-      setComments([...comments, comment])
-      setNewComment('')
     }
   }
 
@@ -471,11 +503,11 @@ export default function Results() {
                         <div className="text-xs font-medium text-ink/70 mb-3">Material Usage</div>
                         {materialUsageData.length > 0 ? (
                           <ResponsiveContainer width="100%" height={250}>
-                            <BarChart data={materialUsageData}>
+                            <BarChart data={materialUsageData} layout="vertical">
                               <CartesianGrid strokeDasharray="3 3" />
-                              <XAxis dataKey="name" />
-                              <YAxis />
-                              <Tooltip />
+                              <XAxis type="number" />
+                              <YAxis dataKey="name" type="category" width={120} />
+                              <Tooltip formatter={(value) => formatInr(value as number)} />
                               <Bar dataKey="amount" fill="#3b82f6" />
                             </BarChart>
                           </ResponsiveContainer>
@@ -502,7 +534,7 @@ export default function Results() {
                           </div>
                           <div className="rounded-lg bg-purple-500/10 p-3">
                             <div className="text-xs text-purple-500 font-medium">Total Cost</div>
-                            <div className="mt-1 text-xl font-bold text-ink">{formatInr(editableBoq.reduce((sum, item) => sum + (item.amount || 0), 0))}</div>
+                            <div className="mt-1 text-xl font-bold text-ink">{formatInr(totals?.boq_total || 0)}</div>
                           </div>
                         </div>
                       </div>
@@ -546,13 +578,13 @@ export default function Results() {
                             <div className="flex items-center justify-between mb-2">
                               <div className="flex items-center gap-2">
                                 <div className="h-6 w-6 rounded-full bg-accent/10 flex items-center justify-center">
-                                  <span className="text-xs font-medium text-accent">{comment.user[0]}</span>
+                                  <span className="text-xs font-medium text-accent">{comment.user_name[0]}</span>
                                 </div>
-                                <span className="text-xs font-medium text-ink">{comment.user}</span>
+                                <span className="text-xs font-medium text-ink">{comment.user_name}</span>
                               </div>
-                              <span className="text-xs text-ink/40">{comment.timestamp}</span>
+                              <span className="text-xs text-ink/40">{new Date(comment.created_at).toLocaleString()}</span>
                             </div>
-                            <p className="text-sm text-ink/80">{comment.text}</p>
+                            <p className="text-sm text-ink/80">{comment.content}</p>
                           </div>
                         ))
                       )}

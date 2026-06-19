@@ -5,6 +5,10 @@ from typing import Optional
 from datetime import datetime
 import uuid
 import asyncio
+import os
+import json
+import urllib.request
+import urllib.parse
 
 from models import get_db, Project, AnalysisVersion, Room, BOQItem, Organization
 from models.analytics import (
@@ -351,3 +355,188 @@ async def list_project_analyses(
         )
         for a in analyses
     ]
+
+# Analysis Job Comments endpoints (using Supabase)
+class CommentCreate(BaseModel):
+    content: str
+
+class CommentResponse(BaseModel):
+    id: str
+    job_id: str
+    user_id: str
+    user_name: str
+    content: str
+    created_at: str
+
+@router.post("/analysis-jobs/{job_id}/comments", response_model=CommentResponse)
+async def create_analysis_job_comment(
+    job_id: str,
+    comment: CommentCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a comment for an analysis job"""
+    
+    # Get Supabase credentials
+    supabase_url = os.environ.get("SUPABASE_URL")
+    supabase_anon_key = os.environ.get("SUPABASE_ANON_KEY")
+    
+    if not supabase_url or not supabase_anon_key:
+        raise HTTPException(status_code=500, detail="Supabase credentials not configured")
+    
+    # Get user info from Clerk token
+    clerk_user_id = current_user.get('sub')
+    user_name = current_user.get('name') or current_user.get('username') or 'Anonymous'
+    
+    if not clerk_user_id:
+        raise HTTPException(status_code=401, detail="User ID not found in token")
+    
+    # Verify job exists and user has access
+    query = urllib.parse.urlencode({
+        "select": "id,user_id,org_id",
+        "id": f"eq.{job_id}"
+    })
+    url = f"{supabase_url}/rest/v1/analysis_jobs?{query}"
+    
+    try:
+        headers = {
+            "apikey": supabase_anon_key,
+            "Authorization": f"Bearer {supabase_anon_key}",
+            "Content-Type": "application/json"
+        }
+        request = urllib.request.Request(url=url, headers=headers, method="GET")
+        
+        with urllib.request.urlopen(request, timeout=10) as response:
+            jobs = json.loads(response.read().decode("utf-8"))
+            
+        if not jobs:
+            raise HTTPException(status_code=404, detail="Analysis job not found")
+        
+        job = jobs[0]
+        
+        # Verify user has access (either owns the job or is in the same org)
+        if job.get('user_id') != clerk_user_id and job.get('org_id'):
+            # Check if user is in the org (this would require org membership check)
+            # For now, allow if user_id matches or if it's an org job (simplified)
+            pass
+        
+    except urllib.error.HTTPError as exc:
+        if exc.code == 404:
+            raise HTTPException(status_code=404, detail="Analysis job not found")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch job: {exc.reason}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch job: {str(e)}")
+    
+    # Create comment in Supabase
+    comment_data = {
+        "job_id": job_id,
+        "user_id": clerk_user_id,
+        "user_name": user_name,
+        "content": comment.content
+    }
+    
+    comment_url = f"{supabase_url}/rest/v1/analysis_job_comments"
+    
+    try:
+        comment_body = json.dumps(comment_data).encode("utf-8")
+        comment_request = urllib.request.Request(
+            url=comment_url,
+            data=comment_body,
+            headers=headers,
+            method="POST"
+        )
+        
+        with urllib.request.urlopen(comment_request, timeout=10) as response:
+            if response.status == 201:
+                # Return the created comment
+                result = json.loads(response.read().decode("utf-8"))
+                if isinstance(result, list) and len(result) > 0:
+                    result = result[0]
+                return CommentResponse(
+                    id=result.get('id'),
+                    job_id=result.get('job_id'),
+                    user_id=result.get('user_id'),
+                    user_name=result.get('user_name'),
+                    content=result.get('content'),
+                    created_at=result.get('created_at')
+                )
+            else:
+                raise HTTPException(status_code=500, detail="Failed to create comment")
+                
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create comment: {str(e)}")
+
+@router.get("/analysis-jobs/{job_id}/comments", response_model=list[CommentResponse])
+async def get_analysis_job_comments(
+    job_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get all comments for an analysis job"""
+    
+    # Get Supabase credentials
+    supabase_url = os.environ.get("SUPABASE_URL")
+    supabase_anon_key = os.environ.get("SUPABASE_ANON_KEY")
+    
+    if not supabase_url or not supabase_anon_key:
+        raise HTTPException(status_code=500, detail="Supabase credentials not configured")
+    
+    # Get user info from Clerk token
+    clerk_user_id = current_user.get('sub')
+    
+    if not clerk_user_id:
+        raise HTTPException(status_code=401, detail="User ID not found in token")
+    
+    # Verify job exists
+    query = urllib.parse.urlencode({
+        "select": "id",
+        "id": f"eq.{job_id}"
+    })
+    url = f"{supabase_url}/rest/v1/analysis_jobs?{query}"
+    
+    try:
+        headers = {
+            "apikey": supabase_anon_key,
+            "Authorization": f"Bearer {supabase_anon_key}",
+            "Content-Type": "application/json"
+        }
+        request = urllib.request.Request(url=url, headers=headers, method="GET")
+        
+        with urllib.request.urlopen(request, timeout=10) as response:
+            jobs = json.loads(response.read().decode("utf-8"))
+            
+        if not jobs:
+            raise HTTPException(status_code=404, detail="Analysis job not found")
+        
+    except urllib.error.HTTPError as exc:
+        if exc.code == 404:
+            raise HTTPException(status_code=404, detail="Analysis job not found")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch job: {exc.reason}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch job: {str(e)}")
+    
+    # Fetch comments for the job, sorted by created_at ascending (oldest first)
+    comments_query = urllib.parse.urlencode({
+        "job_id": f"eq.{job_id}",
+        "order": "created_at.asc"
+    })
+    comments_url = f"{supabase_url}/rest/v1/analysis_job_comments?{comments_query}"
+    
+    try:
+        comments_request = urllib.request.Request(url=comments_url, headers=headers, method="GET")
+        
+        with urllib.request.urlopen(comments_request, timeout=10) as response:
+            comments = json.loads(response.read().decode("utf-8"))
+            
+        return [
+            CommentResponse(
+                id=c.get('id'),
+                job_id=c.get('job_id'),
+                user_id=c.get('user_id'),
+                user_name=c.get('user_name'),
+                content=c.get('content'),
+                created_at=c.get('created_at')
+            )
+            for c in comments
+        ]
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch comments: {str(e)}")

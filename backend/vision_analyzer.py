@@ -289,9 +289,12 @@ def analyze_pdf_with_vision(file_bytes, legacy_result, max_pages: int | None = N
         from pdf2image import convert_from_bytes
 
         page_limit = max_pages if max_pages is not None else PDF_VISION_MAX_PAGES
+        # Increase DPI for better resolution on vector/CAD-style PDFs
+        dpi = 250  # Increased from 175 for better text extraction
+        logger.info(f"Converting PDF to images at DPI={dpi} for vision analysis")
         images = convert_from_bytes(
             file_bytes,
-            dpi=175,
+            dpi=dpi,
             first_page=1,
             last_page=page_limit,
         )

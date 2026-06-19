@@ -1,98 +1,67 @@
-import React, { useState } from 'react';
-import { X } from 'lucide-react';
-import { useScaleCalibration } from '../../hooks/useScaleCalibration';
-import BlueprintCanvas from './BlueprintCanvas';
-import CalibrationSidebar from './CalibrationSidebar';
+import React, { useState, useEffect } from 'react';
+import { CalibrationManager } from '../calibration/CalibrationManager';
 
-const ScaleCalibrationPanel = ({ imageUrl, onClose, onScaleApplied }) => {
-  const [zoom, setZoom] = useState(1);
-  
-  const {
-    pointA,
-    pointB,
-    pixelDistance,
-    scaleFactor,
-    confidence,
-    realWorldDistance,
-    unit,
-    handleCanvasClick,
-    setRealWorldDistance,
-    setUnit,
-    calculateScaleFactor,
-    reset,
-    applyScale
-  } = useScaleCalibration();
+export default function ScaleCalibrationPanel() {
+  const [state, setState] = useState(CalibrationManager.getState());
+  const [inputValue, setInputValue] = useState('');
 
-  const handleApply = async () => {
-    const calibrationData = applyScale();
-    if (calibrationData) {
-      // Call the parent callback with the calibration data
-      if (onScaleApplied) {
-        await onScaleApplied(calibrationData);
-      }
-      // Close the panel
-      if (onClose) {
-        onClose();
-      }
-    }
-  };
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setState({ ...CalibrationManager.getState() });
+    }, 100);
+    return () => clearInterval(interval);
+  }, []);
 
-  const handleReset = () => {
-    reset();
-    setZoom(1);
+  const apply = () => {
+    const value = parseFloat(inputValue);
+    if (!value) return;
+
+    CalibrationManager.setRealWorldDistance(value, state.unit);
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-8">
-      <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-7xl h-[800px] flex flex-col overflow-hidden shadow-2xl">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700 bg-gray-800/50">
-          <div>
-            <h1 className="text-2xl font-bold text-white">Scale Calibration</h1>
-            <p className="text-sm text-gray-400 mt-1">Calibrate the blueprint to real-world measurements</p>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
-          >
-            <X className="w-6 h-6 text-gray-400" />
-          </button>
-        </div>
+    <div className="p-3 border bg-white w-80">
+      <h3 className="font-bold mb-2">Scale Calibration</h3>
 
-        {/* Main Content */}
-        <div className="flex-1 flex overflow-hidden">
-          {/* Canvas Area */}
-          <div className="flex-1 p-6">
-            <BlueprintCanvas
-              imageUrl={imageUrl}
-              pointA={pointA}
-              pointB={pointB}
-              onPointPlace={handleCanvasClick}
-              zoom={zoom}
-              onZoomChange={setZoom}
-            />
-          </div>
-
-          {/* Sidebar */}
-          <div className="p-6 bg-gray-800/30">
-            <CalibrationSidebar
-              pointA={pointA}
-              pointB={pointB}
-              pixelDistance={pixelDistance}
-              scaleFactor={scaleFactor}
-              confidence={confidence}
-              unit={unit}
-              realWorldDistance={realWorldDistance}
-              onUnitChange={setUnit}
-              onDistanceChange={setRealWorldDistance}
-              onApply={handleApply}
-              onReset={handleReset}
-            />
-          </div>
+      <div className="text-sm">
+        <div>Point A: {state.pointA ? 'Set' : '-'}</div>
+        <div>Point B: {state.pointB ? 'Set' : '-'}</div>
+        <div>
+          Pixel Distance:{' '}
+          {state.pointA && state.pointB
+            ? Math.sqrt(
+                Math.pow(state.pointB.x - state.pointA.x, 2) +
+                Math.pow(state.pointB.y - state.pointA.y, 2)
+              ).toFixed(2)
+            : '-'}
         </div>
+        <div>
+          Scale Factor:{' '}
+          {state.scaleFactor ? state.scaleFactor.toFixed(4) : '-'}
+        </div>
+      </div>
+
+      <div className="mt-3">
+        <input
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          placeholder="Enter real distance"
+          className="border p-1 w-full"
+        />
+        <button
+          onClick={apply}
+          className="mt-2 bg-blue-500 text-white px-2 py-1 w-full"
+        >
+          Apply
+        </button>
+
+        <button
+          onClick={() => CalibrationManager.reset()}
+          className="mt-2 bg-gray-300 px-2 py-1 w-full"
+        >
+          Reset
+        </button>
       </div>
     </div>
   );
-};
-
-export default ScaleCalibrationPanel;
+}

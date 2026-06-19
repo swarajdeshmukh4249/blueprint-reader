@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Upload, FileText, Box, Circle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Upload, FileText, Box, Circle, ArrowLeft } from 'lucide-react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import DXFViewer from '@/components/viewers/DXFViewer';
 import IFCViewer from '@/components/viewers/IFCViewer';
 import PDFViewer from '@/components/viewers/PDFViewer';
@@ -7,9 +8,14 @@ import PDFViewer from '@/components/viewers/PDFViewer';
 type FileType = 'dxf' | 'ifc' | 'pdf' | null;
 
 export default function Viewer() {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const jobId = searchParams.get('job_id');
   const [file, setFile] = useState<File | null>(null);
   const [fileType, setFileType] = useState<FileType>(null);
   const [dragActive, setDragActive] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -58,7 +64,57 @@ export default function Viewer() {
   const handleReset = () => {
     setFile(null);
     setFileType(null);
+    setError(null);
   };
+
+  // Fetch file by job_id when present
+  useEffect(() => {
+    const fetchFileByJobId = async () => {
+      if (!jobId) return;
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        const token = await (window as any).Clerk?.session?.getToken();
+        const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+        
+        const response = await fetch(`${API_BASE_URL}/blueprint-files/${jobId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch file');
+        }
+
+        const fileData = await response.json();
+        
+        if (!fileData.file_path) {
+          throw new Error('File path not found');
+        }
+
+        // Fetch the actual file from the storage URL
+        const fileResponse = await fetch(fileData.file_path);
+        if (!fileResponse.ok) {
+          throw new Error('Failed to download file');
+        }
+
+        const blob = await fileResponse.blob();
+        const filename = fileData.filename || 'blueprint';
+        const file = new File([blob], filename, { type: blob.type });
+        
+        processFile(file);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load file');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFileByJobId();
+  }, [jobId]);
 
   const renderViewer = () => {
     if (!file || !fileType) return null;
@@ -75,17 +131,60 @@ export default function Viewer() {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-100 p-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center py-20">
+            <div className="text-gray-500">Loading file...</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error && jobId) {
+    return (
+      <div className="min-h-screen bg-gray-100 p-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-6">
+            {jobId && (
+              <button
+                onClick={() => navigate(`/results/${jobId}`)}
+                className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+              >
+                ← Back to Analysis
+              </button>
+            )}
+          </div>
+          <div className="text-center py-20">
+            <div className="text-red-500">Error: {error}</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (file && fileType) {
     return (
       <div className="min-h-screen bg-gray-100 p-8">
         <div className="max-w-7xl mx-auto">
           <div className="mb-6">
-            <button
-              onClick={handleReset}
-              className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
-            >
-              ← Upload Different File
-            </button>
+            {jobId ? (
+              <button
+                onClick={() => navigate(`/results/${jobId}`)}
+                className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+              >
+                ← Back to Analysis
+              </button>
+            ) : (
+              <button
+                onClick={handleReset}
+                className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+              >
+                ← Upload Different File
+              </button>
+            )}
             <h1 className="text-2xl font-bold mt-4">{file.name}</h1>
             <p className="text-gray-600">File type: {fileType.toUpperCase()}</p>
           </div>

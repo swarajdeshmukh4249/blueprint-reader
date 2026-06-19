@@ -1,5 +1,5 @@
-import { Download, RotateCcw, FileText, Calculator, MessageSquare, BarChart3, Save, Check, Ruler } from 'lucide-react'
-import { NavLink, useParams } from 'react-router-dom'
+import { Download, RotateCcw, FileText, Calculator, MessageSquare, BarChart3, Save, Check, Ruler, Expand } from 'lucide-react'
+import { NavLink, useParams, useNavigate } from 'react-router-dom'
 import Container from '@/components/Container'
 import { cn } from '@/lib/utils'
 import { useAnalysisStore } from '@/stores/useAnalysisStore'
@@ -48,6 +48,7 @@ function download(filename: string, content: string, mime: string) {
 
 export default function Results() {
   const { fileId } = useParams<{ fileId?: string }>()
+  const navigate = useNavigate()
   const filename = useAnalysisStore((s) => s.filename)
   const result = useAnalysisStore((s) => s.result)
   const reset = useAnalysisStore((s) => s.reset)
@@ -262,6 +263,31 @@ export default function Results() {
             <div className="rounded-lg border border-ink/20 bg-paper shadow-sm p-5">
               <div className="text-xs font-semibold text-ink/50 uppercase tracking-wider">SUMMARY</div>
               <div className="mt-4 space-y-3">
+                {/* File Preview Card */}
+                {fileId && blueprintImageUrl && (
+                  <div className="rounded-lg border border-ink/15 bg-paper-2/50 p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-xs text-ink/60">Blueprint Preview</div>
+                      <button
+                        onClick={() => navigate(`/viewer?job_id=${fileId}`)}
+                        className="text-ink/60 hover:text-ink transition-colors"
+                        title="Expand to full viewer"
+                      >
+                        <Expand className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <div className="relative rounded-lg overflow-hidden bg-paper border border-ink/10 aspect-video cursor-pointer" onClick={() => navigate(`/viewer?job_id=${fileId}`)}>
+                      <img
+                        src={blueprintImageUrl}
+                        alt="Blueprint preview"
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-ink/0 hover:bg-ink/10 transition-colors flex items-center justify-center opacity-0 hover:opacity-100">
+                        <Expand className="h-6 w-6 text-ink" />
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div className="rounded-lg border border-ink/15 bg-paper-2/50 p-3">
                   <div className="text-xs text-ink/60">Rooms</div>
                   <div className="mt-1 font-display text-2xl tracking-tight">

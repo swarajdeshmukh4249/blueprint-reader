@@ -8,6 +8,7 @@ Usage: python3 tests/test_user_isolation.py
 """
 import os
 import json
+import ssl
 import urllib.request
 import urllib.parse
 from typing import Dict, Any
@@ -15,10 +16,15 @@ from typing import Dict, Any
 
 def load_env_file():
     """Load environment variables from .env file."""
-    backend_dir = os.path.dirname(os.path.abspath(__file__))
+    # Get the backend directory (parent of tests directory)
+    test_dir = os.path.dirname(os.path.abspath(__file__))
+    backend_dir = os.path.dirname(test_dir)
     env_path = os.path.join(backend_dir, ".env")
     
+    print(f"Loading .env from: {env_path}")
+    
     if not os.path.exists(env_path):
+        print(f"Warning: .env file not found at {env_path}")
         return
     
     with open(env_path, "r", encoding="utf-8") as env_file:
@@ -30,6 +36,7 @@ def load_env_file():
             key, value = key.strip(), value.strip().strip('"').strip("'")
             if key and key not in os.environ:
                 os.environ[key] = value
+                print(f"Loaded: {key}=***")
 
 
 # Load environment variables at module level
@@ -78,13 +85,22 @@ class TestUserIsolation:
         
         req = urllib.request.Request(url=url, data=request_body, headers=default_headers, method=method)
         
-        with urllib.request.urlopen(req, timeout=10) as response:
+        # Create SSL context that doesn't verify certificates (for testing only)
+        ssl_context = ssl.create_default_context()
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = ssl.CERT_NONE
+        
+        with urllib.request.urlopen(req, timeout=10, context=ssl_context) as response:
+            response_data = response.read().decode("utf-8")
+            
             if response.status in (200, 201, 204):
                 if response.status == 204:
                     return None
-                return json.loads(response.read().decode("utf-8"))
+                if not response_data.strip():
+                    return []
+                return json.loads(response_data)
             else:
-                raise Exception(f"Request failed with status {response.status}")
+                raise Exception(f"Request failed with status {response.status}: {response_data}")
     
     def test_user_cannot_access_other_users_analysis_jobs(self):
         """
@@ -95,14 +111,18 @@ class TestUserIsolation:
         """
         supabase_config = self.get_supabase_config()
         
-        # Simulate two different Clerk users
-        user_a_id = "user_test_clerk_id_001"
-        user_b_id = "user_test_clerk_id_002"
+        # Use unique identifiers to avoid conflicts
+        import time
+        timestamp = int(time.time())
         
-        # Create an analysis job for User A
+        # Simulate two different Clerk users
+        user_a_id = f"user_test_clerk_id_001_{timestamp}"
+        user_b_id = f"user_test_clerk_id_002_{timestamp}"
+        
+        # Create an analysis job for User A with unique file path
         job_a_data = {
-            "file_name": "test_blueprint_user_a.pdf",
-            "file_path": "/test/user_a/blueprint.pdf",
+            "file_name": f"test_blueprint_user_a_{timestamp}.pdf",
+            "file_path": f"/test/user_a/blueprint_{timestamp}.pdf",
             "file_type": "pdf",
             "storage_bucket": "blueprints",
             "status": "queued",
@@ -116,6 +136,20 @@ class TestUserIsolation:
             method="POST",
             body=job_a_data
         )
+        
+        # Supabase might return empty response on successful POST
+        # Query the created job to get its ID
+        query = urllib.parse.urlencode({
+            "select": "id",
+            "file_path": f"eq.{job_a_data['file_path']}"
+        })
+        created_job = self.make_supabase_request(
+            supabase_config,
+            f"/rest/v1/analysis_jobs?{query}"
+        )
+        
+        if not created_job:
+            raise Exception("Failed to retrieve created job")
         
         job_a_id = created_job[0]["id"]
         
@@ -188,15 +222,19 @@ class TestUserIsolation:
         """
         supabase_config = self.get_supabase_config()
         
-        user_a_id = "user_test_clerk_id_003"
-        user_b_id = "user_test_clerk_id_004"
-        org_a_id = "org_test_id_001"
-        org_b_id = "org_test_id_002"
+        # Use unique identifiers to avoid conflicts
+        import time
+        timestamp = int(time.time())
         
-        # Create a job for User A in Org A
+        user_a_id = f"user_test_clerk_id_003_{timestamp}"
+        user_b_id = f"user_test_clerk_id_004_{timestamp}"
+        org_a_id = f"org_test_id_001_{timestamp}"
+        org_b_id = f"org_test_id_002_{timestamp}"
+        
+        # Create a job for User A in Org A with unique file path
         job_a_data = {
-            "file_name": "test_org_a.pdf",
-            "file_path": "/test/org_a/blueprint.pdf",
+            "file_name": f"test_org_a_{timestamp}.pdf",
+            "file_path": f"/test/org_a/blueprint_{timestamp}.pdf",
             "file_type": "pdf",
             "storage_bucket": "blueprints",
             "status": "queued",
@@ -210,6 +248,20 @@ class TestUserIsolation:
             method="POST",
             body=job_a_data
         )
+        
+        # Supabase might return empty response on successful POST
+        # Query the created job to get its ID
+        query = urllib.parse.urlencode({
+            "select": "id",
+            "file_path": f"eq.{job_a_data['file_path']}"
+        })
+        created_job = self.make_supabase_request(
+            supabase_config,
+            f"/rest/v1/analysis_jobs?{query}"
+        )
+        
+        if not created_job:
+            raise Exception("Failed to retrieve created job")
         
         job_a_id = created_job[0]["id"]
         

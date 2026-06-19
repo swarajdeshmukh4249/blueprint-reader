@@ -8,6 +8,10 @@ if os.path.exists(".env"):
                 k, v = line.strip().split("=", 1)
                 os.environ[k] = v
 
+# Set GOOGLE_API_KEY from GEMINI_API_KEY if GOOGLE_API_KEY is not set
+if not os.environ.get("GOOGLE_API_KEY") and os.environ.get("GEMINI_API_KEY"):
+    os.environ["GOOGLE_API_KEY"] = os.environ["GEMINI_API_KEY"]
+
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
@@ -53,6 +57,8 @@ app.add_middleware(
         "https://www.archvision.me",
         "http://localhost:3000",       # keep for local dev
         "http://localhost:5173",       # keep for local dev
+        "http://localhost:5174",       # additional local dev port
+        "http://localhost:5175",       # additional local dev port
     ],
     allow_credentials=True,
     allow_methods=["*"],

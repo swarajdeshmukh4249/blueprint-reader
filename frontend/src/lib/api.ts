@@ -3,7 +3,22 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/
 console.log('API_BASE_URL:', API_BASE_URL)
 
 export async function fetchWithAuth(url: string, options: RequestInit = {}) {
-  const token = localStorage.getItem('__clerk_db_jwt')
+  // Try to get token from Clerk first, then fallback to localStorage
+  let token = localStorage.getItem('__clerk_db_jwt')
+  
+  // If no token in localStorage, try to get it from Clerk
+  if (!token) {
+    try {
+      const clerkToken = await (window as any).Clerk?.session?.getToken()
+      if (clerkToken) {
+        token = clerkToken
+        localStorage.setItem('__clerk_db_jwt', token)
+      }
+    } catch (e) {
+      console.log('Could not get Clerk token:', e)
+    }
+  }
+
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...(token && { 'Authorization': `Bearer ${token}` }),

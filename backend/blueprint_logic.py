@@ -137,7 +137,7 @@ TESSERACT_AVAILABLE = setup_tesseract()
 
 def google_api_key() -> str:
     """Read at call time — worker must load .env before importing this module."""
-    return (os.environ.get("GOOGLE_API_KEY") or "").strip()
+    return (os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY") or "").strip()
 
 
 try:

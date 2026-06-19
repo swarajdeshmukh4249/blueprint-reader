@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CalibrationManager } from '../calibration/CalibrationManager';
+import { CalibrationManager } from '../../calibration/CalibrationManager';
 
 export default function ScaleCalibrationPanel() {
   const [state, setState] = useState(CalibrationManager.getState());

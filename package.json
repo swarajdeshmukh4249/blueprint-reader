@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "pdfjs-dist": "^6.0.227",
+    "three": "^0.184.0",
+    "web-ifc": "^0.0.77"
+  }
+}

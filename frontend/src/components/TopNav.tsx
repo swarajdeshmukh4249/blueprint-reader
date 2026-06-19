@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom'
 import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react'
 import { useTheme } from '@/hooks/useTheme'
 import Container from '@/components/Container'
+import logo from '@/assets/logo.png'
 
 export default function TopNav() {
   const { isDark, toggleTheme } = useTheme()
@@ -12,12 +13,21 @@ export default function TopNav() {
       <div className="pointer-events-none absolute inset-0 bg-paper/70 backdrop-blur-xl" />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-ink/10" />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-ink/10" />
-      <Container className="relative pointer-events-auto flex h-full items-center justify-between">
-        <NavLink to="/" className="group flex items-baseline gap-2">
-          <span className="font-display text-2xl tracking-tight text-ink">ArchVision</span>
-          <span className="text-xs tracking-[0.18em] text-ink/50">
-            STUDIO
-          </span>
+      <Container className="relative pointer-events-auto flex h-full items-center justify-between !mx-0 !px-4 !max-w-full">
+        <NavLink to="/" className="group flex items-center gap-3">
+          <img 
+            src={logo} 
+            alt="ArchVision Logo" 
+            className="h-20 w-auto object-contain"
+          />
+          <div className="flex flex-col">
+            <span className="text-xl font-bold tracking-tight text-ink">
+              ArchVision Studio
+            </span>
+            <span className="text-xs tracking-[0.15em] text-ink/60 mt-0.5">
+              Architectural BOQ Solutions
+            </span>
+          </div>
         </NavLink>
 
         <div className="flex items-center gap-3">

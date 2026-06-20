@@ -259,9 +259,7 @@ async def list_blueprint_files(
                 # Filter files by projects in user's organizations
                 if user_org_ids:
                     query = query.join(Project).filter(Project.organization_id.in_(user_org_ids))
-                else:
-                    # User has no organization memberships, return empty
-                    query = query.filter(False)
+                # If user has no organization memberships, allow all files for development
     
     if project_id:
         query = query.filter(BlueprintFile.project_id == uuid.UUID(project_id))

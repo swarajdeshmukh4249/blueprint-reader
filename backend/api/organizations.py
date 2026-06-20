@@ -120,12 +120,12 @@ async def list_organizations(
         except Exception:
             pass  # Allow request to proceed even if auth fails
     
-    # Filter by user's memberships if authenticated
+    # Filter by user's memberships if authenticated, otherwise return all for development
     if user:
         user_org_ids = [m.organization_id for m in db.query(OrganizationMember).filter(OrganizationMember.user_id == user.id).all()]
         organizations = db.query(Organization).filter(Organization.id.in_(user_org_ids)).all()
     else:
-        # No authenticated user, return all organizations for demo
+        # No authenticated user, return all organizations for development
         organizations = db.query(Organization).all()
     
     return [

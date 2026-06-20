@@ -96,15 +96,15 @@ export default function SideNav({ onCollapsedChange }: SideNavProps) {
             <NavItem to="/" icon={Home}>Home</NavItem>
             <NavItem to="/upload" icon={Upload}>Upload</NavItem>
             
-            <div className="pt-4">
-              <p className="px-3 text-xs font-semibold text-ink/40 uppercase tracking-wider mb-2">
-                Workspace
-              </p>
-              <NavItem to="/dashboard" icon={BarChart3}>Dashboard</NavItem>
-              <NavItem to="/enterprise-dashboard" icon={BarChart3}>Analytics</NavItem>
-            </div>
-            
             <SignedIn>
+              <div className="pt-4">
+                <p className="px-3 text-xs font-semibold text-ink/40 uppercase tracking-wider mb-2">
+                  Workspace
+                </p>
+                <NavItem to="/dashboard" icon={BarChart3}>Dashboard</NavItem>
+                <NavItem to="/enterprise-dashboard" icon={BarChart3}>Analytics</NavItem>
+              </div>
+              
               <div className="pt-4">
                 <p className="px-3 text-xs font-semibold text-ink/40 uppercase tracking-wider mb-2">
                   Tools

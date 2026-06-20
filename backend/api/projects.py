@@ -148,11 +148,18 @@ async def list_projects(
                 
                 # Filter projects by user's organizations
                 if user_org_ids:
-                    query = query.filter(Project.organization_id.in_(user_org_ids))
-    
-    # Filter by organization if provided (additional filter)
-    if organization_id:
-        query = query.filter(Project.organization_id == uuid.UUID(organization_id))
+                    # If organization_id provided, verify user has access
+                    if organization_id:
+                        if uuid.UUID(organization_id) not in user_org_ids:
+                            raise HTTPException(status_code=403, detail="Access denied to this organization")
+                        query = query.filter(Project.organization_id == uuid.UUID(organization_id))
+                    else:
+                        query = query.filter(Project.organization_id.in_(user_org_ids))
+                else:
+                    # User has no organization memberships, return empty
+                    query = query.filter(False)
+        # If no clerk_user_id, allow request to proceed (for development)
+    # If no authenticated user, allow request to proceed (for development)
     
     # Parse sort parameter
     sort_field, sort_direction = sort.split(":")

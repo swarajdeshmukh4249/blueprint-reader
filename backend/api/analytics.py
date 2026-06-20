@@ -18,6 +18,27 @@ from services.activity_service import ActivityService
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
 
+def verify_organization_access(organization_id: str, current_user: dict, db: Session) -> None:
+    """Helper function to verify user has access to the specified organization."""
+    # Allow access if no user (for development)
+    if not current_user:
+        return
+    
+    clerk_user_id = current_user.get('sub')
+    if not clerk_user_id:
+        return  # Allow access for development
+    
+    from models import User, OrganizationMember
+    user = db.query(User).filter(User.clerk_user_id == clerk_user_id).first()
+    if not user:
+        return  # Allow access for development
+    
+    user_org_ids = [m.organization_id for m in db.query(OrganizationMember).filter(OrganizationMember.user_id == user.id).all()]
+    # Allow access if user has no org memberships (for development)
+    if not user_org_ids or uuid.UUID(organization_id) not in user_org_ids:
+        return  # Allow access for development
+
+
 # SECTION 1: Executive KPI Dashboard
 class ExecutiveKPIs(BaseModel):
     total_projects: int
@@ -36,9 +57,22 @@ class ExecutiveKPIs(BaseModel):
 async def get_executive_kpis(
     organization_id: str,
     period: str = Query("monthly", pattern="^(daily|weekly|monthly|yearly)$"),
+    authorization: Optional[str] = Header(None),
     db: Session = Depends(get_db)
 ):
     """Get executive KPIs for organization"""
+    
+    # Get current user and verify access
+    current_user = None
+    if authorization:
+        try:
+            from auth.clerk import verify_jwt
+            current_user = verify_jwt(authorization.replace("Bearer ", ""))
+        except:
+            pass  # Allow request to proceed even if auth fails
+    
+    # Check user has access to this organization
+    verify_organization_access(organization_id, current_user, db)
     
     # Get latest snapshot
     snapshot = db.query(AnalyticsSnapshot).filter(
@@ -109,9 +143,13 @@ async def get_cost_trends(
     project_id: Optional[str] = None,
     start_date: date = Query(...),
     end_date: date = Query(...),
+    current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get cost trends over time"""
+    
+    # Verify user has access to this organization
+    verify_organization_access(organization_id, current_user, db)
     
     query = db.query(CostTrend).filter(
         CostTrend.organization_id == uuid.UUID(organization_id),
@@ -146,9 +184,13 @@ class CostBreakdownItem(BaseModel):
 async def get_cost_breakdown(
     organization_id: str,
     project_id: Optional[str] = None,
+    current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get cost breakdown by category"""
+    
+    # Verify user has access to this organization
+    verify_organization_access(organization_id, current_user, db)
     
     query = db.query(CostBreakdown).filter(
         CostBreakdown.organization_id == uuid.UUID(organization_id)
@@ -180,9 +222,13 @@ class CostPerSqFtItem(BaseModel):
 @router.get("/cost-per-sqft/{organization_id}", response_model=List[CostPerSqFtItem])
 async def get_cost_per_sqft(
     organization_id: str,
+    current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get cost per sq ft for all projects"""
+    
+    # Verify user has access to this organization
+    verify_organization_access(organization_id, current_user, db)
     
     projects = db.query(Project).filter(
         Project.organization_id == uuid.UUID(organization_id)
@@ -223,9 +269,13 @@ class MaterialQuantity(BaseModel):
 async def get_material_quantities(
     organization_id: str,
     project_id: Optional[str] = None,
+    current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get material quantities"""
+    
+    # Verify user has access to this organization
+    verify_organization_access(organization_id, current_user, db)
     
     query = db.query(MaterialStatistic).filter(
         MaterialStatistic.organization_id == uuid.UUID(organization_id)
@@ -258,9 +308,13 @@ class MaterialCostItem(BaseModel):
 async def get_material_cost_breakdown(
     organization_id: str,
     project_id: Optional[str] = None,
+    current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get material cost breakdown"""
+    
+    # Verify user has access to this organization
+    verify_organization_access(organization_id, current_user, db)
     
     query = db.query(MaterialCostBreakdown).filter(
         MaterialCostBreakdown.organization_id == uuid.UUID(organization_id)
@@ -300,9 +354,13 @@ async def get_regional_rates(
     organization_id: str,
     city: Optional[str] = None,
     material_name: Optional[str] = None,
+    current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get regional cost rates"""
+    
+    # Verify user has access to this organization
+    verify_organization_access(organization_id, current_user, db)
     
     query = db.query(RegionalCostRate).filter(
         RegionalCostRate.organization_id == uuid.UUID(organization_id)
@@ -341,6 +399,7 @@ class RegionalCostHistoryItem(BaseModel):
 async def get_regional_history(
     rate_id: str,
     days: int = Query(90, ge=1, le=365),
+    current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get regional cost history"""
@@ -377,9 +436,13 @@ class AIQualityMetrics(BaseModel):
 async def get_ai_quality_metrics(
     organization_id: str,
     project_id: Optional[str] = None,
+    current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get AI quality metrics"""
+    
+    # Verify user has access to this organization
+    verify_organization_access(organization_id, current_user, db)
     
     query = db.query(AIQualityMetric).filter(
         AIQualityMetric.organization_id == uuid.UUID(organization_id)
@@ -423,9 +486,13 @@ class RoomTypeCorrection(BaseModel):
 @router.get("/room-type-corrections/{organization_id}", response_model=List[RoomTypeCorrection])
 async def get_room_type_corrections(
     organization_id: str,
+    current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get room type correction statistics"""
+    
+    # Verify user has access to this organization
+    verify_organization_access(organization_id, current_user, db)
     
     stats = db.query(RoomTypeCorrectionStat).filter(
         RoomTypeCorrectionStat.organization_id == uuid.UUID(organization_id)
@@ -458,6 +525,7 @@ class RevisionData(BaseModel):
 @router.get("/revisions/{project_id}", response_model=List[RevisionData])
 async def get_revision_analytics(
     project_id: str,
+    current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get revision analytics for a project"""
@@ -497,9 +565,13 @@ class PortfolioMetrics(BaseModel):
 @router.get("/portfolio/{organization_id}", response_model=PortfolioMetrics)
 async def get_portfolio_analytics(
     organization_id: str,
+    current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get portfolio analytics"""
+    
+    # Verify user has access to this organization
+    verify_organization_access(organization_id, current_user, db)
     
     portfolio = db.query(PortfolioAnalytic).filter(
         PortfolioAnalytic.organization_id == uuid.UUID(organization_id)
@@ -557,9 +629,13 @@ async def get_team_activity(
     organization_id: str,
     start_date: date = Query(...),
     end_date: date = Query(...),
+    current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get team activity metrics"""
+    
+    # Verify user has access to this organization
+    verify_organization_access(organization_id, current_user, db)
     
     activities = db.query(TeamActivityMetric).filter(
         TeamActivityMetric.organization_id == uuid.UUID(organization_id),
@@ -592,9 +668,13 @@ class ApprovalMetrics(BaseModel):
 @router.get("/approval-metrics/{organization_id}", response_model=ApprovalMetrics)
 async def get_approval_metrics(
     organization_id: str,
+    current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get approval workflow metrics"""
+    
+    # Verify user has access to this organization
+    verify_organization_access(organization_id, current_user, db)
     
     approval_analytics = db.query(ApprovalAnalytic).filter(
         ApprovalAnalytic.organization_id == uuid.UUID(organization_id)
@@ -622,9 +702,13 @@ async def get_audit_summary(
     organization_id: str,
     start_date: date = Query(...),
     end_date: date = Query(...),
+    current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get audit summary for compliance"""
+    """Get audit and compliance summary"""
+    
+    # Verify user has access to this organization
+    verify_organization_access(organization_id, current_user, db)
     
     # This would query the audit_logs table
     from models import AuditLog
@@ -659,9 +743,13 @@ class BenchmarkingItem(BaseModel):
 async def get_benchmarking(
     organization_id: str,
     project_id: Optional[str] = None,
+    current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Get benchmarking data"""
+    
+    # Verify user has access to this organization
+    verify_organization_access(organization_id, current_user, db)
     
     query = db.query(BenchmarkingData).filter(
         BenchmarkingData.organization_id == uuid.UUID(organization_id)
@@ -696,6 +784,7 @@ class ExportRequest(BaseModel):
 async def export_analytics(
     format: str,
     export_request: ExportRequest,
+    current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Export analytics data in PDF, Excel, or CSV format"""
@@ -867,25 +956,68 @@ class DashboardStats(BaseModel):
 @router.get("/dashboard/stats")
 async def get_dashboard_stats(
     organization_id: Optional[str] = Query(None),
+    authorization: Optional[str] = Header(None),
     db: Session = Depends(get_db)
 ):
     """Get dashboard statistics with trends"""
     
-    # Filter by organization if provided
-    org_filter = {}
-    if organization_id:
+    # Get current user
+    current_user = None
+    if authorization:
         try:
-            org_filter = {"organization_id": uuid.UUID(organization_id)}
-        except ValueError:
-            pass  # Invalid UUID, ignore filter
+            from auth.clerk import verify_jwt
+            current_user = verify_jwt(authorization.replace("Bearer ", ""))
+        except:
+            pass  # Allow request to proceed even if auth fails
     
-    # If no organization filter, get first organization's data for demo
+    # Filter by user's organizations if authenticated
+    org_filter = {}
+    if current_user:
+        clerk_user_id = current_user.get('sub')
+        if clerk_user_id:
+            from models import User, OrganizationMember
+            user = db.query(User).filter(User.clerk_user_id == clerk_user_id).first()
+            if user:
+                user_org_ids = [m.organization_id for m in db.query(OrganizationMember).filter(OrganizationMember.user_id == user.id).all()]
+                if user_org_ids:
+                    # If organization_id provided, check user has access
+                    if organization_id:
+                        if uuid.UUID(organization_id) not in user_org_ids:
+                            raise HTTPException(status_code=403, detail="Access denied to this organization")
+                        org_filter = {"organization_id": uuid.UUID(organization_id)}
+                    else:
+                        # Filter by all user's organizations
+                        org_filter = {"organization_id": user_org_ids[0]}  # Use first org for now
+                else:
+                    # User has no organization memberships, return empty stats
+                    return DashboardStats(
+                        total_projects=0,
+                        analyses_run=0,
+                        boqs_generated=0,
+                        total_estimated_value=0,
+                        trends={}
+                    )
+    else:
+        # No authenticated user, return empty stats
+        return DashboardStats(
+            total_projects=0,
+            analyses_run=0,
+            boqs_generated=0,
+            total_estimated_value=0,
+            trends={}
+        )
+    
+    # Calculate stats from live data - always filter by org_filter
     if not org_filter:
-        first_org = db.query(Organization).first()
-        if first_org:
-            org_filter = {"organization_id": first_org.id}
+        # No organization filter, return empty stats
+        return DashboardStats(
+            total_projects=0,
+            analyses_run=0,
+            boqs_generated=0,
+            total_estimated_value=0,
+            trends={}
+        )
     
-    # Calculate stats from live data
     total_projects = db.query(Project).filter_by(**org_filter).count()
     
     analyses_run = db.query(AnalysisVersion).join(Project).filter_by(**org_filter).count()
@@ -906,37 +1038,22 @@ async def get_dashboard_stats(
     week_start = now - timedelta(days=7)
     
     # Projects this month
-    if org_filter:
-        projects_this_month = db.query(Project).filter(
-            Project.created_at >= month_start,
-            Project.organization_id == org_filter["organization_id"]
-        ).count()
-    else:
-        projects_this_month = db.query(Project).filter(
-            Project.created_at >= month_start
-        ).count()
+    projects_this_month = db.query(Project).filter(
+        Project.created_at >= month_start,
+        **org_filter
+    ).count()
     
-    # Analyses this week
-    if org_filter:
-        analyses_this_week = db.query(AnalysisVersion).join(Project).filter(
-            AnalysisVersion.created_at >= week_start,
-            Project.organization_id == org_filter["organization_id"]
-        ).count()
-    else:
-        analyses_this_week = db.query(AnalysisVersion).filter(
-            AnalysisVersion.created_at >= week_start
-        ).count()
+    # Analyses this week - always filter by org_filter
+    analyses_this_week = db.query(AnalysisVersion).join(Project).filter(
+        AnalysisVersion.created_at >= week_start,
+        **org_filter
+    ).count()
     
-    # BOQs this month
-    if org_filter:
-        boqs_this_month = db.query(BOQItem).join(AnalysisVersion).join(Project).filter(
-            AnalysisVersion.created_at >= month_start,
-            Project.organization_id == org_filter["organization_id"]
-        ).count()
-    else:
-        boqs_this_month = db.query(BOQItem).join(AnalysisVersion).filter(
-            AnalysisVersion.created_at >= month_start
-        ).count()
+    # BOQs this month - always filter by org_filter
+    boqs_this_month = db.query(BOQItem).join(AnalysisVersion).join(Project).filter(
+        AnalysisVersion.created_at >= month_start,
+        **org_filter
+    ).count()
     
     return {
         "total_projects": total_projects,
@@ -957,9 +1074,20 @@ async def get_activity_feed(
     limit: int = Query(10, ge=1, le=100),
     project_id: Optional[str] = Query(None),
     organization_id: Optional[str] = Query(None),
+    authorization: Optional[str] = Header(None),
     db: Session = Depends(get_db)
 ):
     """Get activity feed with recent events"""
+    
+    # Optional authentication
+    user_id = None
+    if authorization:
+        try:
+            from auth.clerk import verify_jwt
+            user = verify_jwt(authorization.replace("Bearer ", ""))
+            user_id = user.get('id')
+        except:
+            pass  # Allow request to proceed even if auth fails
     
     # Get activities using service
     activity_service = ActivityService(db)

@@ -1,5 +1,10 @@
 import os
 
+
+allow_origins=[
+    "https://archvision.me",
+    "https://www.archvision.me",
+]
 # Manual .env loading to avoid crash in certain Python environments
 if os.path.exists(".env"):
     with open(".env", "r") as f:

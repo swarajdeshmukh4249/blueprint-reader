@@ -71,7 +71,6 @@ export default function Upload() {
       const newProject = await projectsApi.create({
         name: newProjectName,
         building_type: 'residential',
-        status: 'active'
       })
       setProjects([...projects, newProject])
       setSelectedProject(newProject.id)
@@ -79,6 +78,7 @@ export default function Upload() {
       setShowCreateProject(false)
     } catch (error) {
       console.error('Failed to create project:', error)
+      alert(`Failed to create project: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
@@ -383,4 +383,3 @@ export default function Upload() {
     </div>
   )
 }
-

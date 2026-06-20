@@ -207,6 +207,11 @@ def merge_results(vision_data, legacy_data):
         ).strip()
 
     if not vision_data or not vision_data.get("rooms"):
+        if vision_data and vision_data.get("error") and not legacy_data.get("room_data"):
+            legacy_data["notes"] = (
+                (legacy_data.get("notes") or "")
+                + " Vision AI found no rooms and reported an error — see vision_error."
+            ).strip()
         return legacy_data
 
     legacy_rooms = list(legacy_data.get("room_data") or [])
@@ -286,22 +291,18 @@ def merge_results(vision_data, legacy_data):
 
 def analyze_pdf_with_vision(file_bytes, legacy_result, max_pages: int | None = None):
     try:
-        from pdf2image import convert_from_bytes
+        from blueprint_logic import convert_pdf_to_images
 
         page_limit = max_pages if max_pages is not None else PDF_VISION_MAX_PAGES
-        # Increase DPI for better resolution on vector/CAD-style PDFs
-        dpi = 250  # Increased from 175 for better text extraction
-        logger.info(f"Converting PDF to images at DPI={dpi} for vision analysis")
-        images = convert_from_bytes(
-            file_bytes,
-            dpi=dpi,
-            first_page=1,
-            last_page=page_limit,
-        )
+        logger.info(f"Converting PDF to images for vision analysis (max_pages={page_limit})")
+        images = convert_pdf_to_images(file_bytes, max_pages=page_limit)
 
         if not images:
+            legacy_result["notes"] = (
+                (legacy_result.get("notes") or "")
+                + " PDF-to-image conversion returned no pages for Vision."
+            ).strip()
             return legacy_result
-
         page_results = []
         for img in images[:page_limit]:
             page_result = call_gemini(pil_to_bytes(img))

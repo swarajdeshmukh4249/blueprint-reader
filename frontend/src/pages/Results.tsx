@@ -496,51 +496,64 @@ export default function Results() {
                   <div>
                     <div className="text-sm font-semibold text-ink mb-4">Cost Breakdown Visualization</div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Cost Breakdown Pie Chart */}
-                      <div className="rounded-lg border border-ink/15 bg-paper-2/50 p-4">
-                        <div className="text-xs font-medium text-ink/70 mb-3">Cost Distribution</div>
-                        {costBreakdownData.length > 0 ? (
-                          <ResponsiveContainer width="100%" height={250}>
-                            <PieChart>
-                              <Pie
-                                data={costBreakdownData}
-                                cx="50%"
-                                cy="50%"
-                                labelLine={false}
-                                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                                outerRadius={80}
-                                fill="#8884d8"
-                                dataKey="value"
-                              >
-                                {costBreakdownData.map((entry, index) => (
-                                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                ))}
-                              </Pie>
-                              <Tooltip />
-                            </PieChart>
-                          </ResponsiveContainer>
-                        ) : (
-                          <div className="text-sm text-ink/60 text-center py-8">No data available</div>
-                        )}
-                      </div>
+                                        {/* Cost Breakdown Pie Chart */}
+                  <div className="rounded-lg border border-ink/15 bg-paper-2/50 p-4">
+                    <div className="text-xs font-medium text-ink/70 mb-3">Cost Distribution</div>
+                    {costBreakdownData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height={280}>
+                        <PieChart>
+                          <Pie
+                            data={costBreakdownData}
+                            cx="50%"
+                            cy="45%"
+                            labelLine={false}
+                            label={false}
+                            outerRadius={75}
+                            fill="#8884d8"
+                            dataKey="value"
+                          >
+                            {costBreakdownData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip formatter={(value: number, name: string) => [formatInr(value), name]} />
+                          <Legend
+                            layout="horizontal"
+                            verticalAlign="bottom"
+                            align="center"
+                            wrapperStyle={{ fontSize: 11, lineHeight: '1.4' }}
+                            formatter={(value: string) => value.length > 22 ? `${value.slice(0, 22)}…` : value}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="text-sm text-ink/60 text-center py-8">No data available</div>
+                    )}
+                  </div>
 
-                      {/* Material Usage Bar Chart */}
-                      <div className="rounded-lg border border-ink/15 bg-paper-2/50 p-4">
-                        <div className="text-xs font-medium text-ink/70 mb-3">Material Usage</div>
-                        {materialUsageData.length > 0 ? (
-                          <ResponsiveContainer width="100%" height={250}>
-                            <BarChart data={materialUsageData} layout="vertical">
-                              <CartesianGrid strokeDasharray="3 3" />
-                              <XAxis type="number" />
-                              <YAxis dataKey="name" type="category" width={120} />
-                              <Tooltip formatter={(value) => formatInr(value as number)} />
-                              <Bar dataKey="amount" fill="#3b82f6" />
-                            </BarChart>
-                          </ResponsiveContainer>
-                        ) : (
-                          <div className="text-sm text-ink/60 text-center py-8">No data available</div>
-                        )}
-                      </div>
+                                        {/* Material Usage Bar Chart */}
+                  <div className="rounded-lg border border-ink/15 bg-paper-2/50 p-4">
+                    <div className="text-xs font-medium text-ink/70 mb-3">Material Usage</div>
+                    {materialUsageData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height={Math.max(250, materialUsageData.length * 45)}>
+                        <BarChart data={materialUsageData} layout="vertical" margin={{ left: 10, right: 20 }}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis type="number" />
+                          <YAxis
+                            dataKey="name"
+                            type="category"
+                            width={150}
+                            tick={{ fontSize: 11 }}
+                            tickFormatter={(value: string) => value.length > 24 ? `${value.slice(0, 24)}…` : value}
+                          />
+                          <Tooltip formatter={(value) => formatInr(value as number)} />
+                          <Bar dataKey="amount" fill="#3b82f6" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="text-sm text-ink/60 text-center py-8">No data available</div>
+                    )}
+                  </div>
 
                       {/* KPI Cards */}
                       <div className="md:col-span-2 rounded-lg border border-ink/15 bg-paper-2/50 p-4">

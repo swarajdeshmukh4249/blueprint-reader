@@ -14,7 +14,9 @@ from PIL import Image
 from pypdf import PdfReader
 from scipy.spatial import KDTree
 from shapely.geometry import Polygon
+import logging
 
+logger = logging.getLogger(__name__)
 print("FINAL BLUEPRINT ENGINE RUNNING", flush=True)
 
 # =====================================================

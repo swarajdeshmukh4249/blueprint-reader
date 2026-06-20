@@ -118,16 +118,15 @@ async def list_organizations(
             clerk_user_id = user_data.get('sub')
             user = db.query(User).filter(User.clerk_user_id == clerk_user_id).first()
         except Exception:
-            # If token verification fails, return empty list
-            return []
+            pass  # Allow request to proceed even if auth fails
     
-    # Filter by user's memberships
+    # Filter by user's memberships if authenticated
     if user:
         user_org_ids = [m.organization_id for m in db.query(OrganizationMember).filter(OrganizationMember.user_id == user.id).all()]
         organizations = db.query(Organization).filter(Organization.id.in_(user_org_ids)).all()
     else:
-        # No authenticated user, return empty list
-        organizations = []
+        # No authenticated user, return all organizations for demo
+        organizations = db.query(Organization).all()
     
     return [
         OrganizationResponse(

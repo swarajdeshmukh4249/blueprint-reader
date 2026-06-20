@@ -141,10 +141,10 @@ export default function EnterpriseDashboard() {
         <div className="bg-white rounded-xl p-6 border">
           <h3 className="font-semibold mb-4">Projects by Status</h3>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={data.projectsByStatus} layout="vertical">
+            <BarChart data={data.projectsByStatus}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" />
-              <YAxis dataKey="status" type="category" width={120} />
+              <XAxis dataKey="status" />
+              <YAxis />
               <Tooltip />
               <Legend />
               <Bar dataKey="count" fill="#3b82f6" />
@@ -172,10 +172,10 @@ export default function EnterpriseDashboard() {
       <div className="bg-white rounded-xl p-6 border">
         <h3 className="font-semibold mb-4">Projects by Region</h3>
         <ResponsiveContainer width="100%" height={400}>
-          <BarChart data={data.projectsByRegion} layout="vertical">
+          <BarChart data={data.projectsByRegion}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis type="number" />
-            <YAxis dataKey="region" type="category" width={100} />
+            <XAxis dataKey="region" />
+            <YAxis />
             <Tooltip />
             <Legend />
             <Bar dataKey="count" fill="#3b82f6" />

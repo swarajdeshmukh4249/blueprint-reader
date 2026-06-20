@@ -35,22 +35,8 @@ export default function App() {
             <Route path="/results/:fileId?" element={<Results />} />
             <Route path="/about" element={<About />} />
             <Route path="/contact" element={<Contact />} />
-            <Route 
-              path="/dashboard" 
-              element={
-                <SignedIn>
-                  <Dashboard />
-                </SignedIn>
-              } 
-            />
-            <Route
-              path="/enterprise-dashboard"
-              element={
-                <SignedIn>
-                  <EnterpriseAnalytics />
-                </SignedIn>
-              }
-            />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/enterprise-dashboard" element={<EnterpriseAnalytics />} />
             <Route
               path="/floor-comparison/:projectId"
               element={

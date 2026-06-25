@@ -65,7 +65,7 @@ export default function Home() {
               </h1>
 
               <p className="max-w-xl text-base leading-relaxed text-ink/70 md:text-lg">
-                Upload a drawing. Get room areas, totals, and a BOQ-ready structure—presented with the
+                Upload a drawing1. Get room areas, totals, and a BOQ-ready structure—presented with the
                 clarity of an architectural studio and the speed of automation.
               </p>
 

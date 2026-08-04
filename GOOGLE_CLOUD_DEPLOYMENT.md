@@ -39,7 +39,7 @@ gcloud services enable \
 ```bash
 cd backend
 
-# Configure Docker authentication for GCR
+# Configure Docker authentication for Artifact Registry
 gcloud auth configure-docker us-central1-docker.pkg.dev
 
 # Build the image
@@ -76,6 +76,8 @@ gcloud run deploy blueprint-reader-backend \
   --set-env-vars=GOOGLE_API_KEY=your_google_api_key \
   --set-env-vars=GEMINI_MODEL=gemini-1.5-flash
 ```
+
+The backend container is built to read Cloud Run's `$PORT` at runtime, so no extra port flag is needed.
 
 ### 2.4 Get Backend URL
 
@@ -174,14 +176,16 @@ Your frontend will be available at: `https://blueprint-reader-prod.web.app`
 Create `frontend/.env.production` (this file is gitignored):
 
 ```env
-VITE_API_URL=https://blueprint-reader-backend-xxxxx.run.app
+VITE_API_URL=https://blueprint-reader-backend-xxxxx.run.app/api/v1
+VITE_API_BASE_URL=https://blueprint-reader-backend-xxxxx.run.app/api/v1
 VITE_SUPABASE_URL=your_supabase_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 VITE_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
 ```
 
 **Required Variables:**
-- `VITE_API_URL`: Your Cloud Run backend URL (from Step 2.4)
+- `VITE_API_URL`: Your Cloud Run backend API base URL (from Step 2.4)
+- `VITE_API_BASE_URL`: Keep this aligned with `VITE_API_URL` for pages that read the newer env name
 - `VITE_SUPABASE_URL`: Your Supabase project URL
 - `VITE_SUPABASE_ANON_KEY`: Your Supabase anonymous/public key
 - `VITE_CLERK_PUBLISHABLE_KEY`: Your Clerk publishable key

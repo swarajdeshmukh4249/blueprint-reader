@@ -37,7 +37,7 @@ Open http://localhost:3000
 cd backend && ../venv/bin/python -m unittest tests.test_blueprint_extraction -v
 ```
 
-Set `GOOGLE_API_KEY` on Railway for scanned PDFs/JPGs when OCR finds no areas.
+Set `GOOGLE_API_KEY` on your backend host for scanned PDFs/JPGs when OCR finds no areas.
 
 ### Gemini 429 / quota errors
 
@@ -64,4 +64,3 @@ The app UI allows up to **150 MB** (`frontend/lib/upload-limits.ts`). Both steps
 - `backend/boq_engine.py` — Maharashtra PWD DSR BOQ (wire into worker next)
 - `backend/supabase_worker.py` — async job processor
 - `frontend/` — Next.js app (Clerk auth, Supabase jobs)
-

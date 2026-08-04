@@ -25,7 +25,7 @@ steps:
       - '--cpu=1'
       - '--timeout=3600'
       - '--set-env-vars=SUPABASE_URL=$_SUPABASE_URL'
-      - '--set-env-vars=SUBABASE_SERVICE_ROLE_KEY=$_SUPABASE_SERVICE_ROLE_KEY'
+      - '--set-env-vars=SUPABASE_SERVICE_ROLE_KEY=$_SUPABASE_SERVICE_ROLE_KEY'
       - '--set-env-vars=GOOGLE_API_KEY=$_GOOGLE_API_KEY'
       - '--set-env-vars=GEMINI_MODEL=$_GEMINI_MODEL'
   

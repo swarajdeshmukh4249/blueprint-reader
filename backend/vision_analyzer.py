@@ -16,7 +16,7 @@ def google_api_key() -> str:
 # 2.0-flash free tier exhausts quickly; 1.5-flash often has separate quota
 # gemini-2.0-flash often has 0 free-tier quota — prefer 1.5-flash unless overridden
 MODEL = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash")
-PDF_VISION_MAX_PAGES = int(os.environ.get("PDF_VISION_MAX_PAGES", "1"))
+PDF_VISION_MAX_PAGES = int(os.environ.get("PDF_VISION_MAX_PAGES", "5"))
 VISION_MODEL_FALLBACKS = (
     "gemini-1.5-flash",
     "gemini-2.0-flash-lite",
@@ -297,6 +297,7 @@ def analyze_pdf_with_vision(file_bytes, legacy_result, max_pages: int | None = N
         logger.info(f"Converting PDF to images for vision analysis (max_pages={page_limit})")
         images = convert_pdf_to_images(file_bytes, max_pages=page_limit)
 
+        logger.info("PDF converted to %s image page(s)", len(images) if images else 0)
         if not images:
             legacy_result["notes"] = (
                 (legacy_result.get("notes") or "")
@@ -305,7 +306,9 @@ def analyze_pdf_with_vision(file_bytes, legacy_result, max_pages: int | None = N
             return legacy_result
         page_results = []
         for img in images[:page_limit]:
+            logger.info("PDF page size for Vision: %sx%s", img.width, img.height)
             page_result = call_gemini(pil_to_bytes(img))
+            logger.info("Vision result for PDF page: %s", page_result)
             page_results.append(page_result)
             if page_result.get("error_code") == "QUOTA_EXCEEDED":
                 merged = merge_results(page_result, legacy_result)
@@ -313,6 +316,7 @@ def analyze_pdf_with_vision(file_bytes, legacy_result, max_pages: int | None = N
                 return merged
 
         vision_data = merge_vision_pages(page_results)
+        logger.info("Merged PDF vision data: %s", vision_data)
         if not vision_data.get("rooms"):
             for pr in page_results:
                 if pr.get("error"):

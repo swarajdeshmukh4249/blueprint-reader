@@ -65,3 +65,6 @@ def get_schedule(schedule_id: str | None = None) -> dict[str, Any]:
 
 def list_schedules() -> list[dict[str, str]]:
     return [{"id": k, "label": v["label"]} for k, v in SCHEDULES.items()]
+
+
+

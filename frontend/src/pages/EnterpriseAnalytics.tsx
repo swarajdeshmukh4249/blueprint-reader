@@ -341,11 +341,11 @@ const EnterpriseAnalytics: React.FC = () => {
         <div className="bg-paper rounded-lg shadow-sm p-5 border border-ink/20">
           <h3 className="text-sm font-semibold mb-4 text-ink uppercase tracking-wider">Cost by Category</h3>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={costBreakdown} layout="vertical">
+            <BarChart data={costBreakdown}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" />
-              <YAxis dataKey="category" type="category" width={120} />
-              <Tooltip formatter={(value) => `₹${value.toLocaleString()}`} />
+              <XAxis dataKey="category" />
+              <YAxis />
+              <Tooltip />
               <Bar dataKey="cost" fill="#3b82f6" />
             </BarChart>
           </ResponsiveContainer>
@@ -372,11 +372,11 @@ const EnterpriseAnalytics: React.FC = () => {
       <div className="bg-paper rounded-lg shadow-sm p-5 border border-ink/20">
         <h3 className="text-sm font-semibold mb-4 text-ink uppercase tracking-wider">Material Cost Breakdown</h3>
         <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={materialQuantities} layout="vertical">
+          <BarChart data={materialQuantities}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis type="number" />
-            <YAxis dataKey="material_name" type="category" width={120} />
-            <Tooltip formatter={(value) => `₹${value.toLocaleString()}`} />
+            <XAxis dataKey="material_name" />
+            <YAxis />
+            <Tooltip />
             <Bar dataKey="cost" fill="#10b981" />
           </BarChart>
         </ResponsiveContainer>
@@ -476,11 +476,11 @@ const EnterpriseAnalytics: React.FC = () => {
           <div className="bg-paper rounded-lg shadow-sm p-5 border border-ink/20">
             <h3 className="text-sm font-semibold mb-4 text-ink uppercase tracking-wider">Most Corrected Room Types</h3>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={roomTypeCorrections} layout="vertical">
+              <BarChart data={roomTypeCorrections}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" />
-                <YAxis dataKey="room_type" type="category" width={120} />
-                <Tooltip formatter={(value) => `${value}%`} />
+                <XAxis dataKey="room_type" />
+                <YAxis />
+                <Tooltip />
                 <Bar dataKey="correction_rate" fill="#ef4444" name="Correction Rate %" />
               </BarChart>
             </ResponsiveContainer>
@@ -713,11 +713,11 @@ const EnterpriseAnalytics: React.FC = () => {
               { name: 'Your Project', value: 2250 },
               { name: 'Regional Avg', value: 2100 },
               { name: 'Industry Avg', value: 2400 },
-            ]} layout="vertical">
+            ]}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" />
-              <YAxis dataKey="name" type="category" width={120} />
-              <Tooltip formatter={(value) => `₹${value}`} />
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip />
               <Bar dataKey="value" fill="#3b82f6" />
             </BarChart>
           </ResponsiveContainer>
@@ -730,10 +730,10 @@ const EnterpriseAnalytics: React.FC = () => {
               { name: 'Steel', your: 2800, benchmark: 3000 },
               { name: 'Cement', your: 5200, benchmark: 4800 },
               { name: 'Sand', your: 8500, benchmark: 9000 },
-            ]} layout="vertical">
+            ]}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" />
-              <YAxis dataKey="name" type="category" width={120} />
+              <XAxis dataKey="name" />
+              <YAxis />
               <Tooltip />
               <Bar dataKey="your" fill="#10b981" name="Your Usage" />
               <Bar dataKey="benchmark" fill="#94a3b8" name="Benchmark" />

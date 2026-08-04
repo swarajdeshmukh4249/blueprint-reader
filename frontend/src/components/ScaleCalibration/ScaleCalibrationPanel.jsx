@@ -49,10 +49,16 @@ export default function ScaleCalibrationPanel() {
           className="border p-1 w-full"
         />
         <button
+          onClick={() => CalibrationManager.setScaleMode(true)}
+          className="mt-2 bg-green-600 text-white px-2 py-1 w-full"
+        >
+          Enable Scale Calibration
+        </button>
+        <button
           onClick={apply}
           className="mt-2 bg-blue-500 text-white px-2 py-1 w-full"
         >
-          Apply
+          Apply Scale
         </button>
 
         <button
@@ -61,6 +67,9 @@ export default function ScaleCalibrationPanel() {
         >
           Reset
         </button>
+        <div className="mt-2 text-xs text-gray-600">
+          Calibration Mode: {state.scaleMode ? 'ON' : 'OFF'}
+        </div>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Stage, Layer, Line, Circle, Rect, Text as KonvaText, Arc } from 'react-konva';
 import DxfParser from 'dxf-parser';
+import { CalibrationManager } from '../../calibration/CalibrationManager';
 
 interface DXFViewerProps {
   file: File;
@@ -69,6 +70,31 @@ export default function DXFViewer({ file, width = 800, height = 600 }: DXFViewer
   const [layers, setLayers] = useState<LayerInfo[]>([]);
   const [showLayerPanel, setShowLayerPanel] = useState(true);
   const stageRef = useRef<any>(null);
+  const handleCalibrationClick = useCallback((e: any) => {
+    const state = CalibrationManager.getState();
+
+    if (!state.scaleMode) return;
+
+    const stage = e.target.getStage();
+    if (!stage) return;
+
+    const pointer = stage.getPointerPosition();
+    if (!pointer) return;
+
+    // convert screen coords -> DXF world coords using current transform
+    const point = {
+      x: (pointer.x - offset.x) / scale,
+      y: (pointer.y - offset.y) / scale,
+    };
+
+    CalibrationManager.addPoint({
+      x: point.x,
+      y: point.y,
+      space: 'dxf',
+    });
+
+    e.cancelBubble = true;
+  }, [offset, scale]);
   const [isDragging, setIsDragging] = useState(false);
   const [lastPos, setLastPos] = useState({ x: 0, y: 0 });
 
@@ -615,7 +641,15 @@ export default function DXFViewer({ file, width = 800, height = 600 }: DXFViewer
           width={width}
           height={height}
           onWheel={handleWheel}
-          onMouseDown={handleMouseDown}
+          onMouseDown={(e) => {
+            const state = CalibrationManager.getState();
+            // If calibration mode is active, intercept clicks
+            if (state.scaleMode) {
+              handleCalibrationClick(e);
+              return;
+            }
+            handleMouseDown(e);
+          }}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}

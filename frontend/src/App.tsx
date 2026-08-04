@@ -8,7 +8,11 @@ import NotFound from '@/pages/NotFound'
 import Results from '@/pages/Results'
 import Upload from '@/pages/Upload'
 import Dashboard from '@/pages/Dashboard'
+import SignIn from '@/pages/SignIn'
+import SignUp from '@/pages/SignUp'
 import EnterpriseAnalytics from '@/pages/EnterpriseAnalytics'
+import NewAnalytics from '@/pages/NewAnalytics'
+import NewDashboard from '@/pages/NewDashboard'
 import FloorComparison from '@/pages/FloorComparison'
 import PublicShare from '@/pages/PublicShare'
 import PublicView from '@/pages/PublicView'
@@ -35,22 +39,10 @@ export default function App() {
             <Route path="/results/:fileId?" element={<Results />} />
             <Route path="/about" element={<About />} />
             <Route path="/contact" element={<Contact />} />
-            <Route 
-              path="/dashboard" 
-              element={
-                <SignedIn>
-                  <Dashboard />
-                </SignedIn>
-              } 
-            />
-            <Route
-              path="/enterprise-dashboard"
-              element={
-                <SignedIn>
-                  <EnterpriseAnalytics />
-                </SignedIn>
-              }
-            />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/new-dashboard" element={<NewDashboard />} />
+            <Route path="/new-analytics" element={<NewAnalytics />} />
+            <Route path="/enterprise-dashboard" element={<EnterpriseAnalytics />} />
             <Route
               path="/floor-comparison/:projectId"
               element={
@@ -136,6 +128,8 @@ export default function App() {
           </Route>
           {/* Public routes (no auth required) */}
           <Route path="/share/:token" element={<PublicView />} />
+          <Route path="/sign-in" element={<SignIn />} />
+          <Route path="/sign-up" element={<SignUp />} />
         </Routes>
       </BrowserRouter>
     </ClerkProvider>

@@ -49,7 +49,7 @@ export default function TopNav() {
           </SignedIn>
           
           <SignedOut>
-            <SignInButton mode="modal">
+            <SignInButton mode="redirect">
               <button className="rounded-full border border-ink/15 bg-paper/60 px-4 py-2 text-sm font-medium text-ink transition hover:bg-paper">
                 Sign In
               </button>

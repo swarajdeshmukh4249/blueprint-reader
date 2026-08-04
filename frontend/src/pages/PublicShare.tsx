@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { publicSharesApi, blueprintFilesApi } from '../lib/api'
 import { ArrowLeft, Share2, Copy, Check, Shield, Calendar, Eye, Trash2, Power } from 'lucide-react'

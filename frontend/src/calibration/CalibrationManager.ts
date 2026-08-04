@@ -41,10 +41,22 @@ export const CalibrationManager = {
   },
 
   reset() {
+    state.scaleMode = false;
     state.pointA = null;
     state.pointB = null;
     state.realWorldDistance = null;
     state.scaleFactor = null;
+  },
+
+  setScaleMode(value: boolean) {
+    state.scaleMode = value;
+
+    if (!value) {
+      state.pointA = null;
+      state.pointB = null;
+      state.realWorldDistance = null;
+      state.scaleFactor = null;
+    }
   },
 
   addPoint(point: Point) {

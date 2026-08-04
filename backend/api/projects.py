@@ -55,31 +55,36 @@ class ProjectDetailResponse(BaseModel):
 @router.post("/", response_model=ProjectDetailResponse)
 async def create_project(
     project: ProjectCreate,
-    authorization: Optional[str] = Header(None),
+    current_user: User = Depends(get_current_user_db),
     db: Session = Depends(get_db)
 ):
-    """Create a new project"""
-    
-    # Optional authentication
-    current_user = None
-    if authorization:
-        try:
-            current_user = verify_jwt(authorization.replace("Bearer ", ""))
-        except Exception as e:
-            print(f"Auth failed: {e}")
-            pass  # Allow request to proceed even if auth fails
-    
-    # Verify organization exists if provided
+    """Create a new project (requires authentication). The project will be created under the user's organization if organization_id is not provided."""
+
+    # Determine organization: prefer provided organization_id, otherwise use user's personal/org membership
     org_uuid = None
     if project.organization_id:
         try:
             org = db.query(Organization).filter(Organization.id == uuid.UUID(project.organization_id)).first()
             if not org:
                 raise HTTPException(status_code=404, detail="Organization not found")
+            # Verify user is member of the organization
+            from models import OrganizationMember
+            membership = db.query(OrganizationMember).filter(
+                OrganizationMember.organization_id == org.id,
+                OrganizationMember.user_id == current_user.id
+            ).first()
+            if not membership:
+                raise HTTPException(status_code=403, detail="User is not a member of the specified organization")
             org_uuid = uuid.UUID(project.organization_id)
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid organization_id format")
-    
+    else:
+        # Use the first organization the user is a member of (get personal org created by get_current_user_db)
+        from models import OrganizationMember
+        member = db.query(OrganizationMember).filter(OrganizationMember.user_id == current_user.id).first()
+        if member:
+            org_uuid = member.organization_id
+
     # Create project
     new_project = Project(
         organization_id=org_uuid,
@@ -91,13 +96,13 @@ async def create_project(
         location_city=project.location_city,
         building_type=project.building_type,
         unit_system=project.unit_system,
-        created_by=current_user.get('sub') if current_user else None
+        created_by=current_user.id
     )
-    
+
     db.add(new_project)
     db.commit()
     db.refresh(new_project)
-    
+
     return ProjectDetailResponse(
         id=str(new_project.id),
         organization_id=str(new_project.organization_id) if new_project.organization_id else None,
@@ -119,37 +124,21 @@ async def list_projects(
     limit: int = Query(5, ge=1, le=100),
     sort: str = Query("updated_at:desc", pattern="^[a-z_]+:(asc|desc)$"),
     organization_id: Optional[str] = None,
-    authorization: Optional[str] = Header(None),
+    current_user: User = Depends(get_current_user_db),
     db: Session = Depends(get_db)
 ):
-    """List projects for dashboard with limit and sort"""
-    
-    # Optional authentication
-    current_user = None
-    if authorization:
-        try:
-            current_user = verify_jwt(authorization.replace("Bearer ", ""))
-        except Exception as e:
-            print(f"Auth failed: {e}")
-            pass  # Allow request to proceed even if auth fails
-    
+    """List projects for dashboard with limit and sort. Requires authentication and returns projects scoped to the user's organizations."""
+
     query = db.query(Project)
-    
-    # Filter by user's organizations if authenticated
-    if current_user:
-        clerk_user_id = current_user.get('sub')
-        if clerk_user_id:
-            # Get user from database
-            user = db.query(User).filter(User.clerk_user_id == clerk_user_id).first()
-            if user:
-                # Get user's organization memberships
-                from models import OrganizationMember
-                user_org_ids = [m.organization_id for m in db.query(OrganizationMember).filter(OrganizationMember.user_id == user.id).all()]
-                
-                # Filter projects by user's organizations
-                if user_org_ids:
-                    query = query.filter(Project.organization_id.in_(user_org_ids))
-    
+
+    # Get user's organization memberships
+    from models import OrganizationMember
+    user_org_ids = [m.organization_id for m in db.query(OrganizationMember).filter(OrganizationMember.user_id == current_user.id).all()]
+
+    # Filter projects by user's organizations
+    if user_org_ids:
+        query = query.filter(Project.organization_id.in_(user_org_ids))
+
     # Filter by organization if provided (additional filter)
     if organization_id:
         query = query.filter(Project.organization_id == uuid.UUID(organization_id))
@@ -247,33 +236,20 @@ async def list_projects(
 @router.get("/{project_id}", response_model=ProjectDetailResponse)
 async def get_project(
     project_id: str,
-    authorization: Optional[str] = Header(None),
+    current_user: User = Depends(get_current_user_db),
     db: Session = Depends(get_db)
 ):
-    """Get project by ID"""
-    
-    # Get current user
-    current_user = None
-    if authorization:
-        try:
-            current_user = verify_jwt(authorization.replace("Bearer ", ""))
-        except Exception as e:
-            print(f"Auth failed: {e}")
-            pass  # Allow request to proceed even if auth fails
-    
+    """Get project by ID (requires authentication)"""
+
     project = db.query(Project).filter(Project.id == uuid.UUID(project_id)).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    
+
     # Check user has access to the project
-    if current_user:
-        clerk_user_id = current_user.get('sub')
-        if clerk_user_id:
-            user = db.query(User).filter(User.clerk_user_id == clerk_user_id).first()
-            if user:
-                user_org_ids = [m.organization_id for m in db.query(OrganizationMember).filter(OrganizationMember.user_id == user.id).all()]
-                if project.organization_id not in user_org_ids:
-                    raise HTTPException(status_code=403, detail="Access denied to this project")
+    from models import OrganizationMember
+    user_org_ids = [m.organization_id for m in db.query(OrganizationMember).filter(OrganizationMember.user_id == current_user.id).all()]
+    if project.organization_id not in user_org_ids:
+        raise HTTPException(status_code=403, detail="Access denied to this project")
     
     return ProjectDetailResponse(
         id=str(project.id),
@@ -295,33 +271,20 @@ async def get_project(
 async def update_project(
     project_id: str,
     project_update: ProjectUpdate,
-    authorization: Optional[str] = Header(None),
+    current_user: User = Depends(get_current_user_db),
     db: Session = Depends(get_db)
 ):
-    """Update project"""
-    
-    # Get current user
-    current_user = None
-    if authorization:
-        try:
-            current_user = verify_jwt(authorization.replace("Bearer ", ""))
-        except Exception as e:
-            print(f"Auth failed: {e}")
-            pass  # Allow request to proceed even if auth fails
-    
+    """Update project (requires authentication)"""
+
     project = db.query(Project).filter(Project.id == uuid.UUID(project_id)).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    
+
     # Check user has access to the project
-    if current_user:
-        clerk_user_id = current_user.get('sub')
-        if clerk_user_id:
-            user = db.query(User).filter(User.clerk_user_id == clerk_user_id).first()
-            if user:
-                user_org_ids = [m.organization_id for m in db.query(OrganizationMember).filter(OrganizationMember.user_id == user.id).all()]
-                if project.organization_id not in user_org_ids:
-                    raise HTTPException(status_code=403, detail="Access denied to this project")
+    from models import OrganizationMember
+    user_org_ids = [m.organization_id for m in db.query(OrganizationMember).filter(OrganizationMember.user_id == current_user.id).all()]
+    if project.organization_id not in user_org_ids:
+        raise HTTPException(status_code=403, detail="Access denied to this project")
     
     if project_update.name is not None:
         project.name = project_update.name
@@ -355,35 +318,22 @@ async def update_project(
 @router.delete("/{project_id}")
 async def delete_project(
     project_id: str,
-    authorization: Optional[str] = Header(None),
+    current_user: User = Depends(get_current_user_db),
     db: Session = Depends(get_db)
 ):
-    """Delete project (soft delete)"""
-    
-    # Get current user
-    current_user = None
-    if authorization:
-        try:
-            current_user = verify_jwt(authorization.replace("Bearer ", ""))
-        except Exception as e:
-            print(f"Auth failed: {e}")
-            pass  # Allow request to proceed even if auth fails
-    
+    """Delete project (soft delete) (requires authentication)"""
+
     project = db.query(Project).filter(Project.id == uuid.UUID(project_id)).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    
+
     # Check user has access to the project
-    if current_user:
-        clerk_user_id = current_user.get('sub')
-        if clerk_user_id:
-            user = db.query(User).filter(User.clerk_user_id == clerk_user_id).first()
-            if user:
-                user_org_ids = [m.organization_id for m in db.query(OrganizationMember).filter(OrganizationMember.user_id == user.id).all()]
-                if project.organization_id not in user_org_ids:
-                    raise HTTPException(status_code=403, detail="Access denied to this project")
-    
+    from models import OrganizationMember
+    user_org_ids = [m.organization_id for m in db.query(OrganizationMember).filter(OrganizationMember.user_id == current_user.id).all()]
+    if project.organization_id not in user_org_ids:
+        raise HTTPException(status_code=403, detail="Access denied to this project")
+
     project.deleted_at = datetime.utcnow()
     db.commit()
-    
+
     return {"success": True}

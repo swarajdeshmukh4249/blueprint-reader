@@ -64,3 +64,7 @@ The app UI allows up to **150 MB** (`frontend/lib/upload-limits.ts`). Both steps
 - `backend/boq_engine.py` — Maharashtra PWD DSR BOQ (wire into worker next)
 - `backend/supabase_worker.py` — async job processor
 - `frontend/` — Next.js app (Clerk auth, Supabase jobs)
+
+### Deploying on Render
+
+Use `render.yaml` and `RENDER_DEPLOYMENT.md` to deploy the backend on Render with the Dockerfile in `backend/`.

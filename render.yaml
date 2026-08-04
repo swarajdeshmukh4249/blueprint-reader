@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: blueprint-reader-backend
+    env: docker
+    plan: free
+    autoDeploy: true
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-1.5-flash
+      - key: MAX_UPLOAD_MB
+        value: "150"

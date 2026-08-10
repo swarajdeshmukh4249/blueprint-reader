@@ -25,6 +25,7 @@ import Help from '@/pages/Help'
 import TeamManagement from '@/pages/TeamManagement'
 import Viewer from '@/pages/Viewer'
 import ScaleCalibrationPage from '@/pages/ScaleCalibrationPage'
+import CalibrationHistory from '@/pages/CalibrationHistory'
 
 const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || ''
 
@@ -121,6 +122,14 @@ export default function App() {
               element={
                 <SignedIn>
                   <ScaleCalibrationPage />
+                </SignedIn>
+              }
+            />
+            <Route
+              path="/calibration-history"
+              element={
+                <SignedIn>
+                  <CalibrationHistory />
                 </SignedIn>
               }
             />

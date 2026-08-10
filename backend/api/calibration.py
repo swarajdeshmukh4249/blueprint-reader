@@ -51,6 +51,52 @@ class ManualScaleCalibrationResponse(BaseModel):
     unit: str
     message: str
 
+
+@router.get("/analysis-jobs/calibrations")
+async def list_manual_scale_calibrations(
+    current_user: dict = Depends(get_current_user),
+):
+    """Return the signed-in user's previously saved manual calibrations."""
+    supabase_url = os.environ.get("SUPABASE_URL")
+    supabase_service_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+    clerk_user_id = current_user.get("sub")
+    if not supabase_url or not supabase_service_key:
+        raise HTTPException(status_code=500, detail="Supabase credentials not configured")
+    if not clerk_user_id:
+        raise HTTPException(status_code=401, detail="User ID not found in token")
+
+    query = urllib.parse.urlencode({
+        "select": "id,created_at,scale_calibration",
+        "user_id": f"eq.{clerk_user_id}",
+        "scale_calibration": "not.is.null",
+        "order": "created_at.desc",
+        "limit": "20",
+    })
+    request = urllib.request.Request(
+        url=f"{supabase_url}/rest/v1/analysis_jobs?{query}",
+        headers={
+            "apikey": supabase_service_key,
+            "Authorization": f"Bearer {supabase_service_key}",
+        },
+        method="GET",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            records = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch calibration history: {exc.reason}")
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch calibration history: {exc}")
+
+    return [
+        {
+            "analysis_job_id": row.get("id"),
+            "created_at": (row.get("scale_calibration") or {}).get("calibrated_at") or row.get("created_at"),
+            **(row.get("scale_calibration") or {}),
+        }
+        for row in records
+    ]
+
 @router.post("/analysis/{version_id}")
 async def calibrate_scale(
     version_id: str,

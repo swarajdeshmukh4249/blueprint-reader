@@ -23,9 +23,16 @@ let state: CalibrationState = {
   scaleFactor: null,
 };
 
+const listeners = new Set<(nextState: CalibrationState) => void>();
+const notify = () => listeners.forEach(listener => listener(state));
+
 const distance = (a: Point, b: Point) => {
   if (!a || !b) return 0;
-  return Math.sqrt((b.x - a.x) ** 2 + (b.y - a.y) ** 2);
+  return Math.sqrt(
+    (b.x - a.x) ** 2 +
+    (b.y - a.y) ** 2 +
+    ((b.z ?? 0) - (a.z ?? 0)) ** 2
+  );
 };
 
 export const CalibrationManager = {
@@ -34,10 +41,12 @@ export const CalibrationManager = {
     state.pointA = null;
     state.pointB = null;
     state.scaleFactor = null;
+    notify();
   },
 
   disable() {
     state.scaleMode = false;
+    notify();
   },
 
   reset() {
@@ -46,6 +55,7 @@ export const CalibrationManager = {
     state.pointB = null;
     state.realWorldDistance = null;
     state.scaleFactor = null;
+    notify();
   },
 
   setScaleMode(value: boolean) {
@@ -57,6 +67,7 @@ export const CalibrationManager = {
       state.realWorldDistance = null;
       state.scaleFactor = null;
     }
+    notify();
   },
 
   addPoint(point: Point) {
@@ -65,15 +76,25 @@ export const CalibrationManager = {
     } else if (!state.pointB) {
       state.pointB = point;
     } else {
-      state.pointA = point;
-      state.pointB = null;
+      // A completed reference is deliberately immutable.  Changing it by
+      // accident would invalidate the distance the user just entered.
+      return;
     }
+    notify();
+  },
+
+  reselectPoints() {
+    state.pointA = null;
+    state.pointB = null;
+    state.scaleFactor = null;
+    notify();
   },
 
   setRealWorldDistance(value: number, unit: string) {
     state.realWorldDistance = value;
     state.unit = unit;
     this.compute();
+    notify();
   },
 
   compute() {
@@ -87,5 +108,12 @@ export const CalibrationManager = {
 
   getState() {
     return state;
+  },
+
+  subscribe(listener: (nextState: CalibrationState) => void) {
+    listeners.add(listener);
+    return () => {
+      listeners.delete(listener);
+    };
   },
 };

@@ -69,6 +69,7 @@ export default function DXFViewer({ file, width = 800, height = 600 }: DXFViewer
   const [error, setError] = useState<string | null>(null);
   const [layers, setLayers] = useState<LayerInfo[]>([]);
   const [showLayerPanel, setShowLayerPanel] = useState(true);
+  const [calibrationState, setCalibrationState] = useState(() => ({ ...CalibrationManager.getState() }));
   const stageRef = useRef<any>(null);
   const handleCalibrationClick = useCallback((e: any) => {
     const state = CalibrationManager.getState();
@@ -97,6 +98,10 @@ export default function DXFViewer({ file, width = 800, height = 600 }: DXFViewer
   }, [offset, scale]);
   const [isDragging, setIsDragging] = useState(false);
   const [lastPos, setLastPos] = useState({ x: 0, y: 0 });
+
+  useEffect(() => CalibrationManager.subscribe((nextState) => {
+    setCalibrationState({ ...nextState });
+  }), []);
 
   useEffect(() => {
     const loadDXF = async () => {
@@ -657,6 +662,32 @@ export default function DXFViewer({ file, width = 800, height = 600 }: DXFViewer
         >
           <Layer x={offset.x} y={offset.y} scaleX={scale} scaleY={scale}>
             {entities.map((entity, index) => renderEntity(entity, index))}
+            {calibrationState.pointA && calibrationState.pointB && (
+              <Line
+                points={[
+                  calibrationState.pointA.x,
+                  calibrationState.pointA.y,
+                  calibrationState.pointB.x,
+                  calibrationState.pointB.y,
+                ]}
+                stroke="#2563eb"
+                strokeWidth={3 / scale}
+                dash={[8 / scale, 5 / scale]}
+                listening={false}
+              />
+            )}
+            {[calibrationState.pointA, calibrationState.pointB].filter(Boolean).map((point, index) => (
+              <Circle
+                key={`calibration-${index}`}
+                x={point!.x}
+                y={point!.y}
+                radius={8 / scale}
+                fill={index === 0 ? '#22c55e' : '#2563eb'}
+                stroke="#ffffff"
+                strokeWidth={2 / scale}
+                listening={false}
+              />
+            ))}
           </Layer>
         </Stage>
 

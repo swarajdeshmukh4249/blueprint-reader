@@ -49,7 +49,7 @@ async def save_analysis_result(
     # Optional authentication
     if authorization:
         try:
-            user = verify_jwt(authorization.replace("Bearer ", ""))
+            user = await verify_jwt(authorization.replace("Bearer ", ""))
         except Exception as e:
             print(f"Auth failed: {e}")
             pass  # Allow request to proceed even if auth fails
@@ -107,15 +107,14 @@ async def create_blueprint_file(
 ):
     """Upload a blueprint file and optionally trigger automatic analysis"""
 
-    print(f"Upload request received - file: {file.filename}, project_id: {project_id}, auto_analyze: {auto_analyze}")
-
-    # Optional authentication
     if authorization:
         try:
-            user = verify_jwt(authorization.replace("Bearer ", ""))
+            user = await verify_jwt(authorization.replace("Bearer ", ""))
         except Exception as e:
             print(f"Auth failed: {e}")
             pass  # Allow request to proceed even if auth fails
+
+    print(f"Upload request received - file: {file.filename}, project_id: {project_id}, auto_analyze: {auto_analyze}")
 
     # Verify project exists if project_id is provided
     project_uuid = None
@@ -240,8 +239,8 @@ async def list_blueprint_files(
     if authorization:
         try:
             from auth.clerk import verify_jwt
-            current_user = verify_jwt(authorization.replace("Bearer ", ""))
-        except:
+            current_user = await verify_jwt(authorization.replace("Bearer ", ""))
+        except Exception:
             pass  # Allow request to proceed even if auth fails
     
     query = db.query(BlueprintFile)
@@ -297,8 +296,8 @@ async def get_blueprint_file(
     current_user = None
     if authorization:
         try:
-            current_user = verify_jwt(authorization.replace("Bearer ", ""))
-        except:
+            current_user = await verify_jwt(authorization.replace("Bearer ", ""))
+        except Exception:
             pass  # Allow request to proceed even if auth fails
     
     file = db.query(BlueprintFile).filter(BlueprintFile.id == uuid.UUID(file_id)).first()
@@ -341,8 +340,8 @@ async def analyze_blueprint_file(
     # Optional authentication
     if authorization:
         try:
-            user = verify_jwt(authorization.replace("Bearer ", ""))
-        except:
+            user = await verify_jwt(authorization.replace("Bearer ", ""))
+        except Exception:
             pass  # Allow request to proceed even if auth fails
     
     file = db.query(BlueprintFile).filter(BlueprintFile.id == uuid.UUID(file_id)).first()
@@ -443,8 +442,8 @@ async def delete_blueprint_file(
     # Optional authentication
     if authorization:
         try:
-            user = verify_jwt(authorization.replace("Bearer ", ""))
-        except:
+            user = await verify_jwt(authorization.replace("Bearer ", ""))
+        except Exception:
             pass  # Allow request to proceed even if auth fails
     
     file = db.query(BlueprintFile).filter(BlueprintFile.id == uuid.UUID(file_id)).first()

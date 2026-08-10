@@ -84,6 +84,30 @@ async def create_project(
         member = db.query(OrganizationMember).filter(OrganizationMember.user_id == current_user.id).first()
         if member:
             org_uuid = member.organization_id
+        else:
+            # Auto-create a personal organization for the user if they don't have one
+            personal_org = Organization(
+                name=f"{current_user.first_name or current_user.email.split('@')[0]}'s Workspace",
+                slug=f"workspace-{current_user.id[:8]}",
+                plan_tier='starter',
+                max_users=5,
+                max_projects=10,
+                max_storage_gb=10
+            )
+            db.add(personal_org)
+            db.commit()
+            db.refresh(personal_org)
+            
+            # Add user as admin of their personal organization
+            org_member = OrganizationMember(
+                organization_id=personal_org.id,
+                user_id=current_user.id,
+                role='admin'
+            )
+            db.add(org_member)
+            db.commit()
+            
+            org_uuid = personal_org.id
 
     # Create project
     new_project = Project(
@@ -121,8 +145,8 @@ async def create_project(
 
 @router.get("/", response_model=list[ProjectResponse])
 async def list_projects(
-    limit: int = Query(5, ge=1, le=100),
-    sort: str = Query("updated_at:desc", pattern="^[a-z_]+:(asc|desc)$"),
+    limit: int = Query(50, ge=1, le=100),
+    sort: str = Query("created_at:desc", pattern="^[a-z_]+:(asc|desc)$"),
     organization_id: Optional[str] = None,
     current_user: User = Depends(get_current_user_db),
     db: Session = Depends(get_db)
@@ -138,6 +162,8 @@ async def list_projects(
     # Filter projects by user's organizations
     if user_org_ids:
         query = query.filter(Project.organization_id.in_(user_org_ids))
+    else:
+        return []
 
     # Filter by organization if provided (additional filter)
     if organization_id:
@@ -145,11 +171,18 @@ async def list_projects(
     
     # Parse sort parameter
     sort_field, sort_direction = sort.split(":")
+    # Prefer created_at — updated_at is often NULL for newly created projects
     if sort_field == "updated_at":
-        if sort_direction == "desc":
-            query = query.order_by(Project.updated_at.desc())
-        else:
-            query = query.order_by(Project.updated_at.asc())
+        primary = Project.updated_at
+        secondary = Project.created_at
+    else:
+        primary = Project.created_at
+        secondary = Project.updated_at
+
+    if sort_direction == "desc":
+        query = query.order_by(primary.desc().nullslast(), secondary.desc().nullslast())
+    else:
+        query = query.order_by(primary.asc().nullslast(), secondary.asc().nullslast())
     
     # Apply limit
     query = query.limit(limit)
@@ -169,12 +202,7 @@ async def list_projects(
             AnalysisVersion.project_id == p.id
         ).count()
         
-        # Determine status based on spec rules
-        # "completed" → all floors analyzed, no unresolved flags
-        # "in_progress" → analysis running OR some floors pending
-        # "needs_review" → any room has confidence < CONFIDENCE_MEDIUM
-        # "failed" → last analysis returned an error
-        status = "in_progress"  # Default
+        status = p.status or "in_progress"
         
         # Check if any analysis failed
         failed_analysis = db.query(AnalysisVersion).filter(
@@ -185,20 +213,19 @@ async def list_projects(
         if failed_analysis:
             status = "failed"
         elif floor_count > 0 and analysis_count == floor_count:
-            # All floors analyzed, check for low confidence rooms
             from config import CONFIDENCE_MEDIUM
-            low_confidence_rooms = db.query(AnalysisVersion).filter(
+            analyses = db.query(AnalysisVersion).filter(
                 AnalysisVersion.project_id == p.id
             ).all()
             
             has_low_confidence = False
-            for analysis in low_confidence_rooms:
-                if analysis.analysis_result:
-                    rooms = analysis.analysis_result.get("rooms", [])
-                    for room in rooms:
-                        if room.get("confidence", 1.0) < CONFIDENCE_MEDIUM:
-                            has_low_confidence = True
-                            break
+            for analysis in analyses:
+                analysis_payload = getattr(analysis, "raw_result", None) or {}
+                rooms = analysis_payload.get("rooms", []) if isinstance(analysis_payload, dict) else []
+                for room in rooms:
+                    if room.get("confidence", 1.0) < CONFIDENCE_MEDIUM:
+                        has_low_confidence = True
+                        break
                 if has_low_confidence:
                     break
             
@@ -207,12 +234,8 @@ async def list_projects(
             else:
                 status = "completed"
         
-        # Calculate estimated cost from BOQ
         estimated_cost = None
-        # This would need to be calculated from BOQ items or stored in project
-        # For now, set to None
         
-        # Get thumbnail URL (first blueprint file)
         thumbnail_url = None
         first_file = db.query(BlueprintFile).filter(
             BlueprintFile.project_id == p.id

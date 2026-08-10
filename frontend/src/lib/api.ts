@@ -1,22 +1,73 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
+// In dev, default to same-origin `/api/v1` (proxied by Vite). Production sets VITE_API_URL.
+export const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1'
 
 console.log('API_BASE_URL:', API_BASE_URL)
 
-export async function fetchWithAuth(url: string, options: RequestInit = {}) {
-  // Try to get token from Clerk first, then fallback to localStorage
-  let token = localStorage.getItem('__clerk_db_jwt')
-  
-  // If no token in localStorage, try to get it from Clerk
-  if (!token) {
-    try {
-      const clerkToken = await (window as any).Clerk?.session?.getToken()
-      if (clerkToken) {
-        token = clerkToken
-        localStorage.setItem('__clerk_db_jwt', token)
-      }
-    } catch (e) {
-      console.log('Could not get Clerk token:', e)
+export async function getClerkToken(forceRefresh = false): Promise<string | null> {
+
+  try {
+    const Clerk = (window as any).Clerk
+    console.log('[Token] Clerk object available:', !!Clerk)
+    
+    if (!Clerk) {
+      console.warn('[Token] Clerk not loaded yet')
+      return null
     }
+
+    // Wait for Clerk to be loaded and ready
+    let attempts = 0
+    const maxAttempts = 50
+    
+    while (!Clerk.loaded && attempts < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, 100))
+      attempts++
+    }
+
+    console.log('[Token] Clerk loaded:', Clerk.loaded, 'after', attempts, 'attempts')
+
+    if (!Clerk.loaded) {
+      console.warn('[Token] Clerk failed to load after timeout')
+      return null
+    }
+
+    // Get the session and token
+    const session = Clerk.session
+    console.log('[Token] Session available:', !!session)
+    
+    if (!session) {
+      console.warn('[Token] No Clerk session found - user may not be signed in')
+      return null
+    }
+
+    console.log('[Token] Attempting to get token...')
+    
+    // Let Clerk manage the token lifecycle. Keeping our own hour-long cache can
+    // send an expired token after Clerk has already refreshed the session.
+    const token = await session.getToken({ skipCache: forceRefresh })
+    
+    console.log('[Token] Token retrieved:', !!token, 'length:', token?.length)
+    
+    if (token) {
+      return token
+    } else {
+      console.warn('[Token] getToken() returned null - user session may be invalid')
+      return null
+    }
+  } catch (e) {
+    console.error('[Token] Error getting Clerk token:', e)
+    return null
+  }
+}
+
+export async function fetchWithAuth(url: string, options: RequestInit = {}) {
+  // Get token from Clerk
+  console.log('[API] Fetching', options.method || 'GET', url)
+  const token = await getClerkToken()
+  
+  if (!token) {
+    console.warn('[API] ⚠️ NO TOKEN - Request will likely fail with 401')
+  } else {
+    console.log('[API] ✅ Token available, length:', token.length)
   }
 
   const headers: HeadersInit = {
@@ -26,25 +77,50 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
   }
 
   const fullUrl = `${API_BASE_URL}${url}`
-  console.log(`API Request: ${fullUrl}`, { method: options.method, hasToken: !!token })
+  console.log('[API] Request:', {
+    url: fullUrl,
+    method: options.method || 'GET',
+    hasToken: !!token,
+    authHeaderPresent: 'Authorization' in headers
+  })
 
   try {
-    const response = await fetch(fullUrl, {
+    let response = await fetch(fullUrl, {
       ...options,
       headers,
     })
 
-    console.log(`API Response: ${response.status} ${response.statusText}`)
+    // A token may have expired between retrieval and the request. Ask Clerk for
+    // a fresh token once before surfacing an authentication error to the user.
+    if (response.status === 401 && token) {
+      const refreshedToken = await getClerkToken(true)
+      if (refreshedToken && refreshedToken !== token) {
+        response = await fetch(fullUrl, {
+          ...options,
+          headers: {
+            ...headers,
+            Authorization: `Bearer ${refreshedToken}`,
+          },
+        })
+      }
+    }
+
+    console.log('[API] Response:', response.status, response.statusText)
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => '')
-      console.error(`API Error: ${response.status} - ${errorText}`)
+      console.error('[API] ❌ Error:', response.status, '-', errorText)
       throw new Error(`API error: ${response.status} - ${errorText}`)
     }
 
     return response.json()
   } catch (error) {
-    console.error('Fetch error:', error)
+    console.error('[API] Fetch error:', error)
+    if (error instanceof TypeError && /failed to fetch/i.test(error.message)) {
+      throw new Error(
+        `Failed to reach API at ${API_BASE_URL}. Is the backend running, and are you on the same host (localhost vs 127.0.0.1)?`
+      )
+    }
     throw error
   }
 }
@@ -97,14 +173,15 @@ export const filesApi = {
     formData.append('file', file)
     formData.append('project_id', projectId)
     
-    const token = localStorage.getItem('__clerk_db_jwt')
-    return fetch(`${API_BASE_URL}/files/upload`, {
-      method: 'POST',
-      headers: {
-        ...(token && { 'Authorization': `Bearer ${token}` }),
-      },
-      body: formData,
-    }).then(res => res.json())
+    return getClerkToken().then(token => 
+      fetch(`${API_BASE_URL}/files/upload`, {
+        method: 'POST',
+        headers: {
+          ...(token && { 'Authorization': `Bearer ${token}` }),
+        },
+        body: formData,
+      }).then(res => res.json())
+    )
   },
 }
 
@@ -115,14 +192,15 @@ export const blueprintFilesApi = {
   create: (data: any) => {
     // If data is FormData (for file upload), don't stringify
     if (data instanceof FormData) {
-      const token = localStorage.getItem('__clerk_db_jwt')
-      return fetch(`${API_BASE_URL}/blueprint-files/`, {
-        method: 'POST',
-        headers: {
-          ...(token && { 'Authorization': `Bearer ${token}` }),
-        },
-        body: data,
-      }).then(res => res.json())
+      return getClerkToken().then(token =>
+        fetch(`${API_BASE_URL}/blueprint-files/`, {
+          method: 'POST',
+          headers: {
+            ...(token && { 'Authorization': `Bearer ${token}` }),
+          },
+          body: data,
+        }).then(res => res.json())
+      )
     }
     return fetchWithAuth('/blueprint-files/', {
       method: 'POST',
@@ -328,5 +406,4 @@ export const costBenchmarkApi = {
     method: 'DELETE',
   }),
 }
-
 

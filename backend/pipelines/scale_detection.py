@@ -45,6 +45,49 @@ def parse_scale_from_text(text: str) -> Optional[dict[str, Any]]:
     return None
 
 
+def calibrate_raster_from_scale_notation(
+    scale_info: Optional[dict[str, Any]],
+    *,
+    raster_dpi: Optional[float],
+    source_type: str,
+) -> dict[str, Any]:
+    """Turn an explicit plan scale (for example 1:100) into mm/pixel.
+
+    A drawing ratio alone is not enough for an arbitrary photograph.  It is
+    enough for a PDF page rasterized at a known DPI, or an image which carries
+    reliable DPI metadata.  Keeping that distinction explicit prevents the
+    system from silently inventing a scale.
+    """
+    if not scale_info or scale_info.get("method") != "text_scale_notation":
+        return {
+            "status": "manual_required",
+            "reason": "No reliable drawing scale was found by OCR/Vision.",
+        }
+
+    ratio = float(scale_info.get("scale_factor") or 0)
+    if ratio <= 0 or not raster_dpi or raster_dpi <= 0:
+        return {
+            "status": "manual_required",
+            "reason": "A scale ratio was found, but this raster has no reliable DPI.",
+            "detected_scale_ratio": scale_info.get("scale_ratio"),
+        }
+
+    # One image pixel occupies 25.4 / DPI millimetres on the printed sheet;
+    # the real drawing distance is that value multiplied by the plan ratio.
+    mm_per_pixel = (25.4 / float(raster_dpi)) * ratio
+    return {
+        "status": "auto_calibrated",
+        "method": "ocr_scale_notation",
+        "source_type": source_type,
+        "scale_ratio": scale_info["scale_ratio"],
+        "raster_dpi": float(raster_dpi),
+        "mm_per_pixel": mm_per_pixel,
+        "pixels_per_mm": 1 / mm_per_pixel,
+        "sqft_per_pixel2": (mm_per_pixel ** 2) / 92903.04,
+        "confidence": scale_info.get("confidence", 0.8),
+    }
+
+
 def apply_scale_to_areas(
     room_data: list[dict],
     scale_info: dict[str, Any],

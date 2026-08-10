@@ -1,12 +1,13 @@
-import { FileUp, Loader2, Sparkles, X, Lock, Plus, FolderOpen } from 'lucide-react'
+import { FileUp, Loader2, Sparkles, X, Lock, Plus, FolderOpen, ArrowLeft, LayoutDashboard } from 'lucide-react'
 import { useMemo, useRef, useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
 import { analyzeBlueprint } from '@/api/analyzeBlueprint'
 import Container from '@/components/Container'
 import { cn } from '@/lib/utils'
 import { useAnalysisStore } from '@/stores/useAnalysisStore'
-import { blueprintFilesApi, projectsApi } from '@/lib/api'
+import { useNavigationStore } from '@/stores/useNavigationStore'
+import { blueprintFilesApi, projectsApi, API_BASE_URL } from '@/lib/api'
 
 const ACCEPTED = [
   '.pdf',
@@ -29,6 +30,7 @@ function formatBytes(bytes: number) {
 export default function Upload() {
   const { isLoaded, isSignedIn, getToken } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const inputRef = useRef<HTMLInputElement | null>(null)
   const [file, setFile] = useState<File | null>(null)
   const [dragging, setDragging] = useState(false)
@@ -37,6 +39,7 @@ export default function Upload() {
   const [showCreateProject, setShowCreateProject] = useState(false)
   const [newProjectName, setNewProjectName] = useState('')
   const [loadingProjects, setLoadingProjects] = useState(true)
+  const { setCurrentAnalysis, setLastUploadedFileId } = useNavigationStore()
 
   const status = useAnalysisStore((s) => s.status)
   const errorMessage = useAnalysisStore((s) => s.errorMessage)
@@ -46,11 +49,26 @@ export default function Upload() {
 
   const canSubmit = useMemo(() => status !== 'processing' && !!file && isSignedIn, [status, file, isSignedIn])
 
-  // Load projects on mount
+  // Load projects on mount, and also when page gains focus (so dashboard-created projects appear)
   useEffect(() => {
     if (isLoaded && isSignedIn) {
       loadProjects()
     }
+  }, [isLoaded, isSignedIn])
+
+  // Pre-select project from URL query param (e.g., /upload?project=<id>)
+  useEffect(() => {
+    const projectId = searchParams.get('project')
+    if (projectId) setSelectedProject(projectId)
+  }, [searchParams])
+
+  // Reload projects whenever the tab/window regains focus
+  useEffect(() => {
+    const onFocus = () => {
+      if (isLoaded && isSignedIn) loadProjects()
+    }
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
   }, [isLoaded, isSignedIn])
 
   const loadProjects = async () => {
@@ -89,10 +107,10 @@ export default function Upload() {
       const token = await getToken()
       const res = await analyzeBlueprint(file, token || undefined)
       setResult(file.name, res)
-      
+
       // Save the analysis results to database for analytics
+      let savedFileId: string | null = null
       try {
-        const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
         const saveResponse = await fetch(`${API_BASE_URL}/blueprint-files/save-analysis`, {
           method: 'POST',
           headers: {
@@ -109,23 +127,36 @@ export default function Upload() {
         })
         console.log('Save analysis response status:', saveResponse.status)
         console.log('Save analysis response URL:', `${API_BASE_URL}/blueprint-files/save-analysis`)
-        
+
         if (!saveResponse.ok) {
           const errorText = await saveResponse.text()
           console.error('Save analysis failed:', saveResponse.status, errorText)
           alert(`Failed to save analysis: ${saveResponse.status} - ${errorText}`)
           return
         }
-        
+
         const savedData = await saveResponse.json()
         console.log('Analysis saved successfully:', savedData)
+        savedFileId = savedData?.id || savedData?.file_id || null
+
+        if (savedFileId) {
+          // Store navigation context so other pages can reference this file
+          setCurrentAnalysis({
+            fileId: savedFileId,
+            projectId: selectedProject || undefined,
+            fileName: file.name,
+            originPath: '/upload',
+          })
+          setLastUploadedFileId(savedFileId)
+        }
       } catch (saveError) {
         console.error('Failed to save analysis to database:', saveError)
         alert('Failed to save analysis to database. Please try again.')
         return
       }
-      
-      navigate('/results')
+
+      // Navigate to results with file ID if available (enables back-navigation context)
+      navigate(savedFileId ? `/results/${savedFileId}` : '/results')
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Analysis failed'
       setError(file.name, message)
@@ -157,6 +188,23 @@ export default function Upload() {
 
   return (
     <div className="pb-16">
+      {/* Back navigation breadcrumb */}
+      <div className="border-b border-ink/10 bg-paper/80 backdrop-blur-sm sticky top-0 z-10">
+        <Container>
+          <div className="flex items-center gap-2 py-3 text-sm text-ink/60">
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="flex items-center gap-1.5 hover:text-ink transition-colors"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              <LayoutDashboard className="h-3.5 w-3.5" />
+              Dashboard
+            </button>
+            <span className="text-ink/30">/</span>
+            <span className="text-ink font-medium">Upload Blueprint</span>
+          </div>
+        </Container>
+      </div>
       <Container className="pt-10 md:pt-14">
         <div className="grid gap-10 md:grid-cols-12">
           <div className="space-y-4 md:col-span-5">

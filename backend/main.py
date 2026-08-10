@@ -26,7 +26,7 @@ from typing import Any, Optional
 from blueprint_logic import analyze_blueprint
 from rates.dsr_registry import list_schedules
 from export.boq_export import export_csv, export_xlsx, export_pdf
-from api import organizations_router, projects_router, files_router, analysis_router, diff_router, correction_router, calibration_router, audit_router, comments_router, cost_engine_router, rate_cards_router, approvals_router, analytics_router, blueprint_files_router, floor_comparison_router, public_shares_router, cost_benchmark_router, room_editor_router
+from api import organizations_router, projects_router, files_router, analysis_router, diff_router, correction_router, calibration_router, audit_router, comments_router, cost_engine_router, rate_cards_router, approvals_router, analytics_router, blueprint_files_router, floor_comparison_router, public_shares_router, cost_benchmark_router, room_editor_router, dimensions_router, detected_objects_router, corrections_v2_router, analysis_results_router
 from auth.clerk import get_current_user, verify_jwt
 from utils.error_handler import setup_error_handlers
 
@@ -54,17 +54,38 @@ app.include_router(floor_comparison_router, prefix="/api/v1")
 app.include_router(public_shares_router, prefix="/api/v1")
 app.include_router(cost_benchmark_router, prefix="/api/v1")
 app.include_router(room_editor_router, prefix="/api/v1")
+app.include_router(dimensions_router, prefix="/api/v1")
+app.include_router(detected_objects_router, prefix="/api/v1")
+app.include_router(corrections_v2_router, prefix="/api/v1")
+app.include_router(analysis_results_router, prefix="/api/v1")
+
+_cors_origins = [
+    "https://archvision.me",
+    "https://www.archvision.me",
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "http://localhost:5175",
+    # Browsers treat localhost and 127.0.0.1 as different origins.
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:5174",
+    "http://127.0.0.1:5175",
+]
+# In local/dev, allow any localhost/127.0.0.1 port so Vite's dynamic port won't break CORS.
+if os.environ.get("ENVIRONMENT", "development").lower() in ("development", "dev", "local"):
+    _cors_origins = list(_cors_origins) + [
+        origin.strip()
+        for origin in os.getenv("CORS_ALLOW_ORIGINS", "").split(",")
+        if origin.strip()
+    ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://archvision.me",
-        "https://www.archvision.me",
-        "http://localhost:3000",       # keep for local dev
-        "http://localhost:5173",       # keep for local dev
-        "http://localhost:5174",       # additional local dev port
-        "http://localhost:5175",       # additional local dev port
-    ],
+    allow_origins=_cors_origins,
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?$"
+    if os.environ.get("ENVIRONMENT", "development").lower() in ("development", "dev", "local")
+    else None,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

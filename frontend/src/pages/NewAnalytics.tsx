@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
-import { 
-  BarChart3, 
-  TrendingUp, 
-  Users, 
-  Share2, 
-  Download, 
+import {
+  BarChart3,
+  TrendingUp,
+  Users,
+  Share2,
+  Download,
   Calendar,
   Building2,
   FileText,
@@ -19,9 +19,13 @@ import {
   Mail,
   Link as LinkIcon,
   PieChart,
-  Activity
+  Activity,
+  ArrowLeft,
+  LayoutDashboard,
+  Upload as UploadIcon
 } from 'lucide-react'
 import { projectsApi, publicSharesApi } from '@/lib/api'
+import { useNavigationStore } from '@/stores/useNavigationStore'
 
 interface ShareLink {
   id: string
@@ -46,6 +50,7 @@ interface AnalyticsData {
 export default function NewAnalytics() {
   const navigate = useNavigate()
   const { isLoaded, isSignedIn } = useAuth()
+  const { currentAnalysis } = useNavigationStore()
   const [showShareModal, setShowShareModal] = useState(false)
   const [selectedProject, setSelectedProject] = useState<string>('')
   const [shareExpiry, setShareExpiry] = useState('7')
@@ -77,7 +82,7 @@ export default function NewAnalytics() {
         projectsApi.list()
       ])
       setProjects(projectsData)
-      
+
       // Calculate analytics from real data
       setAnalytics({
         total_projects: projectsData.length,
@@ -156,6 +161,38 @@ export default function NewAnalytics() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Breadcrumb navigation bar */}
+      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto flex items-center justify-between py-3">
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <button onClick={() => navigate('/dashboard')} className="flex items-center gap-1.5 hover:text-gray-900 transition-colors">
+              <LayoutDashboard className="w-3.5 h-3.5" />
+              Dashboard
+            </button>
+            <span className="text-gray-300">/</span>
+            <span className="text-gray-900 font-medium">Analytics</span>
+          </div>
+          <div className="flex items-center gap-2">
+            {currentAnalysis?.fileId && (
+              <button
+                onClick={() => navigate(currentAnalysis.originPath || `/results/${currentAnalysis.fileId}`)}
+                className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-900 border border-gray-200 rounded-full px-3 py-1.5 transition-colors hover:bg-gray-50"
+              >
+                <ArrowLeft className="w-3 h-3" />
+                Back to Results
+              </button>
+            )}
+            <button
+              onClick={() => navigate('/upload')}
+              className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-900 border border-gray-200 rounded-full px-3 py-1.5 transition-colors hover:bg-gray-50"
+            >
+              <UploadIcon className="w-3 h-3" />
+              Upload Blueprint
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Header */}
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -310,9 +347,8 @@ export default function NewAnalytics() {
                           {link.access_count}
                         </td>
                         <td className="px-6 py-4">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            link.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                          }`}>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${link.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            }`}>
                             {link.is_active ? 'Active' : 'Expired'}
                           </span>
                         </td>
@@ -428,7 +464,7 @@ export default function NewAnalytics() {
                       <span className="text-sm text-gray-700">{item.name}</span>
                       <div className="flex items-center gap-2">
                         <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
-                          <div 
+                          <div
                             className={`h-full ${item.color} rounded-full`}
                             style={{ width: `${(item.value / 24) * 100}%` }}
                           />
@@ -452,7 +488,7 @@ export default function NewAnalytics() {
                       <span className="text-sm text-gray-700">{item.name}</span>
                       <div className="flex items-center gap-2">
                         <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
-                          <div 
+                          <div
                             className={`h-full ${item.color} rounded-full`}
                             style={{ width: `${(item.value / 24) * 100}%` }}
                           />
@@ -475,7 +511,7 @@ export default function NewAnalytics() {
                       <span className="text-sm text-gray-700">{item.name}</span>
                       <div className="flex items-center gap-2">
                         <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
-                          <div 
+                          <div
                             className="h-full bg-orange-500 rounded-full"
                             style={{ width: `${Math.random() * 60 + 40}%` }}
                           />

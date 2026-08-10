@@ -43,3 +43,5 @@ ifcopenshell
 boto3  # For S3 file storage
 reportlab  # For PDF exports
 openpyxl  # For Excel exports
+
+newrelic

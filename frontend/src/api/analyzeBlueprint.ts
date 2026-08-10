@@ -11,7 +11,8 @@ export class ApiError extends Error {
 
 function getApiBaseUrl() {
   const raw = import.meta.env.VITE_API_BASE_URL as string | undefined
-  return (raw ?? 'http://localhost:8000').replace(/\/$/, '')
+  // Same-origin in dev (Vite proxies /analyze-blueprint); production can set full URL.
+  return (raw ?? '').replace(/\/$/, '')
 }
 
 export async function analyzeBlueprint(file: File, token?: string): Promise<AnalyzeBlueprintResponse> {

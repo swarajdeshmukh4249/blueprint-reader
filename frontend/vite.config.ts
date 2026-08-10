@@ -16,4 +16,22 @@ export default defineConfig({
     }),
     tsconfigPaths()
   ],
+  server: {
+    // Proxy API calls through Vite so the browser always talks to the same
+    // origin (avoids localhost vs 127.0.0.1 and CORS issues in local dev).
+    proxy: {
+      '/api/v1': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+      '/analyze-blueprint': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+      '/export': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
+    },
+  },
 })

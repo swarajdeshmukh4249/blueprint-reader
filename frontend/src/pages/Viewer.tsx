@@ -4,6 +4,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import DXFViewer from '@/components/viewers/DXFViewer';
 import IFCViewer from '@/components/viewers/IFCViewer';
 import PDFViewer from '@/components/viewers/PDFViewer';
+import { API_BASE_URL } from '@/lib/api';
 
 type FileType = 'dxf' | 'ifc' | 'pdf' | null;
 
@@ -77,7 +78,6 @@ export default function Viewer() {
 
       try {
         const token = await (window as any).Clerk?.session?.getToken();
-        const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
         
         const response = await fetch(`${API_BASE_URL}/blueprint-files/${jobId}`, {
           headers: {

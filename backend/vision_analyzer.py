@@ -48,6 +48,7 @@ Rules:
 - total_area_sqft: use NET TOTAL / TOTAL BUILT UP from AREA STATEMENT table if visible (sq ft column), else sum of room areas, else null.
 - area_statement_net_sqft: official net FSI+built-up total from AREA STATEMENT (sq ft), if shown.
 - features: optional list from STAIR, BALCONY, PARKING, LIFT, TERRACE, CORRIDOR.
+- scale_detected: return an explicit drawing scale such as "1:100" only when it is visibly printed; otherwise null.
 
 {
   "rooms": [
@@ -55,6 +56,7 @@ Rules:
   ],
   "total_area_sqft": null,
   "area_statement_net_sqft": null,
+  "scale_detected": null,
   "features": []
 }
 """
@@ -66,6 +68,7 @@ def merge_vision_pages(vision_pages: list[dict]) -> dict:
     features: list[str] = []
     total = None
     stmt_net = None
+    scale_detected = None
 
     for data in vision_pages:
         if not data:
@@ -80,6 +83,8 @@ def merge_vision_pages(vision_pages: list[dict]) -> dict:
             stmt_net = data["area_statement_net_sqft"]
         elif data.get("total_area_sqft") and not total:
             total = data["total_area_sqft"]
+        if not scale_detected and data.get("scale_detected"):
+            scale_detected = data["scale_detected"]
 
     out: dict = {"rooms": rooms, "features": features}
     if stmt_net:
@@ -87,6 +92,8 @@ def merge_vision_pages(vision_pages: list[dict]) -> dict:
         out["total_area_sqft"] = stmt_net
     elif total:
         out["total_area_sqft"] = total
+    if scale_detected:
+        out["scale_detected"] = scale_detected
     return out
 
 
@@ -197,6 +204,8 @@ def _norm_room(name: str) -> str:
 def merge_results(vision_data, legacy_data):
     if vision_data.get("_model_used"):
         legacy_data["vision_model"] = vision_data["_model_used"]
+    if vision_data.get("scale_detected"):
+        legacy_data["vision_scale_detected"] = vision_data["scale_detected"]
 
     if vision_data.get("error"):
         legacy_data["vision_error"] = vision_data["error"]

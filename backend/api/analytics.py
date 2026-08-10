@@ -11,9 +11,10 @@ import io
 from models import get_db, AnalyticsSnapshot, CostTrend, CostBreakdown, MaterialStatistic, MaterialCostBreakdown
 from models import RegionalCostRate, RegionalCostHistory, AIQualityMetric, RoomTypeCorrectionStat
 from models import RevisionAnalytic, TeamActivityMetric, PortfolioAnalytic, ApprovalAnalytic, BenchmarkingData
-from models import Project, AnalysisVersion, Room, BOQItem, Organization
-from auth.clerk import get_current_user
+from models import Project, AnalysisVersion, Room, BOQItem, Organization, User
+from auth.clerk import get_current_user_db
 from services.activity_service import ActivityService
+from utils.org_filtering import verify_user_org_access
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
@@ -36,13 +37,23 @@ class ExecutiveKPIs(BaseModel):
 async def get_executive_kpis(
     organization_id: str,
     period: str = Query("monthly", pattern="^(daily|weekly|monthly|yearly)$"),
+    current_user: User = Depends(get_current_user_db),
     db: Session = Depends(get_db)
 ):
-    """Get executive KPIs for organization"""
+    """Get executive KPIs for organization. Requires user to be a member of the organization."""
+    
+    try:
+        org_uuid = uuid.UUID(organization_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid organization_id format")
+    
+    # Verify user has access to this organization
+    if not verify_user_org_access(current_user.id, org_uuid, db):
+        raise HTTPException(status_code=403, detail="User does not have access to this organization")
     
     # Get latest snapshot
     snapshot = db.query(AnalyticsSnapshot).filter(
-        AnalyticsSnapshot.organization_id == uuid.UUID(organization_id),
+        AnalyticsSnapshot.organization_id == org_uuid,
         AnalyticsSnapshot.period_type == period
     ).order_by(AnalyticsSnapshot.snapshot_date.desc()).first()
     
@@ -109,12 +120,21 @@ async def get_cost_trends(
     project_id: Optional[str] = None,
     start_date: date = Query(...),
     end_date: date = Query(...),
+    current_user: User = Depends(get_current_user_db),
     db: Session = Depends(get_db)
 ):
     """Get cost trends over time"""
     
+    try:
+        org_uuid = uuid.UUID(organization_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid organization_id format")
+    
+    if not verify_user_org_access(current_user.id, org_uuid, db):
+        raise HTTPException(status_code=403, detail="User does not have access to this organization")
+    
     query = db.query(CostTrend).filter(
-        CostTrend.organization_id == uuid.UUID(organization_id),
+        CostTrend.organization_id == org_uuid,
         CostTrend.record_date >= start_date,
         CostTrend.record_date <= end_date
     )
@@ -146,12 +166,21 @@ class CostBreakdownItem(BaseModel):
 async def get_cost_breakdown(
     organization_id: str,
     project_id: Optional[str] = None,
+    current_user: User = Depends(get_current_user_db),
     db: Session = Depends(get_db)
 ):
     """Get cost breakdown by category"""
     
+    try:
+        org_uuid = uuid.UUID(organization_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid organization_id format")
+    
+    if not verify_user_org_access(current_user.id, org_uuid, db):
+        raise HTTPException(status_code=403, detail="User does not have access to this organization")
+    
     query = db.query(CostBreakdown).filter(
-        CostBreakdown.organization_id == uuid.UUID(organization_id)
+        CostBreakdown.organization_id == org_uuid
     )
     
     if project_id:

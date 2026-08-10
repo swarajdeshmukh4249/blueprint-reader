@@ -1249,6 +1249,8 @@ def _finalize_raster_result(
     raw_text: str,
     vision_analyzer,
     notes: str = "",
+    raster_image=None,
+    raster_dpi: float | None = None,
 ) -> dict:
     room_sum = sum(float(r.get("area") or 0) for r in room_data)
     room_data, total_area, statement, stmt_note = reconcile_total_with_statement(
@@ -1267,6 +1269,7 @@ def _finalize_raster_result(
         "raw_text": raw_text,
         "notes": " ".join(x for x in (notes, stmt_note) if x).strip(),
         "tesseract_available": TESSERACT_AVAILABLE,
+        "raster_dpi": raster_dpi,
     }
 
     has_areas = any(float(r.get("area") or 0) > 0 for r in room_data)
@@ -1303,6 +1306,12 @@ def _finalize_raster_result(
             (result.get("notes") or "")
             + " GOOGLE_API_KEY not set on worker — PDF/image analysis requires Vision."
         ).strip()
+
+    try:
+        from pipelines.plan_engine import enhance_analysis
+        result = enhance_analysis(result, raster_image=raster_image)
+    except Exception as pipe_exc:
+        result["pipeline_warning"] = str(pipe_exc)
 
     return finalize_result(result)
 
@@ -1358,6 +1367,8 @@ def analyze_pdf(file_bytes: bytes) -> dict:
         raw_text=raw_text,
         vision_analyzer=analyze_pdf_with_vision,
         notes=notes,
+        raster_image=images[0] if images else None,
+        raster_dpi=PDF_OCR_DPI,
     )
 
 
@@ -1385,6 +1396,8 @@ def analyze_image(file_bytes: bytes) -> dict:
         room_data=room_data,
         raw_text=raw,
         vision_analyzer=analyze_image_with_vision,
+        raster_image=image,
+        raster_dpi=(image.info.get("dpi") or (None,))[0],
     )
 
 

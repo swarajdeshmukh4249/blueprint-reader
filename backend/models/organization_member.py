@@ -12,7 +12,7 @@ class OrganizationMember(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     role = Column(String(50), nullable=False, default='viewer')
     invited_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
-    joined_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Add unique constraint via __table_args__ if needed
     __table_args__ = (

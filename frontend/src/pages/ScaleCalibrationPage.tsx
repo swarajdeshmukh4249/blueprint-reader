@@ -1,20 +1,30 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Upload, FileText, Box, Circle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, Upload, FileText, Box, Circle, LayoutDashboard, BarChart3 } from 'lucide-react';
 import DXFViewer from '@/components/viewers/DXFViewer';
 import IFCViewer from '@/components/viewers/IFCViewer';
 import PDFViewer from '@/components/viewers/PDFViewer';
-import ScaleCalibration from '@/components/calibration/ScaleCalibration';
+import ScaleCalibrationPanel from '@/components/ScaleCalibration/ScaleCalibrationPanel';
+import { useNavigationStore } from '@/stores/useNavigationStore';
 
-type FileType = 'dxf' | 'ifc' | 'pdf' | null;
+type FileType = 'dxf' | 'ifc' | 'pdf' | 'image' | null;
 
 export default function ScaleCalibrationPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { currentAnalysis } = useNavigationStore();
   const [file, setFile] = useState<File | null>(null);
   const [fileType, setFileType] = useState<FileType>(null);
   const [dragActive, setDragActive] = useState(false);
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [showCalibration, setShowCalibration] = useState(false);
+
+  // Read context from URL params
+  const contextFileId = searchParams.get('file') || currentAnalysis?.fileId;
+  const contextProjectId = searchParams.get('project') || currentAnalysis?.projectId;
+
+  // Build back navigation target
+  const backToResults = contextFileId ? `/results/${contextFileId}` : currentAnalysis?.originPath || '/upload';
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -45,7 +55,7 @@ export default function ScaleCalibrationPage() {
 
   const processFile = (uploadedFile: File) => {
     const extension = uploadedFile.name.split('.').pop()?.toLowerCase();
-    
+
     if (extension === 'dxf') {
       setFileType('dxf');
       setFile(uploadedFile);
@@ -60,7 +70,7 @@ export default function ScaleCalibrationPage() {
       setImageSrc(url);
     } else if (extension === 'png' || extension === 'jpg' || extension === 'jpeg') {
       // For image files, use directly for calibration
-      setFileType(null);
+      setFileType('image');
       setFile(uploadedFile);
       const url = URL.createObjectURL(uploadedFile);
       setImageSrc(url);
@@ -77,10 +87,11 @@ export default function ScaleCalibrationPage() {
     setShowCalibration(false);
   };
 
-  const handleScaleCalibrated = (scale: number, unit: string) => {
-    console.log('Scale calibrated:', scale, unit);
-    // Here you would save the scale to your backend or state
-    alert(`Scale calibrated: ${scale.toFixed(5)} ${unit}/px`);
+  const handleScaleCalibrated = (calibration: {
+    scale_factor: number;
+    unit: string;
+  }) => {
+    console.log('Scale calibrated:', calibration);
   };
 
   const renderViewer = () => {
@@ -93,68 +104,133 @@ export default function ScaleCalibrationPage() {
         return <IFCViewer file={file} width={800} height={600} />;
       case 'pdf':
         return <PDFViewer file={file} width={800} height={600} />;
+      case 'image':
+        return imageSrc ? <img src={imageSrc} alt={file.name} className="max-h-[600px] max-w-full object-contain" /> : null;
       default:
         return null;
     }
   };
 
-  if (showCalibration && imageSrc) {
+  if (showCalibration && file && fileType) {
+    const isImage = fileType === 'image';
     return (
-      <div className="min-h-screen bg-gray-100 flex">
-        {/* Sidebar */}
-        <div className="w-64 bg-white border-r border-gray-200 p-4">
-          <div className="flex items-center gap-2 mb-6">
-            <button
-              onClick={() => navigate('/dashboard')}
-              className="text-gray-600 hover:text-gray-900"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <h1 className="text-lg font-semibold">Scale Calibration</h1>
-          </div>
-          
-          <nav className="space-y-2">
-            <button className="w-full text-left px-3 py-2 rounded-lg bg-blue-50 text-blue-700 font-medium">
-              Scale Calibration
-            </button>
-            <button 
-              onClick={() => navigate('/dashboard')}
-              className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700"
-            >
-              Dashboard
-            </button>
-            <button 
-              onClick={() => navigate('/viewer')}
-              className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700"
-            >
-              File Viewer
-            </button>
-          </nav>
-        </div>
-
-        {/* Main Content */}
-        <div className="flex-1 flex">
-          {/* Blueprint Area */}
-          <div className="flex-1 p-6">
-            <div className="bg-white rounded-lg shadow-sm p-4 h-full">
-              <h2 className="text-lg font-semibold mb-4">{file?.name || 'Blueprint'}</h2>
-              <div className="border border-gray-300 rounded-lg overflow-hidden">
-                <img 
-                  src={imageSrc} 
-                  alt="Blueprint" 
-                  className="w-full h-full object-contain"
-                  style={{ maxHeight: '600px' }}
-                />
-              </div>
+      <div className="min-h-screen bg-gray-100 flex flex-col">
+        {/* Breadcrumb navigation */}
+        <div className="bg-white border-b border-gray-200 px-6 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <button onClick={() => navigate('/dashboard')} className="flex items-center gap-1 hover:text-gray-900 transition-colors">
+                <LayoutDashboard className="w-3.5 h-3.5" />
+                Dashboard
+              </button>
+              <span className="text-gray-300">/</span>
+              <button
+                onClick={() => navigate(contextProjectId ? `/upload?project=${contextProjectId}` : '/upload')}
+                className="flex items-center gap-1 hover:text-gray-900 transition-colors"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                Upload
+              </button>
+              <span className="text-gray-300">/</span>
+              {contextFileId && (
+                <>
+                  <button
+                    onClick={() => navigate(backToResults)}
+                    className="flex items-center gap-1 hover:text-gray-900 transition-colors"
+                  >
+                    Results
+                  </button>
+                  <span className="text-gray-300">/</span>
+                </>
+              )}
+              <span className="text-gray-900 font-medium">Scale Calibration</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => navigate(backToResults)}
+                className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-900 border border-gray-200 rounded-full px-3 py-1.5 transition-colors hover:bg-gray-50"
+              >
+                <ArrowLeft className="w-3 h-3" />
+                Back to Results
+              </button>
+              <button
+                onClick={() => navigate('/new-analytics')}
+                className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-900 border border-gray-200 rounded-full px-3 py-1.5 transition-colors hover:bg-gray-50"
+              >
+                <BarChart3 className="w-3 h-3" />
+                Analytics
+              </button>
             </div>
           </div>
+        </div>
 
-          {/* Calibration Panel */}
-          <div className="w-96 bg-white border-l border-gray-200 p-6 overflow-y-auto">
-            <ScaleCalibration 
-              onScaleCalibrated={handleScaleCalibrated}
-              imageSrc={imageSrc}
-            />
+        <div className="flex flex-1">
+          {/* Sidebar */}
+          <div className="w-64 bg-white border-r border-gray-200 p-4">
+            <div className="flex items-center gap-2 mb-6">
+              <button
+                onClick={() => navigate(backToResults)}
+                className="text-gray-600 hover:text-gray-900"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+              <h1 className="text-lg font-semibold">Scale Calibration</h1>
+            </div>
+
+            <nav className="space-y-2">
+              <button className="w-full text-left px-3 py-2 rounded-lg bg-blue-50 text-blue-700 font-medium">
+                Scale Calibration
+              </button>
+              {contextFileId && (
+                <button
+                  onClick={() => navigate(backToResults)}
+                  className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700"
+                >
+                  ← Results
+                </button>
+              )}
+              <button
+                onClick={() => navigate(contextProjectId ? `/upload?project=${contextProjectId}` : '/upload')}
+                className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700"
+              >
+                Upload
+              </button>
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700"
+              >
+                Dashboard
+              </button>
+              <button
+                onClick={() => navigate('/viewer')}
+                className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700"
+              >
+                File Viewer
+              </button>
+            </nav>
+          </div>
+
+          {/* Main Content */}
+          <div className="flex-1 flex min-w-0">
+            {/* Blueprint Area */}
+            {!isImage && <div className="flex-1 min-w-0 p-6 overflow-auto">
+              <div className="bg-white rounded-lg shadow-sm p-4 h-full">
+                <h2 className="text-lg font-semibold mb-4">{file?.name || 'Blueprint'}</h2>
+                <div className="border border-gray-300 rounded-lg overflow-hidden inline-block max-w-full">
+                  {renderViewer()}
+                </div>
+              </div>
+            </div>}
+
+            {/* Calibration Panel */}
+            <div className={`${isImage ? 'flex-1 flex items-start justify-center p-6' : 'w-96'} bg-white border-l border-gray-200 p-6 overflow-y-auto`}>
+              <ScaleCalibrationPanel
+                imageUrl={isImage ? imageSrc ?? undefined : undefined}
+                hidePreview={!isImage}
+                onClose={() => setShowCalibration(false)}
+                onScaleApplied={handleScaleCalibrated}
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -165,12 +241,26 @@ export default function ScaleCalibrationPage() {
     return (
       <div className="min-h-screen bg-gray-100 p-8">
         <div className="max-w-7xl mx-auto">
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-2 text-sm text-gray-500 mb-6">
+            <button onClick={() => navigate('/dashboard')} className="hover:text-gray-900 transition-colors">Dashboard</button>
+            <span>/</span>
+            <button onClick={() => navigate(contextProjectId ? `/upload?project=${contextProjectId}` : '/upload')} className="hover:text-gray-900 transition-colors">Upload</button>
+            {contextFileId && (
+              <>
+                <span>/</span>
+                <button onClick={() => navigate(backToResults)} className="hover:text-gray-900 transition-colors">Results</button>
+              </>
+            )}
+            <span>/</span>
+            <span className="text-gray-900 font-medium">Scale Calibration</span>
+          </div>
           <div className="mb-6">
             <button
-              onClick={() => navigate('/dashboard')}
+              onClick={() => navigate(backToResults)}
               className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 mb-4"
             >
-              ← Back to Dashboard
+              ← Back
             </button>
             <button
               onClick={handleReset}
@@ -198,24 +288,37 @@ export default function ScaleCalibrationPage() {
   return (
     <div className="min-h-screen bg-gray-100 p-8">
       <div className="max-w-4xl mx-auto">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-2 text-sm text-gray-500 mb-6">
+          <button onClick={() => navigate('/dashboard')} className="hover:text-gray-900 transition-colors">Dashboard</button>
+          <span>/</span>
+          <button onClick={() => navigate(contextProjectId ? `/upload?project=${contextProjectId}` : '/upload')} className="hover:text-gray-900 transition-colors">Upload</button>
+          {contextFileId && (
+            <>
+              <span>/</span>
+              <button onClick={() => navigate(backToResults)} className="hover:text-gray-900 transition-colors">Results</button>
+            </>
+          )}
+          <span>/</span>
+          <span className="text-gray-900 font-medium">Scale Calibration</span>
+        </div>
         <div className="mb-6">
           <button
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate(backToResults)}
             className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
           >
-            ← Back to Dashboard
+            ← Back
           </button>
         </div>
-        
+
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-800 mb-2">Scale Calibration</h1>
           <p className="text-gray-600">Upload a blueprint or image to calibrate its scale</p>
         </div>
 
         <div
-          className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${
-            dragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-white'
-          }`}
+          className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${dragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-white'
+            }`}
           onDragEnter={handleDrag}
           onDragLeave={handleDrag}
           onDragOver={handleDrag}

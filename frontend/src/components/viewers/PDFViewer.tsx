@@ -7,6 +7,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 // and gives back a hashed, content-addressed URL — no manual /public
 // copying needed (unlike web-ifc's wasm file).
 import pdfWorkerSrc from 'pdfjs-dist/build/pdf.worker.mjs?url';
+import { CalibrationManager } from '../../calibration/CalibrationManager';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerSrc;
 
@@ -36,6 +37,7 @@ export default function PDFViewer({ file, width = 800, height = 600 }: PDFViewer
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<TextMatch[]>([]);
   const [searching, setSearching] = useState(false);
+  const [calibrationPoints, setCalibrationPoints] = useState<any[]>([]);
 
   // --- Load document when file changes ---
   useEffect(() => {
@@ -214,6 +216,23 @@ export default function PDFViewer({ file, width = 800, height = 600 }: PDFViewer
     [runSearch]
   );
 
+  const handleCalibrationClick = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!CalibrationManager.getState().scaleMode) return;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    CalibrationManager.addPoint({
+      x: (event.clientX - rect.left) * (canvas.width / rect.width),
+      y: (event.clientY - rect.top) * (canvas.height / rect.height),
+      space: 'pdf',
+    });
+  }, []);
+
+  useEffect(() => CalibrationManager.subscribe((nextState) => {
+    setCalibrationPoints([nextState.pointA, nextState.pointB].filter(Boolean));
+  }), []);
+
   if (!file) {
     return (
       <div
@@ -346,7 +365,44 @@ export default function PDFViewer({ file, width = 800, height = 600 }: PDFViewer
           {loading ? (
             <div className="text-gray-500 text-sm">Loading PDF…</div>
           ) : (
-            <canvas ref={canvasRef} className="shadow-md bg-white" />
+            <div className="relative inline-block">
+              <canvas
+                ref={canvasRef}
+                onClick={handleCalibrationClick}
+                className="block shadow-md bg-white cursor-crosshair"
+              />
+              {calibrationPoints.length > 0 && (
+                <svg
+                  className="pointer-events-none absolute inset-0 h-full w-full"
+                  viewBox={`0 0 ${canvasRef.current?.width || 1} ${canvasRef.current?.height || 1}`}
+                  preserveAspectRatio="none"
+                  aria-label="Selected calibration distance"
+                >
+                  {calibrationPoints.length === 2 && (
+                    <line
+                      x1={calibrationPoints[0].x}
+                      y1={calibrationPoints[0].y}
+                      x2={calibrationPoints[1].x}
+                      y2={calibrationPoints[1].y}
+                      stroke="#2563eb"
+                      strokeWidth={(canvasRef.current?.width || 500) / 160}
+                      strokeDasharray="8 5"
+                    />
+                  )}
+                  {calibrationPoints.map((point, index) => (
+                    <circle
+                      key={`${point.x}-${point.y}-${index}`}
+                      cx={point.x}
+                      cy={point.y}
+                      r={(canvasRef.current?.width || 500) / 80}
+                      fill={index === 0 ? '#22c55e' : '#2563eb'}
+                      stroke="white"
+                      strokeWidth="3"
+                    />
+                  ))}
+                </svg>
+              )}
+            </div>
           )}
         </div>
       </div>

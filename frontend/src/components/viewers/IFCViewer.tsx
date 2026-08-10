@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { IfcAPI, IFCRELDEFINESBYTYPE } from 'web-ifc';
+import { CalibrationManager } from '../../calibration/CalibrationManager';
 
 interface IFCViewerProps {
   file?: File;
@@ -34,6 +35,7 @@ export default function IFCViewer({ file, width = 800, height = 600 }: IFCViewer
   const animationFrameRef = useRef<number | null>(null);
   const raycasterRef = useRef(new THREE.Raycaster());
   const mouseRef = useRef(new THREE.Vector2());
+  const calibrationGuideRef = useRef<THREE.Group | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -90,6 +92,53 @@ export default function IFCViewer({ file, width = 800, height = 600 }: IFCViewer
     };
     animate();
 
+    const updateCalibrationGuide = () => {
+      if (calibrationGuideRef.current) {
+        scene.remove(calibrationGuideRef.current);
+        calibrationGuideRef.current.traverse((object: any) => {
+          object.geometry?.dispose?.();
+          object.material?.dispose?.();
+        });
+      }
+
+      const calibration = CalibrationManager.getState();
+      const points = [calibration.pointA, calibration.pointB].filter(
+        (point): point is NonNullable<typeof point> => Boolean(point && point.space === 'ifc'),
+      );
+      if (!points.length) {
+        calibrationGuideRef.current = null;
+        return;
+      }
+
+      const guide = new THREE.Group();
+      const bounds = new THREE.Box3();
+      meshesRef.current.forEach(({ mesh }) => bounds.expandByObject(mesh));
+      const markerRadius = Math.max(bounds.getSize(new THREE.Vector3()).length() / 250, 0.01);
+      const markerGeometry = new THREE.SphereGeometry(markerRadius, 16, 12);
+      points.forEach((point, index) => {
+        const marker = new THREE.Mesh(
+          markerGeometry.clone(),
+          new THREE.MeshBasicMaterial({ color: index === 0 ? 0x22c55e : 0x2563eb, depthTest: false }),
+        );
+        marker.position.set(point.x, point.y, point.z || 0);
+        marker.renderOrder = 10;
+        guide.add(marker);
+      });
+      if (points.length === 2) {
+        const geometry = new THREE.BufferGeometry().setFromPoints(
+          points.map(point => new THREE.Vector3(point.x, point.y, point.z || 0)),
+        );
+        const line = new THREE.Line(
+          geometry,
+          new THREE.LineBasicMaterial({ color: 0x2563eb, depthTest: false }),
+        );
+        line.renderOrder = 9;
+        guide.add(line);
+      }
+      calibrationGuideRef.current = guide;
+      scene.add(guide);
+    };
+
     const handleClick = (event: MouseEvent) => {
       if (!containerRef.current) return;
       const rect = renderer.domElement.getBoundingClientRect();
@@ -99,6 +148,15 @@ export default function IFCViewer({ file, width = 800, height = 600 }: IFCViewer
       raycasterRef.current.setFromCamera(mouseRef.current, camera);
       const meshObjects = meshesRef.current.map(m => m.mesh);
       const intersects = raycasterRef.current.intersectObjects(meshObjects, false);
+
+      if (CalibrationManager.getState().scaleMode) {
+        if (intersects.length > 0) {
+          const point = intersects[0].point;
+          CalibrationManager.addPoint({ x: point.x, y: point.y, z: point.z, space: 'ifc' });
+          updateCalibrationGuide();
+        }
+        return;
+      }
 
       if (intersects.length > 0) {
         const hit = meshesRef.current.find(m => m.mesh === intersects[0].object);
@@ -110,9 +168,11 @@ export default function IFCViewer({ file, width = 800, height = 600 }: IFCViewer
       }
     };
     renderer.domElement.addEventListener('click', handleClick);
+    const unsubscribeCalibration = CalibrationManager.subscribe(updateCalibrationGuide);
 
     return () => {
       renderer.domElement.removeEventListener('click', handleClick);
+      unsubscribeCalibration();
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
       controls.dispose();
       renderer.dispose();
@@ -125,6 +185,8 @@ export default function IFCViewer({ file, width = 800, height = 600 }: IFCViewer
         }
       });
       meshesRef.current = [];
+      if (calibrationGuideRef.current) scene.remove(calibrationGuideRef.current);
+      calibrationGuideRef.current = null;
     };
     // Intentionally only re-run scene setup if the canvas dimensions change.
     // eslint-disable-next-line react-hooks/exhaustive-deps

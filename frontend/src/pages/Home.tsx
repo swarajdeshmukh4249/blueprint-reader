@@ -3,7 +3,6 @@ import { NavLink } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import BlueprintHeroVisual from '@/components/BlueprintHeroVisual'
 import HeroBackgroundVideo from '@/components/HeroBackgroundVideo'
-import PlexusBackground from '@/components/PlexusBackground'
 import Container from '@/components/Container'
 import { cn } from '@/lib/utils'
 
@@ -48,9 +47,6 @@ export default function Home() {
       <section>
         <div className="relative">
           <HeroBackgroundVideo className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" />
-          <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden opacity-80 [mask-image:linear-gradient(to_bottom,black_0%,black_72%,transparent_100%)]">
-            <PlexusBackground className="absolute inset-0" />
-          </div>
           <Container className="relative z-10 grid items-start gap-10 pt-12 md:grid-cols-12 md:gap-12 md:pt-16">
           <div className="md:col-span-6">
             <div className="animate-reveal space-y-6">

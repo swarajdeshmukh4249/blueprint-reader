@@ -1,7 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { ClerkProvider, SignedIn, SignedOut } from '@clerk/clerk-react'
 import AppShell from '@/components/AppShell'
-import Blueprint3DBackground from '@/components/Blueprint3DBackground'
 import About from '@/pages/About'
 import Contact from '@/pages/Contact'
 import Home from '@/pages/Home'
@@ -34,7 +33,6 @@ export default function App() {
   return (
     <ClerkProvider publishableKey={clerkPubKey}>
       <BrowserRouter>
-        <Blueprint3DBackground />
         <Routes>
           <Route element={<AppShell />}>
             <Route path="/" element={<Home />} />

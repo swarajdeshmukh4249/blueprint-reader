@@ -47,7 +47,7 @@ export default function Home() {
       <section>
         <div className="relative">
           <HeroBackgroundVideo className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" />
-          <Container className="relative z-10 grid items-start gap-10 pt-12 md:grid-cols-12 md:gap-12 md:pt-16">
+          <Container className="grid items-start gap-10 pt-12 md:grid-cols-12 md:gap-12 md:pt-16">
           <div className="md:col-span-6">
             <div className="animate-reveal space-y-6">
               <div className="flex flex-wrap items-center gap-2">

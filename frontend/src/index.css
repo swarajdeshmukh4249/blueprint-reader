@@ -9,6 +9,8 @@
   --muted: 220 10% 50%;
   --accent: 199 89% 48%;
   --shadow: 220 30% 10%;
+  --plexus-node: 199 89% 48%;
+  --plexus-line: 199 89% 48%;
 
   font-family: "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI",
     "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji",
@@ -28,6 +30,8 @@ html.dark {
   --muted: 220 10% 75%;
   --accent: 199 89% 52%;
   --shadow: 220 20% 8%;
+  --plexus-node: 199 89% 52%;
+  --plexus-line: 199 89% 52%;
 }
 
 body {

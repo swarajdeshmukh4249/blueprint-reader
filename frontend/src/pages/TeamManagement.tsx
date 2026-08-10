@@ -86,7 +86,7 @@ export default function TeamManagement() {
         )
       case 'viewer':
         return (
-          <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-800">
+          <span className="rounded-full bg-paper px-2 py-1 text-xs font-medium text-ink">
             Viewer
           </span>
         )
@@ -109,7 +109,7 @@ export default function TeamManagement() {
         )
       case 'inactive':
         return (
-          <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-800">
+          <span className="rounded-full bg-paper px-2 py-1 text-xs font-medium text-ink">
             Inactive
           </span>
         )

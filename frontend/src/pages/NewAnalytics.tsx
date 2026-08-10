@@ -146,7 +146,7 @@ export default function NewAnalytics() {
   if (!isLoaded || !isSignedIn) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-gray-500">Loading...</div>
+        <div className="text-ink/50">Loading...</div>
       </div>
     )
   }
@@ -154,29 +154,29 @@ export default function NewAnalytics() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-gray-500">Loading analytics...</div>
+        <div className="text-ink/50">Loading analytics...</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-ink/5">
       {/* Breadcrumb navigation bar */}
-      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-8">
+      <div className="bg-paper-2 border-b border-ink/10 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto flex items-center justify-between py-3">
-          <div className="flex items-center gap-2 text-sm text-gray-500">
-            <button onClick={() => navigate('/dashboard')} className="flex items-center gap-1.5 hover:text-gray-900 transition-colors">
+          <div className="flex items-center gap-2 text-sm text-ink/50">
+            <button onClick={() => navigate('/dashboard')} className="flex items-center gap-1.5 hover:text-ink transition-colors">
               <LayoutDashboard className="w-3.5 h-3.5" />
               Dashboard
             </button>
-            <span className="text-gray-300">/</span>
-            <span className="text-gray-900 font-medium">Analytics</span>
+            <span className="text-ink/30">/</span>
+            <span className="text-ink font-medium">Analytics</span>
           </div>
           <div className="flex items-center gap-2">
             {currentAnalysis?.fileId && (
               <button
                 onClick={() => navigate(currentAnalysis.originPath || `/results/${currentAnalysis.fileId}`)}
-                className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-900 border border-gray-200 rounded-full px-3 py-1.5 transition-colors hover:bg-gray-50"
+                className="flex items-center gap-1.5 text-xs text-ink/50 hover:text-ink border border-ink/10 rounded-full px-3 py-1.5 transition-colors hover:bg-ink/5"
               >
                 <ArrowLeft className="w-3 h-3" />
                 Back to Results
@@ -184,7 +184,7 @@ export default function NewAnalytics() {
             )}
             <button
               onClick={() => navigate('/upload')}
-              className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-900 border border-gray-200 rounded-full px-3 py-1.5 transition-colors hover:bg-gray-50"
+              className="flex items-center gap-1.5 text-xs text-ink/50 hover:text-ink border border-ink/10 rounded-full px-3 py-1.5 transition-colors hover:bg-ink/5"
             >
               <UploadIcon className="w-3 h-3" />
               Upload Blueprint
@@ -194,19 +194,19 @@ export default function NewAnalytics() {
       </div>
 
       {/* Header */}
-      <header className="bg-white border-b border-gray-200">
+      <header className="bg-paper-2 border-b border-ink/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-4">
               <BarChart3 className="w-8 h-8 text-blue-600" />
-              <h1 className="text-2xl font-bold text-gray-900">Analytics & Client Portal</h1>
+              <h1 className="text-2xl font-bold text-ink">Analytics & Client Portal</h1>
             </div>
             <div className="flex items-center gap-3">
-              <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50">
+              <button className="flex items-center gap-2 px-4 py-2 border border-ink/10 rounded-lg hover:bg-ink/5">
                 <Filter className="w-4 h-4" />
                 Filter
               </button>
-              <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50">
+              <button className="flex items-center gap-2 px-4 py-2 border border-ink/10 rounded-lg hover:bg-ink/5">
                 <Download className="w-4 h-4" />
                 Export
               </button>
@@ -218,11 +218,11 @@ export default function NewAnalytics() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* KPI Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white rounded-lg p-5 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+          <div className="bg-paper-2 rounded-lg p-5 border border-ink/10 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Projects</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{analytics.total_projects}</p>
+                <p className="text-xs font-medium text-ink/50 uppercase tracking-wider">Total Projects</p>
+                <p className="text-2xl font-bold text-ink mt-1">{analytics.total_projects}</p>
                 <p className="text-xs text-green-600 mt-1 flex items-center">
                   <ArrowUpRight className="w-3 h-3 mr-1" />
                   +12% this month
@@ -231,11 +231,11 @@ export default function NewAnalytics() {
               <Building2 className="w-8 h-8 text-blue-600" />
             </div>
           </div>
-          <div className="bg-white rounded-lg p-5 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+          <div className="bg-paper-2 rounded-lg p-5 border border-ink/10 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Active Projects</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{analytics.active_projects}</p>
+                <p className="text-xs font-medium text-ink/50 uppercase tracking-wider">Active Projects</p>
+                <p className="text-2xl font-bold text-ink mt-1">{analytics.active_projects}</p>
                 <p className="text-xs text-green-600 mt-1 flex items-center">
                   <ArrowUpRight className="w-3 h-3 mr-1" />
                   +8% this month
@@ -244,11 +244,11 @@ export default function NewAnalytics() {
               <TrendingUp className="w-8 h-8 text-green-600" />
             </div>
           </div>
-          <div className="bg-white rounded-lg p-5 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+          <div className="bg-paper-2 rounded-lg p-5 border border-ink/10 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Analyses Run</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{analytics.total_analyses}</p>
+                <p className="text-xs font-medium text-ink/50 uppercase tracking-wider">Analyses Run</p>
+                <p className="text-2xl font-bold text-ink mt-1">{analytics.total_analyses}</p>
                 <p className="text-xs text-green-600 mt-1 flex items-center">
                   <ArrowUpRight className="w-3 h-3 mr-1" />
                   +25% this month
@@ -257,12 +257,12 @@ export default function NewAnalytics() {
               <FileText className="w-8 h-8 text-yellow-600" />
             </div>
           </div>
-          <div className="bg-white rounded-lg p-5 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+          <div className="bg-paper-2 rounded-lg p-5 border border-ink/10 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Client Shares</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{shareLinks.length}</p>
-                <p className="text-xs text-gray-500 mt-1">Active links</p>
+                <p className="text-xs font-medium text-ink/50 uppercase tracking-wider">Client Shares</p>
+                <p className="text-2xl font-bold text-ink mt-1">{shareLinks.length}</p>
+                <p className="text-xs text-ink/50 mt-1">Active links</p>
               </div>
               <Users className="w-8 h-8 text-purple-600" />
             </div>
@@ -270,11 +270,11 @@ export default function NewAnalytics() {
         </div>
 
         {/* Client Share Portal Section */}
-        <div className="bg-white rounded-lg border border-gray-200 mb-8 shadow-sm">
-          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        <div className="bg-paper-2 rounded-lg border border-ink/10 mb-8 shadow-sm">
+          <div className="px-6 py-4 border-b border-ink/10 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Share2 className="w-5 h-5 text-blue-600" />
-              <h2 className="text-lg font-semibold text-gray-900">Client Share Portal</h2>
+              <h2 className="text-lg font-semibold text-ink">Client Share Portal</h2>
             </div>
             <button
               onClick={() => setShowShareModal(true)}
@@ -287,8 +287,8 @@ export default function NewAnalytics() {
           <div className="p-6">
             {shareLinks.length === 0 ? (
               <div className="text-center py-12">
-                <Share2 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500 mb-4">No share links created yet</p>
+                <Share2 className="w-12 h-12 text-ink/40 mx-auto mb-4" />
+                <p className="text-ink/50 mb-4">No share links created yet</p>
                 <button
                   onClick={() => setShowShareModal(true)}
                   className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
@@ -299,51 +299,51 @@ export default function NewAnalytics() {
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-ink/5">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-ink/50 uppercase">
                         Project
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-ink/50 uppercase">
                         Share Link
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-ink/50 uppercase">
                         Created
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-ink/50 uppercase">
                         Expires
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-ink/50 uppercase">
                         Access Count
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-ink/50 uppercase">
                         Status
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-ink/50 uppercase">
                         Actions
                       </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {shareLinks.map((link) => (
-                      <tr key={link.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 font-medium text-gray-900">
+                      <tr key={link.id} className="hover:bg-ink/5">
+                        <td className="px-6 py-4 font-medium text-ink">
                           {link.project_name}
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
-                            <code className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">
+                            <code className="text-xs bg-paper px-2 py-1 rounded text-ink/60">
                               /share/{link.token}
                             </code>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-gray-600 text-sm">
+                        <td className="px-6 py-4 text-ink/60 text-sm">
                           {new Date(link.created_at).toLocaleDateString()}
                         </td>
-                        <td className="px-6 py-4 text-gray-600 text-sm">
+                        <td className="px-6 py-4 text-ink/60 text-sm">
                           {new Date(link.expires_at).toLocaleDateString()}
                         </td>
-                        <td className="px-6 py-4 text-gray-600">
+                        <td className="px-6 py-4 text-ink/60">
                           {link.access_count}
                         </td>
                         <td className="px-6 py-4">
@@ -388,13 +388,13 @@ export default function NewAnalytics() {
         {/* Project Analytics */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Top Projects */}
-          <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Top Projects</h2>
+          <div className="bg-paper-2 rounded-lg border border-ink/10 shadow-sm">
+            <div className="px-6 py-4 border-b border-ink/10">
+              <h2 className="text-lg font-semibold text-ink">Top Projects</h2>
             </div>
             <div className="p-6">
               {projects.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">No projects yet</div>
+                <div className="text-center py-8 text-ink/50">No projects yet</div>
               ) : (
                 projects.slice(0, 5).map((project, index) => (
                   <div key={project.id} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
@@ -403,13 +403,13 @@ export default function NewAnalytics() {
                         {index + 1}
                       </div>
                       <div>
-                        <div className="font-medium text-gray-900">{project.name}</div>
-                        <div className="text-xs text-gray-500">{project.client_name || 'No client'}</div>
+                        <div className="font-medium text-ink">{project.name}</div>
+                        <div className="text-xs text-ink/50">{project.client_name || 'No client'}</div>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-sm font-medium text-gray-900">{project.status || 'Active'}</div>
-                      <div className="text-xs text-gray-500">{project.location_city || 'Unknown'}</div>
+                      <div className="text-sm font-medium text-ink">{project.status || 'Active'}</div>
+                      <div className="text-xs text-ink/50">{project.location_city || 'Unknown'}</div>
                     </div>
                   </div>
                 ))
@@ -418,24 +418,24 @@ export default function NewAnalytics() {
           </div>
 
           {/* Recent Activity */}
-          <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Recent Activity</h2>
+          <div className="bg-paper-2 rounded-lg border border-ink/10 shadow-sm">
+            <div className="px-6 py-4 border-b border-ink/10">
+              <h2 className="text-lg font-semibold text-ink">Recent Activity</h2>
             </div>
             <div className="p-6">
               {analytics.recent_activity.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">No recent activity</div>
+                <div className="text-center py-8 text-ink/50">No recent activity</div>
               ) : (
                 analytics.recent_activity.map((activity: any, index: number) => (
                   <div key={index} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
                     <div className="flex items-center gap-3">
-                      <Activity className="w-5 h-5 text-gray-400" />
+                      <Activity className="w-5 h-5 text-ink/40" />
                       <div>
-                        <div className="font-medium text-gray-900 text-sm">{activity.action}</div>
-                        <div className="text-xs text-gray-500">{activity.project}</div>
+                        <div className="font-medium text-ink text-sm">{activity.action}</div>
+                        <div className="text-xs text-ink/50">{activity.project}</div>
                       </div>
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-ink/50">
                       {activity.time}
                     </div>
                   </div>
@@ -446,14 +446,14 @@ export default function NewAnalytics() {
         </div>
 
         {/* Analytics Charts Placeholder */}
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Analytics Overview</h2>
+        <div className="bg-paper-2 rounded-lg border border-ink/10 shadow-sm">
+          <div className="px-6 py-4 border-b border-ink/10">
+            <h2 className="text-lg font-semibold text-ink">Analytics Overview</h2>
           </div>
           <div className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-gray-50 rounded-lg p-6">
-                <h3 className="text-sm font-medium text-gray-700 mb-4">Project Status Distribution</h3>
+              <div className="bg-ink/5 rounded-lg p-6">
+                <h3 className="text-sm font-medium text-ink/80 mb-4">Project Status Distribution</h3>
                 <div className="space-y-3">
                   {[
                     { name: 'Active', value: 18, color: 'bg-blue-600' },
@@ -461,7 +461,7 @@ export default function NewAnalytics() {
                     { name: 'Draft', value: 2, color: 'bg-gray-600' }
                   ].map((item) => (
                     <div key={item.name} className="flex items-center justify-between">
-                      <span className="text-sm text-gray-700">{item.name}</span>
+                      <span className="text-sm text-ink/80">{item.name}</span>
                       <div className="flex items-center gap-2">
                         <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
                           <div
@@ -469,14 +469,14 @@ export default function NewAnalytics() {
                             style={{ width: `${(item.value / 24) * 100}%` }}
                           />
                         </div>
-                        <span className="text-xs text-gray-500">{item.value}</span>
+                        <span className="text-xs text-ink/50">{item.value}</span>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
-              <div className="bg-gray-50 rounded-lg p-6">
-                <h3 className="text-sm font-medium text-gray-700 mb-4">Building Types</h3>
+              <div className="bg-ink/5 rounded-lg p-6">
+                <h3 className="text-sm font-medium text-ink/80 mb-4">Building Types</h3>
                 <div className="space-y-3">
                   {[
                     { name: 'Commercial', value: 10, color: 'bg-purple-600' },
@@ -485,7 +485,7 @@ export default function NewAnalytics() {
                     { name: 'Mixed Use', value: 2, color: 'bg-red-600' }
                   ].map((item) => (
                     <div key={item.name} className="flex items-center justify-between">
-                      <span className="text-sm text-gray-700">{item.name}</span>
+                      <span className="text-sm text-ink/80">{item.name}</span>
                       <div className="flex items-center gap-2">
                         <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
                           <div
@@ -493,14 +493,14 @@ export default function NewAnalytics() {
                             style={{ width: `${(item.value / 24) * 100}%` }}
                           />
                         </div>
-                        <span className="text-xs text-gray-500">{item.value}</span>
+                        <span className="text-xs text-ink/50">{item.value}</span>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
-              <div className="bg-gray-50 rounded-lg p-6">
-                <h3 className="text-sm font-medium text-gray-700 mb-4">Monthly Trends</h3>
+              <div className="bg-ink/5 rounded-lg p-6">
+                <h3 className="text-sm font-medium text-ink/80 mb-4">Monthly Trends</h3>
                 <div className="space-y-3">
                   {[
                     { name: 'Projects Created', value: 12, trend: '+15%' },
@@ -508,7 +508,7 @@ export default function NewAnalytics() {
                     { name: 'Shares Created', value: 8, trend: '+10%' }
                   ].map((item) => (
                     <div key={item.name} className="flex items-center justify-between">
-                      <span className="text-sm text-gray-700">{item.name}</span>
+                      <span className="text-sm text-ink/80">{item.name}</span>
                       <div className="flex items-center gap-2">
                         <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
                           <div
@@ -516,7 +516,7 @@ export default function NewAnalytics() {
                             style={{ width: `${Math.random() * 60 + 40}%` }}
                           />
                         </div>
-                        <span className="text-xs text-gray-500 flex items-center">
+                        <span className="text-xs text-ink/50 flex items-center">
                           <ArrowUpRight className="w-3 h-3 mr-1 text-green-600" />
                           {item.trend}
                         </span>
@@ -533,15 +533,15 @@ export default function NewAnalytics() {
       {/* Create Share Link Modal */}
       {showShareModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4 border border-gray-200">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Create Share Link</h2>
+          <div className="bg-paper-2 rounded-xl p-6 w-full max-w-md mx-4 border border-ink/10">
+            <h2 className="text-xl font-bold text-ink mb-4">Create Share Link</h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Select Project</label>
+                <label className="block text-sm font-medium text-ink/80 mb-1">Select Project</label>
                 <select
                   value={selectedProject}
                   onChange={(e) => setSelectedProject(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white text-gray-900"
+                  className="w-full border border-ink/20 rounded-lg px-3 py-2 bg-paper-2 text-ink"
                 >
                   <option value="">Choose a project...</option>
                   {projects.map((project) => (
@@ -552,11 +552,11 @@ export default function NewAnalytics() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Link Expiry</label>
+                <label className="block text-sm font-medium text-ink/80 mb-1">Link Expiry</label>
                 <select
                   value={shareExpiry}
                   onChange={(e) => setShareExpiry(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-white text-gray-900"
+                  className="w-full border border-ink/20 rounded-lg px-3 py-2 bg-paper-2 text-ink"
                 >
                   <option value="1">1 day</option>
                   <option value="7">7 days</option>
@@ -568,7 +568,7 @@ export default function NewAnalytics() {
             <div className="flex justify-end gap-3 mt-6">
               <button
                 onClick={() => setShowShareModal(false)}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="px-4 py-2 border border-ink/20 rounded-lg hover:bg-ink/5"
               >
                 Cancel
               </button>

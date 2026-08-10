@@ -152,19 +152,19 @@ export default function PublicShare() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-ink/5 p-8">
       <div className="max-w-6xl mx-auto">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center text-gray-600 hover:text-gray-900 mb-6"
+          className="flex items-center text-ink/60 hover:text-ink mb-6"
         >
           <ArrowLeft className="w-5 h-5 mr-2" />
           Back
         </button>
 
-        <div className="bg-white rounded-xl border p-8">
+        <div className="bg-paper-2 rounded-xl border p-8">
           <div className="flex items-center justify-between mb-6">
-            <h1 className="text-2xl font-bold text-gray-900">Client Share Portal</h1>
+            <h1 className="text-2xl font-bold text-ink">Client Share Portal</h1>
             <button
               onClick={() => setShowCreateForm(!showCreateForm)}
               className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -175,12 +175,12 @@ export default function PublicShare() {
           </div>
 
           {showCreateForm && (
-            <div className="bg-gray-50 rounded-lg p-6 mb-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Create New Share Link</h2>
+            <div className="bg-ink/5 rounded-lg p-6 mb-6">
+              <h2 className="text-lg font-semibold text-ink mb-4">Create New Share Link</h2>
               
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-ink/80 mb-2">
                     Select File *
                   </label>
                   <select
@@ -198,7 +198,7 @@ export default function PublicShare() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-ink/80 mb-2">
                     Title
                   </label>
                   <input
@@ -211,7 +211,7 @@ export default function PublicShare() {
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-ink/80 mb-2">
                     Description
                   </label>
                   <textarea
@@ -224,7 +224,7 @@ export default function PublicShare() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-ink/80 mb-2">
                     Password (Optional)
                   </label>
                   <input
@@ -237,7 +237,7 @@ export default function PublicShare() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-ink/80 mb-2">
                     Expires In (Days, Optional)
                   </label>
                   <input
@@ -267,7 +267,7 @@ export default function PublicShare() {
                 </button>
                 <button
                   onClick={() => setShowCreateForm(false)}
-                  className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                  className="px-4 py-2 border rounded-lg hover:bg-ink/5"
                 >
                   Cancel
                 </button>
@@ -276,10 +276,10 @@ export default function PublicShare() {
           )}
 
           {loading ? (
-            <div className="text-center py-12 text-gray-500">Loading shares...</div>
+            <div className="text-center py-12 text-ink/50">Loading shares...</div>
           ) : shares.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <Share2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <div className="text-center py-12 text-ink/50">
+              <Share2 className="w-16 h-16 text-ink/30 mx-auto mb-4" />
               <p className="mb-4">No share links created yet</p>
               <p className="text-sm">Create a share link to share BOQ with clients</p>
             </div>
@@ -290,26 +290,26 @@ export default function PublicShare() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <h3 className="font-semibold text-gray-900">
+                        <h3 className="font-semibold text-ink">
                           {share.title || 'Untitled Share'}
                         </h3>
                         {!share.is_active && (
-                          <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                          <span className="px-2 py-1 bg-paper text-ink/60 text-xs rounded-full">
                             Inactive
                           </span>
                         )}
                         {share.has_password && (
                           <span title="Password protected">
-                            <Shield className="w-4 h-4 text-gray-400" />
+                            <Shield className="w-4 h-4 text-ink/40" />
                           </span>
                         )}
                       </div>
                       
                       {share.description && (
-                        <p className="text-sm text-gray-600 mb-3">{share.description}</p>
+                        <p className="text-sm text-ink/60 mb-3">{share.description}</p>
                       )}
                       
-                      <div className="flex flex-wrap gap-4 text-sm text-gray-500">
+                      <div className="flex flex-wrap gap-4 text-sm text-ink/50">
                         <div className="flex items-center">
                           <Eye className="w-4 h-4 mr-1" />
                           {share.view_count} views
@@ -332,23 +332,23 @@ export default function PublicShare() {
                     <div className="flex items-center gap-2 ml-4">
                       <button
                         onClick={() => handleCopyLink(share.share_token)}
-                        className="p-2 hover:bg-gray-100 rounded-lg"
+                        className="p-2 hover:bg-paper rounded-lg"
                         title="Copy link"
                       >
                         {copiedToken === share.share_token ? (
                           <Check className="w-4 h-4 text-green-600" />
                         ) : (
-                          <Copy className="w-4 h-4 text-gray-600" />
+                          <Copy className="w-4 h-4 text-ink/60" />
                         )}
                       </button>
                       
                       {share.is_active ? (
                         <button
                           onClick={() => handleDeactivate(share.id)}
-                          className="p-2 hover:bg-gray-100 rounded-lg"
+                          className="p-2 hover:bg-paper rounded-lg"
                           title="Deactivate"
                         >
-                          <Power className="w-4 h-4 text-gray-600" />
+                          <Power className="w-4 h-4 text-ink/60" />
                         </button>
                       ) : null}
                       

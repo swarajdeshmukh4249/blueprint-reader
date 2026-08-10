@@ -30,7 +30,7 @@ export default function BreadcrumbNav() {
     // Add current page
     const pathSegments = location.pathname.split('/').filter(Boolean)
     const currentPage = pathSegments[pathSegments.length - 1]
-    
+
     if (currentPage && currentPage !== 'results') {
       const pageLabels: Record<string, string> = {
         'dashboard': 'Dashboard',
@@ -80,14 +80,16 @@ export default function BreadcrumbNav() {
           )}
           <button
             onClick={() => handleBreadcrumbClick(item.path, index)}
-            className={`flex items-center gap-1.5 hover:text-accent transition-colors ${
-              index === breadcrumbs.length - 1 
-                ? 'text-ink font-medium cursor-default' 
-                : 'text-ink/60'
-            }`}
+            className={`flex items-center gap-1.5 hover:text-accent transition-colors ${index === breadcrumbs.length - 1
+              ? 'text-ink font-medium cursor-default'
+              : 'text-ink/60'
+              }`}
             disabled={index === breadcrumbs.length - 1}
           >
-            {item.icon && <item.icon className="w-4 h-4" />}
+            {item.icon && (() => {
+              const Icon = item.icon as any
+              return <Icon className="w-4 h-4" />
+            })()}
             <span>{item.label}</span>
           </button>
         </div>

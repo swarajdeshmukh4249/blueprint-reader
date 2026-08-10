@@ -3,14 +3,26 @@
 @tailwind utilities;
 
 :root {
-  --paper: 220 20% 97%;
-  --paper-2: 220 15% 94%;
-  --ink: 220 30% 10%;
-  --muted: 220 10% 50%;
-  --accent: 199 89% 48%;
-  --shadow: 220 30% 10%;
+  --arch-bg: 0 0% 100%;
+  /* #ffffff */
+  --arch-bg-panel: 0 0% 95%;
+  /* #f2f2f2 */
+  --arch-text: 210 15% 20%;
+  /* dark text */
+  --arch-cyan: 191 100% 50%;
+  /* #00D4FF */
+  --arch-cyan-dim: 192 85% 41%;
+  /* #0EA5C4 */
+  --arch-muted: 210 15% 60%;
 
-  font-family: "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI",
+  --paper: var(--arch-bg);
+  --paper-2: var(--arch-bg-panel);
+  --ink: var(--arch-text);
+  --muted: var(--arch-muted);
+  --accent: var(--arch-cyan);
+  --shadow: 0 0% 0%;
+
+  font-family: "Inter", "Instrument Sans", -apple-system, BlinkMacSystemFont, "Segoe UI",
     "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji",
     "Segoe UI Emoji";
   line-height: 1.45;
@@ -22,12 +34,22 @@
 }
 
 html.dark {
-  --paper: 220 25% 12%;
-  --paper-2: 220 20% 15%;
-  --ink: 220 15% 95%;
-  --muted: 220 10% 75%;
-  --accent: 199 89% 52%;
-  --shadow: 220 20% 8%;
+  --arch-bg: 200 23% 5%;
+  /* #0A0E10 */
+  --arch-bg-panel: 200 15% 12%;
+  --arch-text: 210 20% 98%;
+  --arch-cyan: 191 100% 50%;
+  /* #00D4FF */
+  --arch-cyan-dim: 192 85% 41%;
+  /* #0EA5C4 */
+  --arch-muted: 210 15% 60%;
+
+  --paper: var(--arch-bg);
+  --paper-2: var(--arch-bg-panel);
+  --ink: var(--arch-text);
+  --muted: var(--arch-muted);
+  --accent: var(--arch-cyan);
+  --shadow: 0 0% 0%;
 }
 
 body {
@@ -35,17 +57,143 @@ body {
   background-color: hsl(var(--paper));
   color: hsl(var(--ink));
   min-height: 100dvh;
+  /* Precise blueprint grid */
   background-image:
-    linear-gradient(to bottom, hsl(var(--paper)) 0%, hsl(var(--paper)) 40%, transparent 100%),
-    radial-gradient(1200px 700px at 15% 10%, hsl(var(--accent) / 0.08) 0%, transparent 60%),
-    radial-gradient(900px 520px at 92% 18%, hsl(var(--ink) / 0.05) 0%, transparent 55%),
-    linear-gradient(hsl(var(--ink) / 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, hsl(var(--ink) / 0.06) 1px, transparent 1px);
-  background-size: 100% 100%, 100% 100%, 100% 100%, 72px 72px, 72px 72px;
-  background-position: 0 0, 0 0, 0 0, 0 0, 0 0;
+    linear-gradient(hsl(var(--arch-cyan) / 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--arch-cyan) / 0.1) 1px, transparent 1px),
+    linear-gradient(hsl(var(--arch-cyan) / 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--arch-cyan) / 0.03) 1px, transparent 1px);
+  background-size: 100px 100px, 100px 100px, 20px 20px, 20px 20px;
+  background-position: -1px -1px, -1px -1px, -1px -1px, -1px -1px;
 }
 
 .font-display {
   font-family: "Fraunces", ui-serif, Georgia, Cambria, "Times New Roman", Times,
     serif;
+}
+
+/* ─── Blueprint Drafting Card ─── */
+.blueprint-drafting-card {
+  position: relative;
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid hsl(var(--arch-cyan) / 0.2);
+  background: hsl(var(--paper-2) / 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow:
+    0 0 40px hsl(var(--arch-cyan) / 0.08),
+    0 8px 32px hsl(var(--shadow) / 0.15),
+    inset 0 1px 0 hsl(var(--arch-cyan) / 0.1);
+  transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1),
+    box-shadow 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.blueprint-drafting-card:hover {
+  transform: translateY(-4px) scale(1.01);
+  box-shadow:
+    0 0 60px hsl(var(--arch-cyan) / 0.15),
+    0 16px 48px hsl(var(--shadow) / 0.2),
+    inset 0 1px 0 hsl(var(--arch-cyan) / 0.15);
+}
+
+.drafting-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  border-bottom: 1px solid hsl(var(--arch-cyan) / 0.15);
+  background: hsl(var(--arch-cyan) / 0.04);
+}
+
+.drafting-card-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: hsl(var(--arch-cyan));
+  box-shadow: 0 0 8px hsl(var(--arch-cyan) / 0.6);
+  animation: dotPulse 2s ease-in-out infinite;
+}
+
+@keyframes dotPulse {
+
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 8px hsl(var(--arch-cyan) / 0.6);
+  }
+
+  50% {
+    opacity: 0.6;
+    box-shadow: 0 0 4px hsl(var(--arch-cyan) / 0.3);
+  }
+}
+
+.drafting-card-label {
+  font-family: 'Inter', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: hsl(var(--ink) / 0.7);
+  text-transform: uppercase;
+}
+
+.drafting-card-scale {
+  margin-left: auto;
+  font-family: monospace;
+  font-size: 10px;
+  color: hsl(var(--arch-cyan) / 0.6);
+  letter-spacing: 0.05em;
+}
+
+.drafting-card-body {
+  padding: 12px 16px 8px;
+  position: relative;
+}
+
+.drafting-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.drafting-card-footer {
+  position: relative;
+  padding: 10px 18px;
+  border-top: 1px solid hsl(var(--arch-cyan) / 0.1);
+  background: hsl(var(--arch-cyan) / 0.03);
+  overflow: hidden;
+}
+
+.drafting-progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 2px;
+  background: linear-gradient(90deg, hsl(var(--arch-cyan) / 0.0), hsl(var(--arch-cyan)), hsl(var(--arch-cyan) / 0.0));
+}
+
+.drafting-card-status {
+  font-family: monospace;
+  font-size: 11px;
+  color: hsl(var(--arch-cyan) / 0.8);
+  letter-spacing: 0.03em;
+}
+
+/* Background grid draw-in animation for body */
+@keyframes gridFadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+body {
+  animation: gridFadeIn 2s ease-out;
 }

@@ -1,206 +1,112 @@
-import { ArrowRight, FileText, LayoutGrid, Ruler, Sparkles } from 'lucide-react'
+import { useRef, useState, useEffect } from 'react'
+import { motion, useScroll, useTransform, useSpring } from 'framer-motion'
+import { ArrowRight } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
-import type { ReactNode } from 'react'
-import BlueprintHeroVisual from '@/components/BlueprintHeroVisual'
-import HeroBackgroundVideo from '@/components/HeroBackgroundVideo'
-import Container from '@/components/Container'
-import { cn } from '@/lib/utils'
-
-function Chip({ children }: { children: string }) {
-  return (
-    <span className="inline-flex items-center rounded-full border border-ink/10 bg-paper/60 px-3 py-1 text-xs tracking-wide text-ink/70">
-      {children}
-    </span>
-  )
-}
-
-function Card({
-  icon,
-  title,
-  description,
-}: {
-  icon: ReactNode
-  title: string
-  description: string
-}) {
-  return (
-    <div className="group relative overflow-hidden rounded-2xl border border-ink/10 bg-paper/60 p-6 shadow-[0_10px_30px_hsl(var(--shadow)/0.08)] transition hover:-translate-y-1 hover:bg-paper">
-      <div className="absolute inset-0 opacity-0 transition-opacity group-hover:opacity-100">
-        <div className="absolute -left-24 -top-24 h-72 w-72 rounded-full bg-accent/10 blur-2xl" />
-      </div>
-      <div className="relative flex items-start gap-4">
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-ink/10 bg-paper-2/60 text-ink">
-          {icon}
-        </div>
-        <div className="space-y-1">
-          <div className="text-sm font-semibold tracking-tight">{title}</div>
-          <div className="text-sm leading-relaxed text-ink/70">{description}</div>
-        </div>
-      </div>
-    </div>
-  )
-}
+import ArchVision3D from '@/components/ArchVision3D'
+import InitialDraftingBackground from '@/components/InitialDraftingBackground'
 
 export default function Home() {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const { scrollYProgress } = useScroll({ target: containerRef })
+
+  // State for the intro animation
+  const [introDone, setIntroDone] = useState(false)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIntroDone(true)
+    }, 4500)
+    return () => clearTimeout(timer)
+  }, [])
+
+  // Apply spring for smoother scrolling
+  const smoothScroll = useSpring(scrollYProgress, { stiffness: 120, damping: 30 })
+
+  // Text animations tied to scroll
+  const headerOpacity = useTransform(smoothScroll, [0, 0.1], [1, 0])
+  const headerY = useTransform(smoothScroll, [0, 0.1], [0, -50])
+
+  const boqOpacity = useTransform(smoothScroll, [0.8, 0.9], [0, 1])
+  const boqY = useTransform(smoothScroll, [0.8, 0.9], [50, 0])
+
   return (
-    <div className="pb-16">
-      <section>
-        <div className="relative">
-          <HeroBackgroundVideo className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" />
-          <Container className="grid items-start gap-10 pt-12 md:grid-cols-12 md:gap-12 md:pt-16">
-          <div className="md:col-span-6">
-            <div className="animate-reveal space-y-6">
-              <div className="flex flex-wrap items-center gap-2">
-                <Chip>PDF</Chip>
-                <Chip>JPG / PNG</Chip>
-                <Chip>DXF</Chip>
-                <Chip>DWG</Chip>
-                <Chip>IFC</Chip>
-              </div>
+    <div ref={containerRef} className="relative h-[400vh] bg-transparent text-ink">
+      {/* Light/Dark mode toggle */}
+      <button
+        onClick={() => {
+          const html = document.documentElement
+          html.classList.toggle('dark')
+        }}
+        className="fixed top-4 right-4 z-30 rounded-full bg-ink px-4 py-2 text-paper shadow-lg hover:bg-accent transition-colors"
+      >
+        Toggle Light/Dark
+      </button>
+      {/* Intro Blueprint Animation */}
+      <div className="pointer-events-none fixed inset-0 z-0 transition-opacity duration-1000" style={{ opacity: introDone ? 0 : 1 }}>
+        <InitialDraftingBackground />
+      </div>
 
-              <h1 className="font-display text-[44px] leading-[0.92] tracking-tight text-ink md:text-[74px]">
-                Blueprint
-                <span className="block text-ink/85">Intelligence,</span>
-                <span className="block">Delivered.</span>
-              </h1>
+      {/* 3D Model background fixed to viewport */}
+      <div className="pointer-events-none fixed inset-0 z-0 transition-opacity duration-1000" style={{ opacity: introDone ? 1 : 0 }}>
+        <ArchVision3D scrollYProgress={smoothScroll} />
+      </div>
 
-              <p className="max-w-xl text-base leading-relaxed text-ink/70 md:text-lg">
-                Upload a drawing1. Get room areas, totals, and a BOQ-ready structure—presented with the
-                clarity of an architectural studio and the speed of automation.
-              </p>
-
-              <div className="flex flex-wrap items-center gap-3">
-                <NavLink
-                  to="/upload"
-                  className="inline-flex items-center gap-2 rounded-full bg-ink px-5 py-3 text-sm font-medium text-paper transition hover:-translate-y-px hover:bg-ink/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
-                >
-                  Analyze a blueprint <ArrowRight className="h-4 w-4" />
-                </NavLink>
-                <NavLink
-                  to="/about"
-                  className={cn(
-                    'inline-flex items-center gap-2 rounded-full border border-ink/15 bg-paper/50 px-5 py-3 text-sm font-medium text-ink/80 transition',
-                    'hover:-translate-y-px hover:bg-paper hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50',
-                  )}
-                >
-                  How it works
-                </NavLink>
-              </div>
-
-              <div className="grid max-w-xl grid-cols-3 gap-4 pt-2 text-sm">
-                <div className="rounded-2xl border border-ink/10 bg-paper/50 p-4">
-                  <div className="font-display text-2xl tracking-tight">Rooms</div>
-                  <div className="mt-1 text-ink/65">Structured detection</div>
-                </div>
-                <div className="rounded-2xl border border-ink/10 bg-paper/50 p-4">
-                  <div className="font-display text-2xl tracking-tight">Areas</div>
-                  <div className="mt-1 text-ink/65">Totals + schedules</div>
-                </div>
-                <div className="rounded-2xl border border-ink/10 bg-paper/50 p-4">
-                  <div className="font-display text-2xl tracking-tight">BOQ</div>
-                  <div className="mt-1 text-ink/65">Export-ready outputs</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="md:col-span-6 md:pt-3">
-            <BlueprintHeroVisual className="animate-reveal [animation-delay:140ms]" />
-          </div>
-          </Container>
+      {/* Hero Section */}
+      <motion.section
+        style={{ opacity: headerOpacity, y: headerY }}
+        className="fixed inset-0 z-10 flex flex-col items-center justify-center text-center px-4"
+      >
+        <h1 className="font-sans text-[60px] leading-tight tracking-[0.02em] md:text-[100px] font-medium text-ink">
+          Arch<span className="text-accent">Vision</span>
+        </h1>
+        <p className="mt-6 max-w-2xl text-lg md:text-2xl font-light text-ink/70">
+          Turn architectural blueprints into 3D models and instant Bills of Quantities.
+        </p>
+        <div className="mt-10">
+          <NavLink
+            to="/upload"
+            className="group relative inline-flex items-center gap-3 overflow-hidden rounded-full bg-ink px-8 py-4 text-base font-medium text-paper transition-all hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+          >
+            <span className="relative z-10">Start Analyzing</span>
+            <ArrowRight className="relative z-10 h-5 w-5 transition-transform group-hover:translate-x-1" />
+          </NavLink>
         </div>
-      </section>
+      </motion.section>
 
-      <section className="mt-16">
-        <Container>
-          <div className="grid gap-6 md:grid-cols-12">
-            <div className="md:col-span-4">
-              <div className="space-y-4">
-                <div className="inline-flex items-center gap-2 rounded-full border border-ink/10 bg-paper/60 px-3 py-1 text-xs tracking-[0.2em] text-ink/60">
-                  <Sparkles className="h-3.5 w-3.5 text-accent" />
-                  CAPABILITIES
+      {/* The drawing card has been moved to be the fullscreen InitialDraftingBackground above */}
+
+      {/* BOQ Final Section */}
+      <motion.section
+        style={{ opacity: boqOpacity, y: boqY }}
+        className="pointer-events-none fixed inset-0 z-20 flex flex-col items-center justify-center px-4 pt-[40vh]"
+      >
+        <div className="pointer-events-auto mt-auto mb-20 w-full max-w-3xl overflow-hidden rounded-xl border border-accent/20 bg-paper-2/90 p-1 shadow-[0_0_40px_rgba(0,212,255,0.1)] backdrop-blur-md">
+          <div className="flex items-center justify-between border-b border-accent/20 bg-accent/5 px-6 py-4">
+            <h2 className="text-xl font-medium tracking-wide text-ink">Instant BOQ Generated</h2>
+            <div className="text-sm font-mono text-accent">Confidence: 99.8%</div>
+          </div>
+          <div className="divide-y divide-accent/10">
+            {[
+              { item: 'Structural Walls (Concrete)', qty: '142 m³', cost: '$12,400' },
+              { item: 'Interior Partitions (Drywall)', qty: '310 m²', cost: '$4,650' },
+              { item: 'Standard Doors (Wooden)', qty: '14 units', cost: '$2,100' },
+              { item: 'Window Glazing (Double-paned)', qty: '42 m²', cost: '$3,800' },
+              { item: 'Flooring (Ceramic Tile)', qty: '185 m²', cost: '$5,550' },
+            ].map((row, i) => (
+              <div key={i} className="flex justify-between px-6 py-4 hover:bg-accent/5 transition-colors">
+                <span className="font-light text-ink/90">{row.item}</span>
+                <div className="flex gap-12 font-mono text-sm">
+                  <span className="text-ink/60">{row.qty}</span>
+                  <span className="w-16 text-right text-accent">{row.cost}</span>
                 </div>
-                <h2 className="font-display text-3xl leading-tight tracking-tight md:text-4xl">
-                  Built for real drawings.
-                </h2>
-                <p className="text-sm leading-relaxed text-ink/70">
-                  The interface is designed to feel like a premium tool—fast, calm, and precise—while
-                  the pipeline behind it converts plans into readable quantities.
-                </p>
               </div>
-            </div>
-
-            <div className="md:col-span-8">
-              <div className="grid gap-4 md:grid-cols-2">
-                <Card
-                  icon={<LayoutGrid className="h-5 w-5" />}
-                  title="Room schedule output"
-                  description="A clean list of rooms with areas and totals, ready to review or share."
-                />
-                <Card
-                  icon={<Ruler className="h-5 w-5" />}
-                  title="Area totals and rollups"
-                  description="Summaries that surface the key numbers first—then let you drill into details."
-                />
-                <Card
-                  icon={<FileText className="h-5 w-5" />}
-                  title="Export formats"
-                  description="Download JSON or CSV, or copy the raw output to plug into your workflow."
-                />
-                <Card
-                  icon={<Sparkles className="h-5 w-5" />}
-                  title="Blueprint-themed motion"
-                  description="Subtle scanning, linework reveals, and micro-interactions—innovative, not loud."
-                />
-              </div>
+            ))}
+            <div className="flex justify-between bg-accent/10 px-6 py-5 font-mono text-base font-semibold text-accent">
+              <span>Total Estimated Cost</span>
+              <span>$28,500</span>
             </div>
           </div>
-        </Container>
-      </section>
-
-      <section className="mt-16">
-        <Container>
-          <div className="grid gap-6 rounded-3xl border border-ink/10 bg-paper/60 p-8 md:grid-cols-12 md:items-center">
-            <div className="md:col-span-7">
-              <h3 className="font-display text-3xl leading-tight tracking-tight md:text-4xl">
-                See what the output looks like.
-              </h3>
-              <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink/70">
-                A results view that prioritizes the essentials—rooms, areas, totals—plus an export
-                layer for whatever comes next.
-              </p>
-            </div>
-            <div className="md:col-span-5">
-              <div className="rounded-2xl border border-ink/10 bg-paper-2/60 p-5 text-sm shadow-[0_16px_40px_hsl(var(--shadow)/0.12)]">
-                <div className="flex items-center justify-between text-xs tracking-wide text-ink/60">
-                  <span>Rooms</span>
-                  <span>Total Area</span>
-                </div>
-                <div className="mt-4 space-y-3">
-                  {[
-                    ['Living', '18.4 m²'],
-                    ['Kitchen', '12.1 m²'],
-                    ['Bedroom', '14.0 m²'],
-                    ['Bath', '4.8 m²'],
-                  ].map(([name, value]) => (
-                    <div
-                      key={name}
-                      className="flex items-center justify-between rounded-xl border border-ink/10 bg-paper/60 px-4 py-3"
-                    >
-                      <div className="font-medium">{name}</div>
-                      <div className="text-ink/70">{value}</div>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-5 flex items-center justify-between rounded-xl border border-ink/10 bg-paper/60 px-4 py-3">
-                  <div className="text-xs tracking-wide text-ink/60">Total</div>
-                  <div className="font-semibold">49.3 m²</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </Container>
-      </section>
+        </div>
+      </motion.section>
     </div>
   )
 }

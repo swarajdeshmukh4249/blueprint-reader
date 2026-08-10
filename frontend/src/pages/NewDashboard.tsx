@@ -134,9 +134,9 @@ export default function NewDashboard() {
     switch (status) {
       case 'active': return 'bg-green-500/10 text-green-500'
       case 'completed': return 'bg-blue-500/10 text-blue-500'
-      case 'draft': return 'bg-gray-500/10 text-gray-500'
+      case 'draft': return 'bg-ink/50/10 text-ink/50'
       case 'on_hold': return 'bg-yellow-500/10 text-yellow-500'
-      default: return 'bg-gray-500/10 text-gray-500'
+      default: return 'bg-ink/50/10 text-ink/50'
     }
   }
 
@@ -147,26 +147,26 @@ export default function NewDashboard() {
   )
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-ink/5">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+      <header className="bg-paper-2 border-b border-ink/10 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-4">
-              <h1 className="text-2xl font-bold text-gray-900">Project Dashboard</h1>
-              <span className="text-sm text-gray-500">{projects.length} projects</span>
+              <h1 className="text-2xl font-bold text-ink">Project Dashboard</h1>
+              <span className="text-sm text-ink/50">{projects.length} projects</span>
             </div>
             <div className="flex items-center gap-3">
-              <div className="flex items-center bg-gray-100 rounded-lg border border-gray-200">
+              <div className="flex items-center bg-paper rounded-lg border border-ink/10">
                 <button
                   onClick={() => setViewMode('grid')}
-                  className={`p-2 ${viewMode === 'grid' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                  className={`p-2 ${viewMode === 'grid' ? 'text-blue-600' : 'text-ink/50 hover:text-ink/80'}`}
                 >
                   <Grid className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => setViewMode('list')}
-                  className={`p-2 ${viewMode === 'list' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                  className={`p-2 ${viewMode === 'list' ? 'text-blue-600' : 'text-ink/50 hover:text-ink/80'}`}
                 >
                   <List className="w-4 h-4" />
                 </button>
@@ -186,11 +186,11 @@ export default function NewDashboard() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white rounded-lg p-5 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+          <div className="bg-paper-2 rounded-lg p-5 border border-ink/10 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Projects</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{projects.length}</p>
+                <p className="text-xs font-medium text-ink/50 uppercase tracking-wider">Total Projects</p>
+                <p className="text-2xl font-bold text-ink mt-1">{projects.length}</p>
                 <p className="text-xs text-green-600 mt-1 flex items-center">
                   <TrendingUp className="w-3 h-3 mr-1" />
                   +12% this month
@@ -199,38 +199,38 @@ export default function NewDashboard() {
               <FolderOpen className="w-7 h-7 text-blue-600" />
             </div>
           </div>
-          <div className="bg-white rounded-lg p-5 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+          <div className="bg-paper-2 rounded-lg p-5 border border-ink/10 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Active</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">
+                <p className="text-xs font-medium text-ink/50 uppercase tracking-wider">Active</p>
+                <p className="text-2xl font-bold text-ink mt-1">
                   {projects.filter(p => p.status === 'active').length}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">Currently in progress</p>
+                <p className="text-xs text-ink/50 mt-1">Currently in progress</p>
               </div>
               <Building2 className="w-7 h-7 text-green-600" />
             </div>
           </div>
-          <div className="bg-white rounded-lg p-5 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+          <div className="bg-paper-2 rounded-lg p-5 border border-ink/10 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Floors</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">
+                <p className="text-xs font-medium text-ink/50 uppercase tracking-wider">Total Floors</p>
+                <p className="text-2xl font-bold text-ink mt-1">
                   {projects.reduce((sum, p) => sum + p.floor_count, 0)}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">Across all projects</p>
+                <p className="text-xs text-ink/50 mt-1">Across all projects</p>
               </div>
               <FileText className="w-7 h-7 text-yellow-600" />
             </div>
           </div>
-          <div className="bg-white rounded-lg p-5 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+          <div className="bg-paper-2 rounded-lg p-5 border border-ink/10 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Area</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">
+                <p className="text-xs font-medium text-ink/50 uppercase tracking-wider">Total Area</p>
+                <p className="text-2xl font-bold text-ink mt-1">
                   {projects.reduce((sum, p) => sum + p.total_area, 0).toLocaleString()}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">sq ft analyzed</p>
+                <p className="text-xs text-ink/50 mt-1">sq ft analyzed</p>
               </div>
               <MapPin className="w-7 h-7 text-purple-600" />
             </div>
@@ -240,42 +240,42 @@ export default function NewDashboard() {
         {/* Search and Filter */}
         <div className="mb-6">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-ink/40 w-5 h-5" />
             <input
               type="text"
               placeholder="Search projects, clients, locations..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-10 pr-4 py-2 border border-ink/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            <button className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600">
+            <button className="absolute right-3 top-1/2 transform -translate-y-1/2 text-ink/40 hover:text-ink/60">
               <Filter className="w-5 h-5" />
             </button>
           </div>
         </div>
 
         {/* Quick Actions */}
-        <div className="bg-white rounded-lg border border-gray-200 mb-8 p-5 shadow-sm">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4">Quick Actions</h2>
+        <div className="bg-paper-2 rounded-lg border border-ink/10 mb-8 p-5 shadow-sm">
+          <h2 className="text-sm font-semibold text-ink/80 uppercase tracking-wider mb-4">Quick Actions</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <button className="flex flex-col items-center p-4 rounded-lg border border-gray-200 hover:bg-gray-50 transition-all">
+            <button className="flex flex-col items-center p-4 rounded-lg border border-ink/10 hover:bg-ink/5 transition-all">
               <Plus className="w-7 h-7 text-blue-600 mb-2" />
-              <span className="text-xs font-medium text-gray-700">New Project</span>
+              <span className="text-xs font-medium text-ink/80">New Project</span>
             </button>
-            <button className="flex flex-col items-center p-4 rounded-lg border border-gray-200 hover:bg-gray-50 transition-all">
+            <button className="flex flex-col items-center p-4 rounded-lg border border-ink/10 hover:bg-ink/5 transition-all">
               <FileText className="w-7 h-7 text-green-600 mb-2" />
-              <span className="text-xs font-medium text-gray-700">Upload Blueprint</span>
+              <span className="text-xs font-medium text-ink/80">Upload Blueprint</span>
             </button>
-            <button className="flex flex-col items-center p-4 rounded-lg border border-gray-200 hover:bg-gray-50 transition-all">
+            <button className="flex flex-col items-center p-4 rounded-lg border border-ink/10 hover:bg-ink/5 transition-all">
               <GitCompare className="w-7 h-7 text-yellow-600 mb-2" />
-              <span className="text-xs font-medium text-gray-700">Compare Floors</span>
+              <span className="text-xs font-medium text-ink/80">Compare Floors</span>
             </button>
             <button 
               onClick={() => navigate('/new-analytics')}
-              className="flex flex-col items-center p-4 rounded-lg border border-gray-200 hover:bg-gray-50 transition-all"
+              className="flex flex-col items-center p-4 rounded-lg border border-ink/10 hover:bg-ink/5 transition-all"
             >
               <BarChart3 className="w-7 h-7 text-purple-600 mb-2" />
-              <span className="text-xs font-medium text-gray-700">View Analytics</span>
+              <span className="text-xs font-medium text-ink/80">View Analytics</span>
             </button>
           </div>
         </div>
@@ -286,14 +286,14 @@ export default function NewDashboard() {
             {filteredProjects.map((project) => (
               <div 
                 key={project.id}
-                className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all cursor-pointer"
+                className="bg-paper-2 rounded-lg border border-ink/10 shadow-sm hover:shadow-md transition-all cursor-pointer"
               >
                 <div className="p-5">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900 mb-1">{project.name}</h3>
+                      <h3 className="font-semibold text-ink mb-1">{project.name}</h3>
                       {project.code && (
-                        <p className="text-xs text-gray-500">{project.code}</p>
+                        <p className="text-xs text-ink/50">{project.code}</p>
                       )}
                     </div>
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}>
@@ -303,18 +303,18 @@ export default function NewDashboard() {
                   
                   <div className="space-y-2 mb-4">
                     {project.client_name && (
-                      <div className="flex items-center text-sm text-gray-600">
+                      <div className="flex items-center text-sm text-ink/60">
                         <Users className="w-4 h-4 mr-2" />
                         {project.client_name}
                       </div>
                     )}
                     {project.location_city && (
-                      <div className="flex items-center text-sm text-gray-600">
+                      <div className="flex items-center text-sm text-ink/60">
                         <MapPin className="w-4 h-4 mr-2" />
                         {project.location_city}, {project.location_state}
                       </div>
                     )}
-                    <div className="flex items-center text-sm text-gray-600">
+                    <div className="flex items-center text-sm text-ink/60">
                       <Building2 className="w-4 h-4 mr-2" />
                       {project.building_type || 'Not specified'}
                     </div>
@@ -322,22 +322,22 @@ export default function NewDashboard() {
 
                   <div className="grid grid-cols-3 gap-2 pt-3 border-t border-gray-100">
                     <div className="text-center">
-                      <p className="text-xs text-gray-500">Floors</p>
-                      <p className="text-sm font-semibold text-gray-900">{project.floor_count}</p>
+                      <p className="text-xs text-ink/50">Floors</p>
+                      <p className="text-sm font-semibold text-ink">{project.floor_count}</p>
                     </div>
                     <div className="text-center">
-                      <p className="text-xs text-gray-500">Analyzed</p>
-                      <p className="text-sm font-semibold text-gray-900">{project.analysis_count}</p>
+                      <p className="text-xs text-ink/50">Analyzed</p>
+                      <p className="text-sm font-semibold text-ink">{project.analysis_count}</p>
                     </div>
                     <div className="text-center">
-                      <p className="text-xs text-gray-500">Area</p>
-                      <p className="text-sm font-semibold text-gray-900">{(project.total_area / 1000).toFixed(0)}k</p>
+                      <p className="text-xs text-ink/50">Area</p>
+                      <p className="text-sm font-semibold text-ink">{(project.total_area / 1000).toFixed(0)}k</p>
                     </div>
                   </div>
                 </div>
 
-                <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                <div className="px-5 py-3 bg-ink/5 border-t border-gray-100 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs text-ink/50">
                     <Clock className="w-3 h-3" />
                     {new Date(project.created_at).toLocaleDateString()}
                   </div>
@@ -354,66 +354,66 @@ export default function NewDashboard() {
             ))}
           </div>
         ) : (
-          <div className="bg-white rounded-lg border border-gray-200 shadow-sm mb-8">
+          <div className="bg-paper-2 rounded-lg border border-ink/10 shadow-sm mb-8">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50">
+                <thead className="bg-ink/5">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-ink/50 uppercase">
                       Project
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-ink/50 uppercase">
                       Client
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-ink/50 uppercase">
                       Location
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-ink/50 uppercase">
                       Type
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-ink/50 uppercase">
                       Status
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-ink/50 uppercase">
                       Floors
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-ink/50 uppercase">
                       Area
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-ink/50 uppercase">
                       Created
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-ink/50 uppercase">
                       Actions
                     </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {filteredProjects.map((project) => (
-                    <tr key={project.id} className="hover:bg-gray-50">
+                    <tr key={project.id} className="hover:bg-ink/5">
                       <td className="px-6 py-4">
                         <div className="flex items-center">
-                          <FolderOpen className="w-5 h-5 text-gray-400 mr-3" />
+                          <FolderOpen className="w-5 h-5 text-ink/40 mr-3" />
                           <div>
-                            <div className="font-medium text-gray-900">{project.name}</div>
+                            <div className="font-medium text-ink">{project.name}</div>
                             {project.code && (
-                              <div className="text-sm text-gray-500">{project.code}</div>
+                              <div className="text-sm text-ink/50">{project.code}</div>
                             )}
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-gray-600">
+                      <td className="px-6 py-4 text-ink/60">
                         {project.client_name || '-'}
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center text-gray-600">
+                        <div className="flex items-center text-ink/60">
                           <MapPin className="w-4 h-4 mr-1" />
                           {project.location_city && project.location_state
                             ? `${project.location_city}, ${project.location_state}`
                             : '-'}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-gray-600">
+                      <td className="px-6 py-4 text-ink/60">
                         {project.building_type || '-'}
                       </td>
                       <td className="px-6 py-4">
@@ -421,13 +421,13 @@ export default function NewDashboard() {
                           {project.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-gray-600">
+                      <td className="px-6 py-4 text-ink/60">
                         {project.floor_count}
                       </td>
-                      <td className="px-6 py-4 text-gray-600">
+                      <td className="px-6 py-4 text-ink/60">
                         {project.total_area.toLocaleString()} sq ft
                       </td>
-                      <td className="px-6 py-4 text-gray-600 text-sm">
+                      <td className="px-6 py-4 text-ink/60 text-sm">
                         {new Date(project.created_at).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4">

@@ -124,7 +124,7 @@ export default function FloorComparison() {
       case 'changed': return 'bg-yellow-100 text-yellow-800'
       case 'added': return 'bg-blue-100 text-blue-800'
       case 'removed': return 'bg-red-100 text-red-800'
-      default: return 'bg-gray-100 text-gray-800'
+      default: return 'bg-paper text-ink'
     }
   }
 
@@ -137,22 +137,22 @@ export default function FloorComparison() {
   // Edge case: Not enough files to compare
   if (!showCreateForm && !comparison && files.length < 2) {
     return (
-      <div className="min-h-screen bg-gray-50 p-8">
+      <div className="min-h-screen bg-ink/5 p-8">
         <div className="max-w-4xl mx-auto">
           <button
             onClick={() => navigate(-1)}
-            className="flex items-center text-gray-600 hover:text-gray-900 mb-6"
+            className="flex items-center text-ink/60 hover:text-ink mb-6"
           >
             <ArrowLeft className="w-5 h-5 mr-2" />
             Back
           </button>
 
-          <div className="bg-white rounded-xl border p-12 text-center">
-            <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">
+          <div className="bg-paper-2 rounded-xl border p-12 text-center">
+            <AlertCircle className="w-16 h-16 text-ink/40 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-ink mb-2">
               Not Enough Analyzed Files
             </h2>
-            <p className="text-gray-600 mb-6">
+            <p className="text-ink/60 mb-6">
               You need at least 2 analyzed blueprint files to compare floors.
               Upload and analyze more files to use this feature.
             </p>
@@ -169,20 +169,20 @@ export default function FloorComparison() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-ink/5 p-8">
       <div className="max-w-7xl mx-auto">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center text-gray-600 hover:text-gray-900 mb-6"
+          className="flex items-center text-ink/60 hover:text-ink mb-6"
         >
           <ArrowLeft className="w-5 h-5 mr-2" />
           Back
         </button>
 
         {!showCreateForm && !comparison && (
-          <div className="bg-white rounded-xl border p-8">
+          <div className="bg-paper-2 rounded-xl border p-8">
             <div className="flex items-center justify-between mb-6">
-              <h1 className="text-2xl font-bold text-gray-900">Floor Comparison</h1>
+              <h1 className="text-2xl font-bold text-ink">Floor Comparison</h1>
               <button
                 onClick={() => setShowCreateForm(true)}
                 className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -192,12 +192,12 @@ export default function FloorComparison() {
               </button>
             </div>
 
-            <p className="text-gray-600 mb-6">
+            <p className="text-ink/60 mb-6">
               Compare two analyzed blueprint files to see differences in rooms, areas, and BOQ costs.
             </p>
 
             {files.length >= 2 && (
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-ink/50">
                 {files.length} analyzed files available for comparison
               </div>
             )}
@@ -205,12 +205,12 @@ export default function FloorComparison() {
         )}
 
         {showCreateForm && (
-          <div className="bg-white rounded-xl border p-8">
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">Create New Comparison</h2>
+          <div className="bg-paper-2 rounded-xl border p-8">
+            <h2 className="text-xl font-semibold text-ink mb-6">Create New Comparison</h2>
 
             <div className="grid gap-6 md:grid-cols-2">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-ink/80 mb-2">
                   Floor A (First File)
                 </label>
                 <select
@@ -235,7 +235,7 @@ export default function FloorComparison() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-ink/80 mb-2">
                   Floor B (Second File)
                 </label>
                 <select
@@ -276,7 +276,7 @@ export default function FloorComparison() {
               </button>
               <button
                 onClick={() => setShowCreateForm(false)}
-                className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                className="px-4 py-2 border rounded-lg hover:bg-ink/5"
               >
                 Cancel
               </button>
@@ -287,12 +287,12 @@ export default function FloorComparison() {
         {comparison && (
           <div className="space-y-6">
             {/* Header */}
-            <div className="bg-white rounded-xl border p-6">
+            <div className="bg-paper-2 rounded-xl border p-6">
               <div className="flex items-center justify-between mb-4">
-                <h1 className="text-2xl font-bold text-gray-900">Floor Comparison Results</h1>
+                <h1 className="text-2xl font-bold text-ink">Floor Comparison Results</h1>
                 <button
                   onClick={() => setShowCreateForm(true)}
-                  className="px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm"
+                  className="px-4 py-2 border rounded-lg hover:bg-ink/5 text-sm"
                 >
                   New Comparison
                 </button>
@@ -300,27 +300,27 @@ export default function FloorComparison() {
 
               {/* Summary Cards */}
               <div className="grid gap-4 md:grid-cols-4 mb-6">
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="text-sm text-gray-600 mb-1">Total Area A</div>
-                  <div className="text-xl font-semibold text-gray-900">
+                <div className="bg-ink/5 rounded-lg p-4">
+                  <div className="text-sm text-ink/60 mb-1">Total Area A</div>
+                  <div className="text-xl font-semibold text-ink">
                     {comparison.total_area_a ? `${comparison.total_area_a} sq ft` : '—'}
                   </div>
                 </div>
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="text-sm text-gray-600 mb-1">Total Area B</div>
-                  <div className="text-xl font-semibold text-gray-900">
+                <div className="bg-ink/5 rounded-lg p-4">
+                  <div className="text-sm text-ink/60 mb-1">Total Area B</div>
+                  <div className="text-xl font-semibold text-ink">
                     {comparison.total_area_b ? `${comparison.total_area_b} sq ft` : '—'}
                   </div>
                 </div>
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="text-sm text-gray-600 mb-1">Area Delta</div>
-                  <div className={`text-xl font-semibold ${comparison.area_delta && comparison.area_delta > 0 ? 'text-green-600' : comparison.area_delta && comparison.area_delta < 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                <div className="bg-ink/5 rounded-lg p-4">
+                  <div className="text-sm text-ink/60 mb-1">Area Delta</div>
+                  <div className={`text-xl font-semibold ${comparison.area_delta && comparison.area_delta > 0 ? 'text-green-600' : comparison.area_delta && comparison.area_delta < 0 ? 'text-red-600' : 'text-ink'}`}>
                     {comparison.area_delta !== null ? `${comparison.area_delta > 0 ? '+' : ''}${comparison.area_delta} sq ft` : '—'}
                   </div>
                 </div>
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="text-sm text-gray-600 mb-1">Cost Delta</div>
-                  <div className={`text-xl font-semibold ${comparison.cost_delta && comparison.cost_delta > 0 ? 'text-green-600' : comparison.cost_delta && comparison.cost_delta < 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                <div className="bg-ink/5 rounded-lg p-4">
+                  <div className="text-sm text-ink/60 mb-1">Cost Delta</div>
+                  <div className={`text-xl font-semibold ${comparison.cost_delta && comparison.cost_delta > 0 ? 'text-green-600' : comparison.cost_delta && comparison.cost_delta < 0 ? 'text-red-600' : 'text-ink'}`}>
                     {comparison.cost_delta !== null ? formatCurrency(comparison.cost_delta) : '—'}
                   </div>
                 </div>
@@ -328,22 +328,22 @@ export default function FloorComparison() {
 
               {/* View Mode Toggle */}
               <div className="flex items-center gap-2 mb-4">
-                <span className="text-sm text-gray-600">View Mode:</span>
+                <span className="text-sm text-ink/60">View Mode:</span>
                 <button
                   onClick={() => setViewMode('side-by-side')}
-                  className={`px-3 py-1 rounded text-sm ${viewMode === 'side-by-side' ? 'bg-blue-600 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
+                  className={`px-3 py-1 rounded text-sm ${viewMode === 'side-by-side' ? 'bg-blue-600 text-white' : 'bg-paper hover:bg-gray-200'}`}
                 >
                   Side by Side
                 </button>
                 <button
                   onClick={() => setViewMode('overlay')}
-                  className={`px-3 py-1 rounded text-sm ${viewMode === 'overlay' ? 'bg-blue-600 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
+                  className={`px-3 py-1 rounded text-sm ${viewMode === 'overlay' ? 'bg-blue-600 text-white' : 'bg-paper hover:bg-gray-200'}`}
                 >
                   Overlay
                 </button>
                 <button
                   onClick={() => setViewMode('diff-only')}
-                  className={`px-3 py-1 rounded text-sm ${viewMode === 'diff-only' ? 'bg-blue-600 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
+                  className={`px-3 py-1 rounded text-sm ${viewMode === 'diff-only' ? 'bg-blue-600 text-white' : 'bg-paper hover:bg-gray-200'}`}
                 >
                   Diff Only
                 </button>
@@ -351,33 +351,33 @@ export default function FloorComparison() {
             </div>
 
             {/* Room Diff Table */}
-            <div className="bg-white rounded-xl border">
+            <div className="bg-paper-2 rounded-xl border">
               <div className="px-6 py-4 border-b">
-                <h2 className="text-lg font-semibold text-gray-900">Room Differences</h2>
+                <h2 className="text-lg font-semibold text-ink">Room Differences</h2>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-ink/5">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-ink/50 uppercase">
                         Room Name
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-ink/50 uppercase">
                         Type
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-ink/50 uppercase">
                         Status
                       </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                      <th className="px-6 py-3 text-right text-xs font-medium text-ink/50 uppercase">
                         Area A
                       </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                      <th className="px-6 py-3 text-right text-xs font-medium text-ink/50 uppercase">
                         Area B
                       </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                      <th className="px-6 py-3 text-right text-xs font-medium text-ink/50 uppercase">
                         Delta
                       </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                      <th className="px-6 py-3 text-right text-xs font-medium text-ink/50 uppercase">
                         Confidence
                       </th>
                     </tr>
@@ -386,11 +386,11 @@ export default function FloorComparison() {
                     {comparison.room_diffs
                       .filter(diff => viewMode === 'diff-only' ? diff.status !== 'match' : true)
                       .map((diff, idx) => (
-                        <tr key={idx} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 font-medium text-gray-900">
+                        <tr key={idx} className="hover:bg-ink/5">
+                          <td className="px-6 py-4 font-medium text-ink">
                             {diff.room_name}
                           </td>
-                          <td className="px-6 py-4 text-gray-600">
+                          <td className="px-6 py-4 text-ink/60">
                             {diff.room_type}
                           </td>
                           <td className="px-6 py-4">
@@ -398,13 +398,13 @@ export default function FloorComparison() {
                               {diff.status}
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-right text-gray-600">
+                          <td className="px-6 py-4 text-right text-ink/60">
                             {diff.area_a ? `${diff.area_a} sq ft` : '—'}
                           </td>
-                          <td className="px-6 py-4 text-right text-gray-600">
+                          <td className="px-6 py-4 text-right text-ink/60">
                             {diff.area_b ? `${diff.area_b} sq ft` : '—'}
                           </td>
-                          <td className={`px-6 py-4 text-right font-medium ${diff.area_delta && diff.area_delta > 0 ? 'text-green-600' : diff.area_delta && diff.area_delta < 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                          <td className={`px-6 py-4 text-right font-medium ${diff.area_delta && diff.area_delta > 0 ? 'text-green-600' : diff.area_delta && diff.area_delta < 0 ? 'text-red-600' : 'text-ink'}`}>
                             {diff.area_delta !== null ? `${diff.area_delta > 0 ? '+' : ''}${diff.area_delta} sq ft` : '—'}
                           </td>
                           <td className={`px-6 py-4 text-right text-sm ${getConfidenceColor(diff.match_confidence)}`}>

@@ -153,13 +153,13 @@ export default function CostBenchmarking() {
   const getVarianceIcon = (status: string | null) => {
     if (status === 'above') return <TrendingUp className="w-4 h-4 text-red-600" />
     if (status === 'below') return <TrendingDown className="w-4 h-4 text-green-600" />
-    return <Minus className="w-4 h-4 text-gray-600" />
+    return <Minus className="w-4 h-4 text-ink/60" />
   }
 
   const getVarianceColor = (status: string | null) => {
     if (status === 'above') return 'text-red-600'
     if (status === 'below') return 'text-green-600'
-    return 'text-gray-600'
+    return 'text-ink/60'
   }
 
   const formatCurrency = (value: number) => {
@@ -171,21 +171,21 @@ export default function CostBenchmarking() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-ink/5 p-8">
       <div className="max-w-6xl mx-auto">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center text-gray-600 hover:text-gray-900 mb-6"
+          className="flex items-center text-ink/60 hover:text-ink mb-6"
         >
           <ArrowLeft className="w-5 h-5 mr-2" />
           Back
         </button>
 
-        <div className="bg-white rounded-xl border p-8 mb-6">
+        <div className="bg-paper-2 rounded-xl border p-8 mb-6">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Cost Benchmarking</h1>
-              <p className="text-gray-600 mt-1">{project?.name || 'Project'}</p>
+              <h1 className="text-2xl font-bold text-ink">Cost Benchmarking</h1>
+              <p className="text-ink/60 mt-1">{project?.name || 'Project'}</p>
             </div>
             <button
               onClick={() => setShowAddForm(!showAddForm)}
@@ -197,12 +197,12 @@ export default function CostBenchmarking() {
           </div>
 
           {showAddForm && (
-            <div className="bg-gray-50 rounded-lg p-6 mb-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Add New Benchmark</h2>
+            <div className="bg-ink/5 rounded-lg p-6 mb-6">
+              <h2 className="text-lg font-semibold text-ink mb-4">Add New Benchmark</h2>
               
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-ink/80 mb-2">
                     Category *
                   </label>
                   <select
@@ -220,7 +220,7 @@ export default function CostBenchmarking() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-ink/80 mb-2">
                     Metric Name *
                   </label>
                   <input
@@ -233,7 +233,7 @@ export default function CostBenchmarking() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-ink/80 mb-2">
                     Your Value *
                   </label>
                   <input
@@ -246,7 +246,7 @@ export default function CostBenchmarking() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-ink/80 mb-2">
                     Your Unit
                   </label>
                   <input
@@ -259,7 +259,7 @@ export default function CostBenchmarking() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-ink/80 mb-2">
                     Benchmark Value *
                   </label>
                   <input
@@ -272,7 +272,7 @@ export default function CostBenchmarking() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-ink/80 mb-2">
                     Benchmark Unit
                   </label>
                   <input
@@ -285,7 +285,7 @@ export default function CostBenchmarking() {
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-ink/80 mb-2">
                     Benchmark Source
                   </label>
                   <input
@@ -314,7 +314,7 @@ export default function CostBenchmarking() {
                 </button>
                 <button
                   onClick={() => setShowAddForm(false)}
-                  className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                  className="px-4 py-2 border rounded-lg hover:bg-ink/5"
                 >
                   Cancel
                 </button>
@@ -327,15 +327,15 @@ export default function CostBenchmarking() {
             <div className="bg-blue-50 rounded-lg p-6 mb-6 border border-blue-200">
               <div className="flex items-center mb-4">
                 <BarChart3 className="w-5 h-5 text-blue-600 mr-2" />
-                <h2 className="text-lg font-semibold text-gray-900">Auto-Generated Comparison</h2>
+                <h2 className="text-lg font-semibold text-ink">Auto-Generated Comparison</h2>
               </div>
               <div className="space-y-3">
                 {comparison.metrics.map((metric, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-3 bg-white rounded-lg">
-                    <span className="font-medium text-gray-900">{metric.metric}</span>
+                  <div key={idx} className="flex items-center justify-between p-3 bg-paper-2 rounded-lg">
+                    <span className="font-medium text-ink">{metric.metric}</span>
                     <div className="flex items-center gap-4">
-                      <span className="text-sm text-gray-600">Your: {metric.your_value.toFixed(2)}</span>
-                      <span className="text-sm text-gray-600">Benchmark: {metric.benchmark_value.toFixed(2)}</span>
+                      <span className="text-sm text-ink/60">Your: {metric.your_value.toFixed(2)}</span>
+                      <span className="text-sm text-ink/60">Benchmark: {metric.benchmark_value.toFixed(2)}</span>
                       <div className="flex items-center gap-1">
                         {getVarianceIcon(metric.status)}
                         <span className={`text-sm font-semibold ${getVarianceColor(metric.status)}`}>
@@ -350,10 +350,10 @@ export default function CostBenchmarking() {
           )}
 
           {loading ? (
-            <div className="text-center py-12 text-gray-500">Loading benchmarks...</div>
+            <div className="text-center py-12 text-ink/50">Loading benchmarks...</div>
           ) : benchmarks.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <BarChart3 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <div className="text-center py-12 text-ink/50">
+              <BarChart3 className="w-16 h-16 text-ink/30 mx-auto mb-4" />
               <p className="mb-4">No benchmarks created yet</p>
               <p className="text-sm">Add benchmarks to compare your project costs against industry standards</p>
             </div>
@@ -364,13 +364,13 @@ export default function CostBenchmarking() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <h3 className="font-semibold text-gray-900">{benchmark.metric_name}</h3>
-                        <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                        <h3 className="font-semibold text-ink">{benchmark.metric_name}</h3>
+                        <span className="px-2 py-1 bg-paper text-ink/60 text-xs rounded-full">
                           {benchmark.category}
                         </span>
                       </div>
                       
-                      <div className="flex flex-wrap gap-4 text-sm text-gray-600 mb-3">
+                      <div className="flex flex-wrap gap-4 text-sm text-ink/60 mb-3">
                         <div>
                           <span className="font-medium">Your Value:</span>{' '}
                           {benchmark.your_value} {benchmark.your_unit}
@@ -393,7 +393,7 @@ export default function CostBenchmarking() {
                             {benchmark.variance_percentage >= 0 ? '+' : ''}{benchmark.variance_percentage.toFixed(1)}% variance
                           </span>
                           {benchmark.variance_status === 'within_range' && (
-                            <span className="text-xs text-gray-500">(within 10% of benchmark)</span>
+                            <span className="text-xs text-ink/50">(within 10% of benchmark)</span>
                           )}
                         </div>
                       )}

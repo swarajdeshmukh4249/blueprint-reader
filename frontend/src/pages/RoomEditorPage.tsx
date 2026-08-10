@@ -51,9 +51,9 @@ export default function RoomEditorPage() {
     <div className="h-screen flex">
       {/* Main Editor */}
       <div className="flex-1 flex flex-col">
-        <div className="bg-white border-b px-4 py-3">
+        <div className="bg-paper-2 border-b px-4 py-3">
           <h1 className="text-xl font-semibold">Room Editor</h1>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-ink/50">
             Analysis ID: {analysisId} • {rooms.length} rooms
           </p>
         </div>

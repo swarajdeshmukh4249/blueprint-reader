@@ -63,10 +63,10 @@ export default function PublicView() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-ink/5 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-ink/60">Loading...</p>
         </div>
       </div>
     )
@@ -74,12 +74,12 @@ export default function PublicView() {
 
   if (error && passwordRequired) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-8">
-        <div className="bg-white rounded-xl border p-8 max-w-md w-full">
+      <div className="min-h-screen bg-ink/5 flex items-center justify-center p-8">
+        <div className="bg-paper-2 rounded-xl border p-8 max-w-md w-full">
           <div className="text-center mb-6">
-            <Lock className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Password Required</h2>
-            <p className="text-gray-600">This share is password protected</p>
+            <Lock className="w-16 h-16 text-ink/40 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-ink mb-2">Password Required</h2>
+            <p className="text-ink/60">This share is password protected</p>
           </div>
 
           <form onSubmit={handlePasswordSubmit}>
@@ -103,7 +103,7 @@ export default function PublicView() {
 
           <button
             onClick={() => navigate('/')}
-            className="w-full mt-4 px-4 py-2 border rounded-lg hover:bg-gray-50 text-sm"
+            className="w-full mt-4 px-4 py-2 border rounded-lg hover:bg-ink/5 text-sm"
           >
             Back to Home
           </button>
@@ -114,11 +114,11 @@ export default function PublicView() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-8">
-        <div className="bg-white rounded-xl border p-8 max-w-md w-full text-center">
+      <div className="min-h-screen bg-ink/5 flex items-center justify-center p-8">
+        <div className="bg-paper-2 rounded-xl border p-8 max-w-md w-full text-center">
           <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Unable to Load Share</h2>
-          <p className="text-gray-600 mb-6">{error}</p>
+          <h2 className="text-xl font-semibold text-ink mb-2">Unable to Load Share</h2>
+          <p className="text-ink/60 mb-6">{error}</p>
           <button
             onClick={() => navigate('/')}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -138,19 +138,19 @@ export default function PublicView() {
   const rooms = data.analysis_result?.rooms || []
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-ink/5">
       {/* Header */}
-      <div className="bg-white border-b">
+      <div className="bg-paper-2 border-b">
         <div className="max-w-6xl mx-auto px-8 py-4 flex items-center justify-between">
           <div className="flex items-center">
             <FileText className="w-6 h-6 text-blue-600 mr-2" />
-            <h1 className="text-xl font-semibold text-gray-900">
+            <h1 className="text-xl font-semibold text-ink">
               {data.title || 'Shared BOQ'}
             </h1>
           </div>
           <button
             onClick={() => navigate('/')}
-            className="text-gray-600 hover:text-gray-900 text-sm"
+            className="text-ink/60 hover:text-ink text-sm"
           >
             <Home className="w-4 h-4 inline mr-1" />
             Home
@@ -161,31 +161,31 @@ export default function PublicView() {
       <div className="max-w-6xl mx-auto px-8 py-8">
         {/* Description */}
         {data.description && (
-          <div className="bg-white rounded-xl border p-6 mb-6">
-            <p className="text-gray-600">{data.description}</p>
+          <div className="bg-paper-2 rounded-xl border p-6 mb-6">
+            <p className="text-ink/60">{data.description}</p>
           </div>
         )}
 
         {/* Summary Cards */}
         <div className="grid gap-4 md:grid-cols-4 mb-6">
-          <div className="bg-white rounded-xl border p-6">
-            <div className="text-sm text-gray-600 mb-1">File</div>
-            <div className="font-semibold text-gray-900 truncate">{data.filename}</div>
+          <div className="bg-paper-2 rounded-xl border p-6">
+            <div className="text-sm text-ink/60 mb-1">File</div>
+            <div className="font-semibold text-ink truncate">{data.filename}</div>
           </div>
-          <div className="bg-white rounded-xl border p-6">
-            <div className="text-sm text-gray-600 mb-1">Total Area</div>
-            <div className="text-xl font-semibold text-gray-900">
+          <div className="bg-paper-2 rounded-xl border p-6">
+            <div className="text-sm text-ink/60 mb-1">Total Area</div>
+            <div className="text-xl font-semibold text-ink">
               {data.total_area ? `${data.total_area} sq ft` : '—'}
             </div>
           </div>
-          <div className="bg-white rounded-xl border p-6">
-            <div className="text-sm text-gray-600 mb-1">Rooms</div>
-            <div className="text-xl font-semibold text-gray-900">
+          <div className="bg-paper-2 rounded-xl border p-6">
+            <div className="text-sm text-ink/60 mb-1">Rooms</div>
+            <div className="text-xl font-semibold text-ink">
               {data.room_count || rooms.length}
             </div>
           </div>
-          <div className="bg-white rounded-xl border p-6">
-            <div className="text-sm text-gray-600 mb-1">BOQ Total</div>
+          <div className="bg-paper-2 rounded-xl border p-6">
+            <div className="text-sm text-ink/60 mb-1">BOQ Total</div>
             <div className="text-xl font-semibold text-green-600">
               {formatCurrency(data.boq_total)}
             </div>
@@ -194,47 +194,47 @@ export default function PublicView() {
 
         {/* Rooms */}
         {rooms.length > 0 && (
-          <div className="bg-white rounded-xl border mb-6">
+          <div className="bg-paper-2 rounded-xl border mb-6">
             <div className="px-6 py-4 border-b">
-              <h2 className="text-lg font-semibold text-gray-900">Rooms</h2>
+              <h2 className="text-lg font-semibold text-ink">Rooms</h2>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50">
+                <thead className="bg-ink/5">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-ink/50 uppercase">
                       Name
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-ink/50 uppercase">
                       Type
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-6 py-3 text-right text-xs font-medium text-ink/50 uppercase">
                       Width
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-6 py-3 text-right text-xs font-medium text-ink/50 uppercase">
                       Height
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-6 py-3 text-right text-xs font-medium text-ink/50 uppercase">
                       Area
                     </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {rooms.map((room: any, idx: number) => (
-                    <tr key={idx} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 font-medium text-gray-900">
+                    <tr key={idx} className="hover:bg-ink/5">
+                      <td className="px-6 py-4 font-medium text-ink">
                         {room.name || `Room ${idx + 1}`}
                       </td>
-                      <td className="px-6 py-4 text-gray-600">
+                      <td className="px-6 py-4 text-ink/60">
                         {room.room_type || '—'}
                       </td>
-                      <td className="px-6 py-4 text-right text-gray-600">
+                      <td className="px-6 py-4 text-right text-ink/60">
                         {room.width ? `${room.width}'` : '—'}
                       </td>
-                      <td className="px-6 py-4 text-right text-gray-600">
+                      <td className="px-6 py-4 text-right text-ink/60">
                         {room.height ? `${room.height}'` : '—'}
                       </td>
-                      <td className="px-6 py-4 text-right text-gray-600">
+                      <td className="px-6 py-4 text-right text-ink/60">
                         {room.area ? `${room.area} sq ft` : '—'}
                       </td>
                     </tr>
@@ -247,52 +247,52 @@ export default function PublicView() {
 
         {/* BOQ */}
         {boq.length > 0 && (
-          <div className="bg-white rounded-xl border">
+          <div className="bg-paper-2 rounded-xl border">
             <div className="px-6 py-4 border-b">
-              <h2 className="text-lg font-semibold text-gray-900">Bill of Quantities</h2>
+              <h2 className="text-lg font-semibold text-ink">Bill of Quantities</h2>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50">
+                <thead className="bg-ink/5">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-ink/50 uppercase">
                       Item
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-6 py-3 text-right text-xs font-medium text-ink/50 uppercase">
                       Quantity
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-6 py-3 text-right text-xs font-medium text-ink/50 uppercase">
                       Unit
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-6 py-3 text-right text-xs font-medium text-ink/50 uppercase">
                       Amount
                     </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {boq.map((item: any, idx: number) => (
-                    <tr key={idx} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 font-medium text-gray-900">
+                    <tr key={idx} className="hover:bg-ink/5">
+                      <td className="px-6 py-4 font-medium text-ink">
                         {item.item || `Item ${idx + 1}`}
                       </td>
-                      <td className="px-6 py-4 text-right text-gray-600">
+                      <td className="px-6 py-4 text-right text-ink/60">
                         {item.quantity || '—'}
                       </td>
-                      <td className="px-6 py-4 text-right text-gray-600">
+                      <td className="px-6 py-4 text-right text-ink/60">
                         {item.unit || ''}
                       </td>
-                      <td className="px-6 py-4 text-right text-gray-600">
+                      <td className="px-6 py-4 text-right text-ink/60">
                         {formatCurrency(item.amount)}
                       </td>
                     </tr>
                   ))}
                 </tbody>
-                <tfoot className="bg-gray-50">
+                <tfoot className="bg-ink/5">
                   <tr>
-                    <td colSpan={3} className="px-6 py-3 text-sm font-medium text-gray-900 text-right">
+                    <td colSpan={3} className="px-6 py-3 text-sm font-medium text-ink text-right">
                       Total:
                     </td>
-                    <td className="px-6 py-3 text-sm font-medium text-gray-900 text-right">
+                    <td className="px-6 py-3 text-sm font-medium text-ink text-right">
                       {formatCurrency(data.boq_total)}
                     </td>
                   </tr>
@@ -303,7 +303,7 @@ export default function PublicView() {
         )}
 
         {/* Footer */}
-        <div className="mt-8 text-center text-sm text-gray-500">
+        <div className="mt-8 text-center text-sm text-ink/50">
           <div className="flex items-center justify-center mb-2">
             <Eye className="w-4 h-4 mr-1" />
             Viewed on {new Date(data.viewed_at).toLocaleString()}

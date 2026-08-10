@@ -82,7 +82,7 @@ export default function EnterpriseDashboard() {
   }
   
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-ink/5 p-8">
       <h1 className="text-3xl font-bold mb-8">Enterprise Analytics Dashboard</h1>
       
       {/* Key Metrics */}
@@ -115,7 +115,7 @@ export default function EnterpriseDashboard() {
       
       {/* Charts */}
       <div className="grid grid-cols-2 gap-6 mb-8">
-        <div className="bg-white rounded-xl p-6 border">
+        <div className="bg-paper-2 rounded-xl p-6 border">
           <h3 className="font-semibold mb-4">Projects by Building Type</h3>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
@@ -138,7 +138,7 @@ export default function EnterpriseDashboard() {
           </ResponsiveContainer>
         </div>
         
-        <div className="bg-white rounded-xl p-6 border">
+        <div className="bg-paper-2 rounded-xl p-6 border">
           <h3 className="font-semibold mb-4">Projects by Status</h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={data.projectsByStatus}>
@@ -153,7 +153,7 @@ export default function EnterpriseDashboard() {
         </div>
       </div>
       
-      <div className="bg-white rounded-xl p-6 border mb-8">
+      <div className="bg-paper-2 rounded-xl p-6 border mb-8">
         <h3 className="font-semibold mb-4">Monthly Trends</h3>
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={data.monthlyTrends}>
@@ -169,7 +169,7 @@ export default function EnterpriseDashboard() {
         </ResponsiveContainer>
       </div>
       
-      <div className="bg-white rounded-xl p-6 border">
+      <div className="bg-paper-2 rounded-xl p-6 border">
         <h3 className="font-semibold mb-4">Projects by Region</h3>
         <ResponsiveContainer width="100%" height={400}>
           <BarChart data={data.projectsByRegion}>
@@ -188,9 +188,9 @@ export default function EnterpriseDashboard() {
 
 function MetricCard({ title, value, change, trend }: {title: string, value: string | number, change: string, trend: 'up' | 'down'}) {
   return (
-    <div className="bg-white rounded-xl p-6 border">
-      <div className="text-sm text-gray-500 mb-2">{title}</div>
-      <div className="text-3xl font-bold text-gray-900 mb-2">{value}</div>
+    <div className="bg-paper-2 rounded-xl p-6 border">
+      <div className="text-sm text-ink/50 mb-2">{title}</div>
+      <div className="text-3xl font-bold text-ink mb-2">{value}</div>
       <div className={`text-sm ${trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
         {change} from last month
       </div>

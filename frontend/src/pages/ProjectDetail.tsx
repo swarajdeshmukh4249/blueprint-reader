@@ -113,7 +113,7 @@ export default function ProjectDetail() {
   if (!isLoaded || !isSignedIn) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-gray-500">Loading...</div>
+        <div className="text-ink/50">Loading...</div>
       </div>
     )
   }
@@ -121,7 +121,7 @@ export default function ProjectDetail() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-gray-500">Loading project...</div>
+        <div className="text-ink/50">Loading project...</div>
       </div>
     )
   }
@@ -129,28 +129,28 @@ export default function ProjectDetail() {
   if (!project) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-gray-500">Project not found</div>
+        <div className="text-ink/50">Project not found</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-ink/5">
       {/* Header */}
-      <header className="bg-white border-b">
+      <header className="bg-paper-2 border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-4">
               <button
                 onClick={() => navigate('/dashboard')}
-                className="text-gray-600 hover:text-gray-900"
+                className="text-ink/60 hover:text-ink"
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">{project.name}</h1>
+                <h1 className="text-xl font-bold text-ink">{project.name}</h1>
                 {project.code && (
-                  <p className="text-sm text-gray-500">{project.code}</p>
+                  <p className="text-sm text-ink/50">{project.code}</p>
                 )}
               </div>
             </div>
@@ -158,7 +158,7 @@ export default function ProjectDetail() {
               {files.length >= 2 && (
                 <button
                   onClick={() => navigate(`/floor-comparison/${projectId}`)}
-                  className="flex items-center gap-2 border border-gray-300 px-3 py-2 rounded-lg hover:bg-gray-50 text-sm"
+                  className="flex items-center gap-2 border border-ink/20 px-3 py-2 rounded-lg hover:bg-ink/5 text-sm"
                 >
                   <GitCompare className="w-4 h-4" />
                   Compare Floors
@@ -167,7 +167,7 @@ export default function ProjectDetail() {
               {files.length >= 1 && (
                 <button
                   onClick={() => navigate(`/public-share/${projectId}`)}
-                  className="flex items-center gap-2 border border-gray-300 px-3 py-2 rounded-lg hover:bg-gray-50 text-sm"
+                  className="flex items-center gap-2 border border-ink/20 px-3 py-2 rounded-lg hover:bg-ink/5 text-sm"
                 >
                   <Share2 className="w-4 h-4" />
                   Share
@@ -176,7 +176,7 @@ export default function ProjectDetail() {
               {files.length >= 1 && (
                 <button
                   onClick={() => navigate(`/cost-benchmarking/${projectId}`)}
-                  className="flex items-center gap-2 border border-gray-300 px-3 py-2 rounded-lg hover:bg-gray-50 text-sm"
+                  className="flex items-center gap-2 border border-ink/20 px-3 py-2 rounded-lg hover:bg-ink/5 text-sm"
                 >
                   <BarChart3 className="w-4 h-4" />
                   Benchmark
@@ -197,30 +197,30 @@ export default function ProjectDetail() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Project Info */}
-        <div className="bg-white rounded-xl border p-6 mb-6">
+        <div className="bg-paper-2 rounded-xl border p-6 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
-              <p className="text-sm text-gray-500">Client</p>
-              <p className="font-medium text-gray-900">{project.client_name || '-'}</p>
+              <p className="text-sm text-ink/50">Client</p>
+              <p className="font-medium text-ink">{project.client_name || '-'}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">Location</p>
-              <p className="font-medium text-gray-900">
+              <p className="text-sm text-ink/50">Location</p>
+              <p className="font-medium text-ink">
                 {project.location_city && project.location_state
                   ? `${project.location_city}, ${project.location_state}`
                   : '-'}
               </p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">Building Type</p>
-              <p className="font-medium text-gray-900">{project.building_type || '-'}</p>
+              <p className="text-sm text-ink/50">Building Type</p>
+              <p className="font-medium text-ink">{project.building_type || '-'}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">Status</p>
+              <p className="text-sm text-ink/50">Status</p>
               <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                 project.status === 'active' ? 'bg-green-100 text-green-800' :
                 project.status === 'completed' ? 'bg-blue-100 text-blue-800' :
-                project.status === 'draft' ? 'bg-gray-100 text-gray-800' :
+                project.status === 'draft' ? 'bg-paper text-ink' :
                 'bg-yellow-100 text-yellow-800'
               }`}>
                 {project.status}
@@ -230,15 +230,15 @@ export default function ProjectDetail() {
         </div>
 
         {/* Blueprint Files */}
-        <div className="bg-white rounded-xl border">
+        <div className="bg-paper-2 rounded-xl border">
           <div className="px-6 py-4 border-b flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Blueprint Files</h2>
-            <span className="text-sm text-gray-500">{files.length} files</span>
+            <h2 className="text-lg font-semibold text-ink">Blueprint Files</h2>
+            <span className="text-sm text-ink/50">{files.length} files</span>
           </div>
           {files.length === 0 ? (
             <div className="p-12 text-center">
-              <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500 mb-4">No blueprints uploaded yet</p>
+              <FileText className="w-12 h-12 text-ink/40 mx-auto mb-4" />
+              <p className="text-ink/50 mb-4">No blueprints uploaded yet</p>
               <button
                 onClick={() => setShowUploadModal(true)}
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
@@ -249,53 +249,53 @@ export default function ProjectDetail() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50">
+                <thead className="bg-ink/5">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-ink/50 uppercase">
                       File
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-ink/50 uppercase">
                       Status
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-ink/50 uppercase">
                       Area
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-ink/50 uppercase">
                       Rooms
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-ink/50 uppercase">
                       Analyzed
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-ink/50 uppercase">
                       Actions
                     </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {files.map((file) => (
-                    <tr key={file.id} className="hover:bg-gray-50">
+                    <tr key={file.id} className="hover:bg-ink/5">
                       <td className="px-6 py-4">
                         <div className="flex items-center">
-                          <FileText className="w-5 h-5 text-gray-400 mr-3" />
-                          <div className="font-medium text-gray-900">{file.filename}</div>
+                          <FileText className="w-5 h-5 text-ink/40 mr-3" />
+                          <div className="font-medium text-ink">{file.filename}</div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                           file.status === 'analyzed' ? 'bg-green-100 text-green-800' :
                           file.status === 'processing' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-gray-100 text-gray-800'
+                          'bg-paper text-ink'
                         }`}>
                           {file.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-gray-600">
+                      <td className="px-6 py-4 text-ink/60">
                         {file.total_area ? `${file.total_area} sq ft` : '-'}
                       </td>
-                      <td className="px-6 py-4 text-gray-600">
+                      <td className="px-6 py-4 text-ink/60">
                         {file.room_count || '-'}
                       </td>
-                      <td className="px-6 py-4 text-gray-600 text-sm">
+                      <td className="px-6 py-4 text-ink/60 text-sm">
                         {file.analyzed_at ? new Date(file.analyzed_at).toLocaleDateString() : '-'}
                       </td>
                       <td className="px-6 py-4">
@@ -343,18 +343,18 @@ export default function ProjectDetail() {
       {/* Upload Modal */}
       {showUploadModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Upload Blueprint</h2>
+          <div className="bg-paper-2 rounded-xl p-6 w-full max-w-md mx-4">
+            <h2 className="text-xl font-bold text-ink mb-4">Upload Blueprint</h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Select File</label>
+                <label className="block text-sm font-medium text-ink/80 mb-1">Select File</label>
                 <input
                   type="file"
                   accept=".pdf,.png,.jpg,.jpeg,.dxf,.dwg"
                   onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
                   className="w-full border rounded-lg px-3 py-2"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-ink/50 mt-1">
                   Supported formats: PDF, PNG, JPG, DXF, DWG (max 50MB)
                 </p>
               </div>
@@ -362,7 +362,7 @@ export default function ProjectDetail() {
             <div className="flex justify-end gap-3 mt-6">
               <button
                 onClick={() => setShowUploadModal(false)}
-                className="px-4 py-2 border rounded-lg hover:bg-gray-50"
+                className="px-4 py-2 border rounded-lg hover:bg-ink/5"
               >
                 Cancel
               </button>

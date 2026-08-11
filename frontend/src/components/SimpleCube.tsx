@@ -20,8 +20,7 @@ function RotatingCube() {
 
 export default function SimpleCube() {
     return (
-        <Canvas camera={{ position: [2, 2, 5] }} style={{ height: '200px', width: '200px' }}>
-            <ambientLight intensity={0.5} />
+        <Canvas camera={{ position: [2, 2, 5] as [number, number, number] }} style={{ height: '200px', width: '200px' }}>            <ambientLight intensity={0.5} />
             <directionalLight position={[5, 5, 5]} intensity={0.8} />
             <RotatingCube />
         </Canvas>

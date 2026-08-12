@@ -6,7 +6,7 @@ import { Plus, FolderOpen, Calendar, MapPin, Building2, FileText, X, Eye, GitCom
 import AdvancedSearch from '@/components/AdvancedSearch'
 import BreadcrumbNav from '@/components/BreadcrumbNav'
 import { useNavigationStore } from '@/stores/useNavigationStore'
-
+import Blueprint3DBackground from '@/components/Blueprint3DBackground'
 interface Project {
   id: string
   name: string
@@ -166,7 +166,11 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-paper">
+    <div className="relative min-h-screen overflow-hidden bg-paper">
+
+      <Blueprint3DBackground />
+
+    <div className="relative z-10">
       {/* Breadcrumb Navigation */}
       <BreadcrumbNav />
 
@@ -190,6 +194,7 @@ export default function Dashboard() {
           </div>
         </div>
       </header>
+      </div>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -257,7 +262,7 @@ export default function Dashboard() {
           {/* Left Column - Recent Projects */}
           <div className="lg:col-span-2">
             {/* Recent Projects Table */}
-            <div className="bg-paper rounded-lg border border-ink/20 shadow-sm mb-8">
+            <div className="bg-paper/80 backdrop-blur-sm rounded-lg border border-ink/20 shadow-sm mb-8">
               <div className="px-5 py-4 border-b border-ink/15 flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-ink uppercase tracking-wider">Recent Projects</h2>
                 <button
@@ -384,7 +389,7 @@ export default function Dashboard() {
             {/* Charts Row */}
             <div className="grid grid-cols-2 gap-6">
               {/* Projects Overview Chart */}
-              <div className="bg-paper rounded-lg border border-ink/20 shadow-sm p-5">
+              <div className="bg-paper/70 backdrop-blur-md rounded-lg border border-ink/20 shadow-sm p-5">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-sm font-semibold text-ink uppercase tracking-wider">Projects Overview</h3>
                   <select className="text-xs bg-paper border border-ink/15 rounded px-2 py-1 text-ink/70">
@@ -407,7 +412,7 @@ export default function Dashboard() {
               </div>
 
               {/* Material Usage Chart */}
-              <div className="bg-paper rounded-lg border border-ink/20 shadow-sm p-5">
+              <div className="bg-paper/70 backdrop-blur-md rounded-lg border border-ink/20 shadow-sm p-5">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-sm font-semibold text-ink uppercase tracking-wider">Material Usage</h3>
                 </div>
@@ -440,7 +445,7 @@ export default function Dashboard() {
           {/* Right Column - AI Assistant & Recent Activity */}
           <div className="lg:col-span-1 space-y-6">
             {/* AI Assistant */}
-            <div className="bg-paper rounded-lg border border-ink/20 shadow-sm p-5">
+            <div className="bg-paper/70 backdrop-blur-md rounded-lg border border-ink/20 shadow-sm p-5">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-semibold text-ink uppercase tracking-wider">AI Assistant</h3>
                 <span className="text-xs font-medium bg-purple-500/20 text-purple-500 px-2 py-0.5 rounded">BETA</span>
@@ -471,7 +476,7 @@ export default function Dashboard() {
             </div>
 
             {/* Recent Activity */}
-            <div className="bg-paper rounded-lg border border-ink/20 shadow-sm p-5">
+            <div className="bg-paper/70 backdrop-blur-md rounded-lg border border-ink/20 shadow-sm p-5">
               <h3 className="text-sm font-semibold text-ink uppercase tracking-wider mb-4">Recent Activity</h3>
               <div className="space-y-3">
                 {[

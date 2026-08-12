@@ -82,7 +82,7 @@ export default function EnterpriseDashboard() {
   }
   
   return (
-    <div className="min-h-screen bg-ink/5 p-8">
+    <div className="min-h-screen bg-transparent p-8">
       <h1 className="text-3xl font-bold mb-8">Enterprise Analytics Dashboard</h1>
       
       {/* Key Metrics */}

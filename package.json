@@ -6,7 +6,8 @@
     "web-ifc": "^0.0.77"
   },
   "devDependencies": {
-    "@types/node": "^26.0.0"
+    "@types/node": "^26.0.0",
+    "@types/three": "^0.185.4"
   },
   "scripts": {
     "dev": "vite"

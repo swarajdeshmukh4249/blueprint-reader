@@ -1,17 +1,42 @@
-import { Download, RotateCcw, FileText, Calculator, MessageSquare, BarChart3, Save, Check, Ruler, Expand, ArrowLeft, LayoutDashboard, Upload as UploadIcon } from 'lucide-react'
+import {
+  Download,
+  RotateCcw,
+  FileText,
+  Calculator,
+  MessageSquare,
+  BarChart3,
+  Check,
+  Ruler,
+  Expand,
+  LayoutDashboard,
+  Upload as UploadIcon,
+} from 'lucide-react'
 import { NavLink, useParams, useNavigate } from 'react-router-dom'
 import Container from '@/components/Container'
-import { cn } from '@/lib/utils'
 import { useAnalysisStore } from '@/stores/useAnalysisStore'
 import { useNavigationStore } from '@/stores/useNavigationStore'
 import type { AnalyzeBlueprintRoom } from '@/types/analysis'
 import { useState, useEffect } from 'react'
-import { PieChart, Pie, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts'
+import {
+  PieChart,
+  Pie,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  Cell,
+} from 'recharts'
 import ScaleCalibrationPanel from '@/components/ScaleCalibration/ScaleCalibrationPanel'
+import Blueprint3DBackground from '@/components/Blueprint3DBackground'
 import { API_BASE_URL } from '@/lib/api'
 
 function toCsv(rooms: AnalyzeBlueprintRoom[]) {
   const header = ['name', 'area', 'unit', 'confidence', 'notes']
+
   const lines = [
     header.join(','),
     ...rooms.map((r) =>
@@ -23,14 +48,18 @@ function toCsv(rooms: AnalyzeBlueprintRoom[]) {
         (r.notes ?? '').split('"').join('""'),
       ]
         .map((v) => `"${String(v)}"`)
-        .join(','),
+        .join(',')
     ),
   ]
+
   return lines.join('\n')
 }
 
 function formatInr(value?: number) {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return '—'
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return '—'
+  }
+
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
@@ -41,37 +70,60 @@ function formatInr(value?: number) {
 function download(filename: string, content: string, mime: string) {
   const blob = new Blob([content], { type: mime })
   const url = URL.createObjectURL(blob)
+
   const a = document.createElement('a')
   a.href = url
   a.download = filename
   a.click()
+
   URL.revokeObjectURL(url)
 }
 
 export default function Results() {
   const { fileId } = useParams<{ fileId?: string }>()
   const navigate = useNavigate()
+
   const filename = useAnalysisStore((s) => s.filename)
   const result = useAnalysisStore((s) => s.result)
   const reset = useAnalysisStore((s) => s.reset)
+
   const { currentAnalysis, setCurrentAnalysis } = useNavigationStore()
+
   const [editableBoq, setEditableBoq] = useState<any[]>([])
   const [showFinalBoq, setShowFinalBoq] = useState(false)
-  const [activeTab, setActiveTab] = useState<'rooms' | 'boq' | 'charts' | 'comments'>('rooms')
-  const [comments, setComments] = useState<{ id: string, user_id: string, user_name: string, content: string, created_at: string }[]>([])
+
+  const [activeTab, setActiveTab] = useState<
+    'rooms' | 'boq' | 'charts' | 'comments'
+  >('rooms')
+
+  const [comments, setComments] = useState<
+    {
+      id: string
+      user_id: string
+      user_name: string
+      content: string
+      created_at: string
+    }[]
+  >([])
+
   const [newComment, setNewComment] = useState('')
   const [boqFinalized, setBoqFinalized] = useState(false)
   const [showCalibration, setShowCalibration] = useState(false)
-  const [blueprintImageUrl, setBlueprintImageUrl] = useState<string | null>(null)
-  const [calibrationHistory, setCalibrationHistory] = useState<Array<{
-    analysis_job_id: string
-    created_at?: string
-    scale_factor?: number
-    unit?: string
-    real_world_distance?: number
-  }>>([])
 
-  // Keep navigation context in sync with the current fileId from URL
+  const [blueprintImageUrl, setBlueprintImageUrl] = useState<string | null>(
+    null
+  )
+
+  const [calibrationHistory, setCalibrationHistory] = useState<
+    Array<{
+      analysis_job_id: string
+      created_at?: string
+      scale_factor?: number
+      unit?: string
+      real_world_distance?: number
+    }>
+  >([])
+
   useEffect(() => {
     if (fileId) {
       setCurrentAnalysis({
@@ -85,15 +137,20 @@ export default function Results() {
 
   useEffect(() => {
     if (result?.boq) {
-      setEditableBoq(result.boq.map((item: any) => ({
-        ...item,
-        rate: item.rate || (item.quantity && item.amount ? item.amount / item.quantity : 0)
-      })))
+      setEditableBoq(
+        result.boq.map((item: any) => ({
+          ...item,
+          rate:
+            item.rate ||
+            (item.quantity && item.amount
+              ? item.amount / item.quantity
+              : 0),
+        }))
+      )
     }
   }, [result])
 
   useEffect(() => {
-    // Fetch blueprint file data to get image URL if fileId is provided
     if (fileId) {
       fetchBlueprintFileData(fileId)
       fetchComments(fileId)
@@ -107,10 +164,19 @@ export default function Results() {
   const fetchCalibrationHistory = async () => {
     try {
       const token = await (window as any).Clerk?.session?.getToken()
-      const response = await fetch(`${API_BASE_URL}/calibration/analysis-jobs/calibrations`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (response.ok) setCalibrationHistory(await response.json())
+
+      const response = await fetch(
+        `${API_BASE_URL}/calibration/analysis-jobs/calibrations`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+
+      if (response.ok) {
+        setCalibrationHistory(await response.json())
+      }
     } catch (error) {
       console.error('Failed to fetch calibration history:', error)
     }
@@ -119,11 +185,16 @@ export default function Results() {
   const fetchComments = async (jobId: string) => {
     try {
       const token = await (window as any).Clerk?.session?.getToken()
-      const response = await fetch(`${API_BASE_URL}/analysis/analysis-jobs/${jobId}/comments`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
+
+      const response = await fetch(
+        `${API_BASE_URL}/analysis/analysis-jobs/${jobId}/comments`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         }
-      })
+      )
+
       if (response.ok) {
         const data = await response.json()
         setComments(data)
@@ -136,13 +207,19 @@ export default function Results() {
   const fetchBlueprintFileData = async (fileId: string) => {
     try {
       const token = await (window as any).Clerk?.session?.getToken()
-      const response = await fetch(`${API_BASE_URL}/blueprint-files/${fileId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
+
+      const response = await fetch(
+        `${API_BASE_URL}/blueprint-files/${fileId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         }
-      })
+      )
+
       if (response.ok) {
         const fileData = await response.json()
+
         if (fileData.file_path) {
           setBlueprintImageUrl(fileData.file_path)
         }
@@ -155,20 +232,21 @@ export default function Results() {
   const handleCalibrationApplied = async (calibrationData: any) => {
     try {
       const token = await (window as any).Clerk?.session?.getToken()
+
       const response = await fetch(
         `${API_BASE_URL}/calibration/analysis-jobs/${fileId}/scale-calibration`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
+            Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify(calibrationData)
+          body: JSON.stringify(calibrationData),
         }
       )
+
       if (response.ok) {
-        const result = await response.json()
-        console.log('Calibration saved:', result)
+        await response.json()
         fetchCalibrationHistory()
       } else {
         console.error('Failed to save calibration')
@@ -178,75 +256,34 @@ export default function Results() {
     }
   }
 
-  if (!result) {
-    return (
-      <Container className="pt-12 pb-16">
-        <div className="rounded-3xl border border-ink/10 bg-paper/60 p-10 text-center shadow-soft">
-          <div className="font-display text-3xl tracking-tight">No results yet</div>
-          <div className="mt-3 text-sm text-ink/70">
-            Upload a blueprint to generate a room schedule and export-ready data.
-          </div>
-          <NavLink
-            to="/upload"
-            className="mt-6 inline-flex rounded-full bg-ink px-5 py-3 text-sm font-medium text-paper transition hover:-translate-y-px hover:bg-ink/90"
-          >
-            Go to Upload
-          </NavLink>
-        </div>
-      </Container>
-    )
-  }
-
-  const rooms = Array.isArray(result.rooms) ? result.rooms : []
-  const boq = Array.isArray(result.boq) ? result.boq : []
-  const totals = result.totals
-  const roomCount = totals?.room_count ?? rooms.length
-  const rawResult = result.raw && typeof result.raw === 'object'
-    ? result.raw as Record<string, any>
-    : null
-  const scaleCalibration = rawResult?.scale_calibration as {
-    status?: string
-    scale_ratio?: string
-    mm_per_pixel?: number
-    confidence?: number
-    reason?: string
-  } | undefined
-
-  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4']
-
-  const costBreakdownData = boq.length > 0 ? boq.map((item, idx) => ({
-    name: item.item || `Item ${idx + 1}`,
-    value: item.amount || 0
-  })).slice(0, 6) : []
-
-  const materialUsageData = boq.length > 0 ? boq.slice(0, 5).map((item, idx) => ({
-    name: item.item || `Item ${idx + 1}`,
-    quantity: item.quantity || 0,
-    amount: item.amount || 0
-  })) : []
-
   const handleAddComment = async () => {
-    if (newComment.trim() && fileId) {
-      try {
-        const token = await (window as any).Clerk?.session?.getToken()
-        const response = await fetch(`${API_BASE_URL}/analysis/analysis-jobs/${fileId}/comments`, {
+    if (!newComment.trim() || !fileId) return
+
+    try {
+      const token = await (window as any).Clerk?.session?.getToken()
+
+      const response = await fetch(
+        `${API_BASE_URL}/analysis/analysis-jobs/${fileId}/comments`,
+        {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
+            Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ content: newComment })
-        })
-        if (response.ok) {
-          const newCommentData = await response.json()
-          setComments([...comments, newCommentData])
-          setNewComment('')
-        } else {
-          console.error('Failed to add comment')
+          body: JSON.stringify({
+            content: newComment,
+          }),
         }
-      } catch (error) {
-        console.error('Error adding comment:', error)
+      )
+
+      if (response.ok) {
+        const newCommentData = await response.json()
+
+        setComments([...comments, newCommentData])
+        setNewComment('')
       }
+    } catch (error) {
+      console.error('Error adding comment:', error)
     }
   }
 
@@ -255,539 +292,946 @@ export default function Results() {
     setShowFinalBoq(true)
   }
 
-  return (
-    <div className="pb-16">
-      {/* Sticky breadcrumb navigation bar */}
-      <div className="border-b border-ink/10 bg-paper/80 backdrop-blur-sm sticky top-0 z-10">
-        <Container>
-          <div className="flex items-center justify-between py-3">
-            <div className="flex items-center gap-2 text-sm text-ink/60">
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="flex items-center gap-1.5 hover:text-ink transition-colors"
+  if (!result) {
+    return (
+      <div className="relative min-h-screen overflow-hidden bg-paper">
+        <Blueprint3DBackground />
+
+        <div className="relative z-10">
+          <Container className="pt-12 pb-16">
+            <div className="rounded-3xl border border-ink/10 bg-paper/40 backdrop-blur-xl p-10 text-center shadow-soft">
+              <div className="font-display text-3xl tracking-tight">
+                No results yet
+              </div>
+
+              <div className="mt-3 text-sm text-ink/70">
+                Upload a blueprint to generate a room schedule and
+                export-ready data.
+              </div>
+
+              <NavLink
+                to="/upload"
+                className="mt-6 inline-flex rounded-full bg-ink px-5 py-3 text-sm font-medium text-paper transition hover:-translate-y-px hover:bg-ink/90"
               >
-                <LayoutDashboard className="h-3.5 w-3.5" />
-                Dashboard
-              </button>
-              <span className="text-ink/30">/</span>
-              <button
-                onClick={() => navigate(currentAnalysis?.projectId ? `/upload?project=${currentAnalysis.projectId}` : '/upload')}
-                className="flex items-center gap-1.5 hover:text-ink transition-colors"
-              >
-                <UploadIcon className="h-3.5 w-3.5" />
-                Upload
-              </button>
-              <span className="text-ink/30">/</span>
-              <span className="text-ink font-medium truncate max-w-xs">
-                {filename || 'Results'}
-              </span>
+                Go to Upload
+              </NavLink>
             </div>
-            {/* Quick-jump navigation for the current file */}
-            <div className="flex items-center gap-2">
-              {fileId && (
+          </Container>
+        </div>
+      </div>
+    )
+  }
+
+  const rooms = Array.isArray(result.rooms) ? result.rooms : []
+  const boq = Array.isArray(result.boq) ? result.boq : []
+
+  const totals = result.totals
+  const roomCount = totals?.room_count ?? rooms.length
+
+  const rawResult =
+    result.raw && typeof result.raw === 'object'
+      ? (result.raw as Record<string, any>)
+      : null
+
+  const scaleCalibration = rawResult?.scale_calibration as
+    | {
+        status?: string
+        scale_ratio?: string
+        mm_per_pixel?: number
+        confidence?: number
+        reason?: string
+      }
+    | undefined
+
+  const COLORS = [
+    '#3b82f6',
+    '#10b981',
+    '#f59e0b',
+    '#ef4444',
+    '#8b5cf6',
+    '#06b6d4',
+  ]
+
+  const costBreakdownData =
+    boq.length > 0
+      ? boq
+          .map((item, idx) => ({
+            name: item.item || `Item ${idx + 1}`,
+            value: item.amount || 0,
+          }))
+          .slice(0, 6)
+      : []
+
+  const materialUsageData =
+    boq.length > 0
+      ? boq.slice(0, 5).map((item, idx) => ({
+          name: item.item || `Item ${idx + 1}`,
+          quantity: item.quantity || 0,
+          amount: item.amount || 0,
+        }))
+      : []
+
+  return (
+    <div className="relative min-h-screen overflow-hidden bg-paper">
+      {/* Blueprint background */}
+      <Blueprint3DBackground />
+
+      {/* Page content */}
+      <div className="relative z-10 pb-16">
+        {/* Sticky breadcrumb */}
+        <div className="sticky top-0 z-20 border-b border-ink/10 bg-paper/30 backdrop-blur-xl">
+          <Container>
+            <div className="flex items-center justify-between py-3">
+              <div className="flex items-center gap-2 text-sm text-ink/60">
                 <button
-                  onClick={() => navigate(`/scale-calibration?file=${fileId}${currentAnalysis?.projectId ? `&project=${currentAnalysis.projectId}` : ''}`)}
-                  className="flex items-center gap-1.5 text-xs text-ink/60 hover:text-ink border border-ink/15 rounded-full px-3 py-1.5 transition-colors hover:bg-paper"
+                  onClick={() => navigate('/dashboard')}
+                  className="flex items-center gap-1.5 transition-colors hover:text-ink"
                 >
-                  <Ruler className="h-3 w-3" />
-                  Scale Calibration
+                  <LayoutDashboard className="h-3.5 w-3.5" />
+                  Dashboard
+                </button>
+
+                <span className="text-ink/30">/</span>
+
+                <button
+                  onClick={() =>
+                    navigate(
+                      currentAnalysis?.projectId
+                        ? `/upload?project=${currentAnalysis.projectId}`
+                        : '/upload'
+                    )
+                  }
+                  className="flex items-center gap-1.5 transition-colors hover:text-ink"
+                >
+                  <UploadIcon className="h-3.5 w-3.5" />
+                  Upload
+                </button>
+
+                <span className="text-ink/30">/</span>
+
+                <span className="max-w-xs truncate font-medium text-ink">
+                  {filename || 'Results'}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {fileId && (
+                  <button
+                    onClick={() =>
+                      navigate(
+                        `/scale-calibration?file=${fileId}${
+                          currentAnalysis?.projectId
+                            ? `&project=${currentAnalysis.projectId}`
+                            : ''
+                        }`
+                      )
+                    }
+                    className="flex items-center gap-1.5 rounded-full border border-ink/15 bg-paper/30 px-3 py-1.5 text-xs text-ink/70 backdrop-blur-md transition-colors hover:bg-paper/50 hover:text-ink"
+                  >
+                    <Ruler className="h-3 w-3" />
+                    Scale Calibration
+                  </button>
+                )}
+
+                <button
+                  onClick={() => navigate('/new-analytics')}
+                  className="flex items-center gap-1.5 rounded-full border border-ink/15 bg-paper/30 px-3 py-1.5 text-xs text-ink/70 backdrop-blur-md transition-colors hover:bg-paper/50 hover:text-ink"
+                >
+                  <BarChart3 className="h-3 w-3" />
+                  Analytics
+                </button>
+              </div>
+            </div>
+          </Container>
+        </div>
+
+        <Container className="pt-10 md:pt-14">
+          {/* Header */}
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div className="space-y-2">
+              <div className="text-xs tracking-[0.22em] text-ink/55">
+                RESULTS
+              </div>
+
+              <h1 className="font-display text-4xl leading-[0.95] tracking-tight md:text-5xl">
+                Takeoff output
+              </h1>
+
+              <div className="text-sm text-ink/70">
+                {filename ? (
+                  <span className="font-medium text-ink">{filename}</span>
+                ) : (
+                  'Latest analysis'
+                )}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {fileId && blueprintImageUrl && (
+                <button
+                  type="button"
+                  onClick={() => setShowCalibration(true)}
+                  className="inline-flex items-center gap-2 rounded-full border border-ink/15 bg-paper/30 px-4 py-2 text-sm text-ink/80 backdrop-blur-md transition hover:bg-paper/50 hover:text-ink"
+                >
+                  <Ruler className="h-4 w-4" />
+                  Calibrate Scale
                 </button>
               )}
+
+              {rooms.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    download(
+                      'blueprint-rooms.csv',
+                      toCsv(rooms),
+                      'text/csv'
+                    )
+                  }
+                  className="inline-flex items-center gap-2 rounded-full border border-ink/15 bg-paper/30 px-4 py-2 text-sm text-ink/80 backdrop-blur-md transition hover:bg-paper/50 hover:text-ink"
+                >
+                  <Download className="h-4 w-4" />
+                  Download CSV
+                </button>
+              )}
+
               <button
-                onClick={() => navigate('/new-analytics')}
-                className="flex items-center gap-1.5 text-xs text-ink/60 hover:text-ink border border-ink/15 rounded-full px-3 py-1.5 transition-colors hover:bg-paper"
+                type="button"
+                onClick={reset}
+                className="inline-flex items-center gap-2 rounded-full border border-ink/15 bg-paper/30 px-4 py-2 text-sm text-ink/80 backdrop-blur-md transition hover:bg-paper/50 hover:text-ink"
               >
-                <BarChart3 className="h-3 w-3" />
-                Analytics
+                <RotateCcw className="h-4 w-4" />
+                Reset
               </button>
+            </div>
+          </div>
+
+          {/* Main grid */}
+          <div className="mt-10 grid gap-6 md:grid-cols-12">
+            {/* Summary */}
+            <div className="md:col-span-3">
+              <div className="rounded-2xl border border-ink/15 bg-paper/35 p-5 shadow-sm backdrop-blur-xl">
+                <div className="text-xs font-semibold uppercase tracking-wider text-ink/50">
+                  SUMMARY
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  {/* Blueprint preview */}
+                  {fileId && blueprintImageUrl && (
+                    <div className="rounded-xl border border-ink/15 bg-paper/25 p-3 backdrop-blur-md">
+                      <div className="mb-2 flex items-center justify-between">
+                        <div className="text-xs text-ink/60">
+                          Blueprint Preview
+                        </div>
+
+                        <button
+                          onClick={() =>
+                            navigate(`/viewer?job_id=${fileId}`)
+                          }
+                          className="text-ink/60 transition-colors hover:text-ink"
+                          title="Expand to full viewer"
+                        >
+                          <Expand className="h-4 w-4" />
+                        </button>
+                      </div>
+
+                      <div
+                        className="relative aspect-video cursor-pointer overflow-hidden rounded-lg border border-ink/10 bg-paper/20"
+                        onClick={() =>
+                          navigate(`/viewer?job_id=${fileId}`)
+                        }
+                      >
+                        <img
+                          src={blueprintImageUrl}
+                          alt="Blueprint preview"
+                          className="h-full w-full object-cover"
+                        />
+
+                        <div className="absolute inset-0 flex items-center justify-center bg-ink/0 opacity-0 transition hover:bg-ink/10 hover:opacity-100">
+                          <Expand className="h-6 w-6 text-ink" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Summary cards */}
+                  <div className="rounded-xl border border-ink/15 bg-paper/25 p-3 backdrop-blur-md">
+                    <div className="text-xs text-ink/60">Rooms</div>
+                    <div className="mt-1 font-display text-2xl tracking-tight">
+                      {roomCount}
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-ink/15 bg-paper/25 p-3 backdrop-blur-md">
+                    <div className="text-xs text-ink/60">Total Area</div>
+
+                    <div className="mt-1 font-display text-2xl tracking-tight">
+                      {totals?.total_area ?? '—'}{' '}
+                      <span className="text-sm text-ink/60">
+                        {totals?.unit ?? ''}
+                      </span>
+                    </div>
+                  </div>
+
+                  {typeof totals?.boq_total === 'number' &&
+                    totals.boq_total > 0 && (
+                      <div className="rounded-xl border border-ink/15 bg-paper/25 p-3 backdrop-blur-md">
+                        <div className="text-xs text-ink/60">
+                          BOQ Total
+                        </div>
+
+                        <div className="mt-1 font-display text-2xl tracking-tight">
+                          {formatInr(totals.boq_total)}
+                        </div>
+
+                        {typeof totals?.cost_per_sqft === 'number' &&
+                          totals.cost_per_sqft > 0 && (
+                            <div className="mt-1 text-xs text-ink/60">
+                              {formatInr(totals.cost_per_sqft)} / sq ft
+                            </div>
+                          )}
+                      </div>
+                    )}
+
+                  {scaleCalibration?.status === 'auto_calibrated' && (
+                    <div className="rounded-xl border border-green-400/20 bg-green-400/10 p-3 text-sm text-green-900 backdrop-blur-md">
+                      <div className="font-medium">
+                        Scale calibrated automatically
+                      </div>
+
+                      <div className="mt-1 text-xs">
+                        {scaleCalibration.scale_ratio} ·{' '}
+                        {scaleCalibration.mm_per_pixel?.toFixed(3)} mm/px
+                      </div>
+                    </div>
+                  )}
+
+                  {scaleCalibration?.status === 'manual_required' && (
+                    <div className="rounded-xl border border-amber-400/20 bg-amber-400/10 p-3 text-sm text-amber-950 backdrop-blur-md">
+                      <div className="font-medium">
+                        Scale needs one reference distance
+                      </div>
+
+                      <p className="mt-1 text-xs text-amber-800">
+                        {scaleCalibration.reason}
+                      </p>
+
+                      <button
+                        type="button"
+                        onClick={() => navigate('/scale-calibration')}
+                        className="mt-2 text-xs font-medium underline underline-offset-2"
+                      >
+                        Calibrate manually
+                      </button>
+                    </div>
+                  )}
+
+                  {calibrationHistory.length > 0 && (
+                    <div className="rounded-xl border border-ink/15 bg-paper/25 p-3 backdrop-blur-md">
+                      <div className="text-xs font-semibold text-ink/60">
+                        Previous calibrations
+                      </div>
+
+                      <div className="mt-2 space-y-2">
+                        {calibrationHistory.slice(0, 4).map(
+                          (calibration) => (
+                            <button
+                              key={calibration.analysis_job_id}
+                              type="button"
+                              onClick={() =>
+                                navigate(
+                                  `/results/${calibration.analysis_job_id}`
+                                )
+                              }
+                              className="block w-full rounded-lg border border-ink/10 bg-paper/25 p-2 text-left text-xs backdrop-blur-sm transition hover:bg-paper/40"
+                            >
+                              <div className="font-medium text-ink">
+                                {calibration.scale_factor?.toFixed(6) ??
+                                  '—'}{' '}
+                                {calibration.unit ?? ''}/px
+                              </div>
+
+                              <div className="mt-0.5 text-ink/60">
+                                {calibration.real_world_distance ?? '—'}{' '}
+                                {calibration.unit ?? ''}
+                                {calibration.created_at
+                                  ? ` · ${new Date(
+                                      calibration.created_at
+                                    ).toLocaleDateString()}`
+                                  : ''}
+                              </div>
+                            </button>
+                          )
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => navigate('/calibration-history')}
+                    className="inline-flex w-full items-center justify-center rounded-xl border border-ink/15 bg-paper/25 px-4 py-2 text-sm font-medium text-ink backdrop-blur-md transition hover:bg-paper/40"
+                  >
+                    View calibration history
+                  </button>
+
+                  <NavLink
+                    to="/upload"
+                    className="inline-flex w-full items-center justify-center rounded-xl bg-ink px-4 py-2 text-sm font-medium text-paper transition hover:bg-ink/90"
+                  >
+                    Analyze another file
+                  </NavLink>
+                </div>
+              </div>
+            </div>
+
+            {/* Main content */}
+            <div className="md:col-span-9">
+              <div className="overflow-hidden rounded-2xl border border-ink/15 bg-paper/35 shadow-sm backdrop-blur-xl">
+                {/* Tabs */}
+                <div className="flex space-x-1 overflow-x-auto border-b border-ink/15 px-5 pt-5">
+                  {[
+                    {
+                      id: 'rooms' as const,
+                      label: 'Rooms',
+                      icon: FileText,
+                    },
+                    {
+                      id: 'boq' as const,
+                      label: 'BOQ',
+                      icon: Calculator,
+                    },
+                    {
+                      id: 'charts' as const,
+                      label: 'Charts',
+                      icon: BarChart3,
+                    },
+                    {
+                      id: 'comments' as const,
+                      label: 'Comments',
+                      icon: MessageSquare,
+                    },
+                  ].map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`flex items-center gap-2 whitespace-nowrap border-b-2 px-4 py-2 text-xs font-medium transition-colors ${
+                        activeTab === tab.id
+                          ? 'border-accent text-accent'
+                          : 'border-transparent text-ink/60 hover:text-ink'
+                      }`}
+                    >
+                      <tab.icon className="h-4 w-4" />
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="p-5">
+                  {/* ROOMS */}
+                  {activeTab === 'rooms' && (
+                    <div>
+                      <div className="mb-4 flex items-center justify-between">
+                        <div className="text-sm font-semibold text-ink">
+                          Rooms ({rooms.length})
+                        </div>
+                      </div>
+
+                      {rooms.length === 0 ? (
+                        <div className="rounded-xl border border-ink/15 bg-paper/25 p-6 text-sm text-ink/70 backdrop-blur-md">
+                          No room list found in the response.
+                        </div>
+                      ) : (
+                        <div className="overflow-hidden rounded-xl border border-ink/15">
+                          <div className="grid grid-cols-12 bg-paper/25 px-4 py-3 text-xs font-medium text-ink/70 backdrop-blur-md">
+                            <div className="col-span-6">Room</div>
+                            <div className="col-span-3 text-right">
+                              Area
+                            </div>
+                            <div className="col-span-3 text-right">
+                              Confidence
+                            </div>
+                          </div>
+
+                          <div className="max-h-96 divide-y divide-ink/10 overflow-y-auto bg-paper/15">
+                            {rooms.map((r, idx) => (
+                              <div
+                                key={idx}
+                                className="grid grid-cols-12 px-4 py-3 text-sm"
+                              >
+                                <div className="col-span-6 truncate font-medium">
+                                  {r.name ?? `Room ${idx + 1}`}
+                                </div>
+
+                                <div className="col-span-3 text-right text-ink/70">
+                                  {r.area ?? '—'} {r.unit ?? ''}
+                                </div>
+
+                                <div className="col-span-3 text-right text-ink/70">
+                                  {typeof r.confidence === 'number'
+                                    ? `${Math.round(
+                                        r.confidence * 100
+                                      )}%`
+                                    : '—'}
+                                </div>
+
+                                {r.notes ? (
+                                  <div className="col-span-12 mt-2 text-xs text-ink/60">
+                                    {r.notes}
+                                  </div>
+                                ) : null}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* BOQ */}
+                  {activeTab === 'boq' && (
+                    <div>
+                      <div className="mb-4 flex items-center justify-between">
+                        <div className="text-sm font-semibold text-ink">
+                          Bill of Quantities ({editableBoq.length} items)
+                        </div>
+
+                        <div className="flex gap-2">
+                          {!boqFinalized && (
+                            <button
+                              onClick={handleFinalizeBoq}
+                              className="flex items-center gap-2 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-paper hover:bg-accent/90"
+                            >
+                              <Check className="h-3 w-3" />
+                              Finalize Changes
+                            </button>
+                          )}
+
+                          {boqFinalized && (
+                            <button
+                              onClick={() =>
+                                download(
+                                  'final-boq.csv',
+                                  toCsv(
+                                    editableBoq.map((b, idx) => ({
+                                      name: b.item ?? `Item ${idx + 1}`,
+                                      area: b.quantity,
+                                      unit: b.unit,
+                                      confidence: b.rate,
+                                      notes: `Amount: ${formatInr(
+                                        b.amount
+                                      )}`,
+                                    }))
+                                  ),
+                                  'text/csv'
+                                )
+                              }
+                              className="flex items-center gap-2 rounded-lg bg-green-500 px-3 py-1.5 text-xs font-medium text-paper hover:bg-green-500/90"
+                            >
+                              <Download className="h-3 w-3" />
+                              Download Final BOQ
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {boq.length === 0 ? (
+                        <div className="rounded-xl border border-ink/15 bg-paper/25 p-6 text-sm text-ink/70 backdrop-blur-md">
+                          No BOQ data found.
+                        </div>
+                      ) : (
+                        <div className="overflow-hidden rounded-xl border border-ink/15">
+                          <div className="grid grid-cols-12 bg-paper/25 px-4 py-3 text-xs font-medium text-ink/70 backdrop-blur-md">
+                            <div className="col-span-5">Item</div>
+                            <div className="col-span-2 text-right">
+                              Qty
+                            </div>
+                            <div className="col-span-2 text-right">
+                              Rate
+                            </div>
+                            <div className="col-span-1 text-right">
+                              Unit
+                            </div>
+                            <div className="col-span-2 text-right">
+                              Amount
+                            </div>
+                          </div>
+
+                          <div className="max-h-96 divide-y divide-ink/10 overflow-y-auto bg-paper/15">
+                            {editableBoq.map((b, idx) => (
+                              <div
+                                key={idx}
+                                className="grid grid-cols-12 px-4 py-3 text-sm"
+                              >
+                                <div className="col-span-5 font-medium">
+                                  {b.item ?? `Item ${idx + 1}`}
+                                </div>
+
+                                <div className="col-span-2 text-right">
+                                  <input
+                                    type="number"
+                                    value={b.quantity ?? ''}
+                                    disabled={boqFinalized}
+                                    onChange={(e) => {
+                                      const newBoq = [...editableBoq]
+
+                                      newBoq[idx].quantity =
+                                        parseFloat(e.target.value) || 0
+
+                                      newBoq[idx].amount =
+                                        (newBoq[idx].quantity || 0) *
+                                        (newBoq[idx].rate || 0)
+
+                                      setEditableBoq(newBoq)
+                                    }}
+                                    className={`w-16 rounded border border-ink/15 bg-paper/30 px-1 py-0.5 text-right text-ink/70 backdrop-blur-sm ${
+                                      boqFinalized
+                                        ? 'cursor-not-allowed opacity-60'
+                                        : ''
+                                    }`}
+                                  />
+                                </div>
+
+                                <div className="col-span-2 text-right">
+                                  <input
+                                    type="number"
+                                    value={b.rate ?? ''}
+                                    disabled={boqFinalized}
+                                    onChange={(e) => {
+                                      const newBoq = [...editableBoq]
+
+                                      newBoq[idx].rate =
+                                        parseFloat(e.target.value) || 0
+
+                                      newBoq[idx].amount =
+                                        (newBoq[idx].quantity || 0) *
+                                        (newBoq[idx].rate || 0)
+
+                                      setEditableBoq(newBoq)
+                                    }}
+                                    className={`w-20 rounded border border-ink/15 bg-paper/30 px-1 py-0.5 text-right text-ink/70 backdrop-blur-sm ${
+                                      boqFinalized
+                                        ? 'cursor-not-allowed opacity-60'
+                                        : ''
+                                    }`}
+                                  />
+                                </div>
+
+                                <div className="col-span-1 text-right text-ink/70">
+                                  {b.unit ?? ''}
+                                </div>
+
+                                <div className="col-span-2 text-right text-ink/70">
+                                  {formatInr(b.amount)}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="bg-paper/25 px-4 py-3 text-right backdrop-blur-md">
+                            <div className="text-sm font-medium text-ink">
+                              Total:{' '}
+                              {formatInr(
+                                editableBoq.reduce(
+                                  (sum, item) =>
+                                    sum + (item.amount || 0),
+                                  0
+                                )
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* CHARTS */}
+                  {activeTab === 'charts' && (
+                    <div>
+                      <div className="mb-4 text-sm font-semibold text-ink">
+                        Cost Breakdown Visualization
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        {/* Pie */}
+                        <div className="rounded-xl border border-ink/15 bg-paper/20 p-4 backdrop-blur-md">
+                          <div className="mb-3 text-xs font-medium text-ink/70">
+                            Cost Distribution
+                          </div>
+
+                          {costBreakdownData.length > 0 ? (
+                            <ResponsiveContainer
+                              width="100%"
+                              height={280}
+                            >
+                              <PieChart>
+                                <Pie
+                                  data={costBreakdownData}
+                                  cx="50%"
+                                  cy="45%"
+                                  labelLine={false}
+                                  label={false}
+                                  outerRadius={75}
+                                  fill="#8884d8"
+                                  dataKey="value"
+                                >
+                                  {costBreakdownData.map(
+                                    (entry, index) => (
+                                      <Cell
+                                        key={`cell-${index}`}
+                                        fill={
+                                          COLORS[
+                                            index % COLORS.length
+                                          ]
+                                        }
+                                      />
+                                    )
+                                  )}
+                                </Pie>
+
+                                <Tooltip
+                                  formatter={(
+                                    value: number,
+                                    name: string
+                                  ) => [formatInr(value), name]}
+                                />
+
+                                <Legend
+                                  layout="horizontal"
+                                  verticalAlign="bottom"
+                                  align="center"
+                                  wrapperStyle={{
+                                    fontSize: 11,
+                                    lineHeight: '1.4',
+                                  }}
+                                  formatter={(value: string) =>
+                                    value.length > 22
+                                      ? `${value.slice(0, 22)}…`
+                                      : value
+                                  }
+                                />
+                              </PieChart>
+                            </ResponsiveContainer>
+                          ) : (
+                            <div className="py-8 text-center text-sm text-ink/60">
+                              No data available
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Bar */}
+                        <div className="rounded-xl border border-ink/15 bg-paper/20 p-4 backdrop-blur-md">
+                          <div className="mb-3 text-xs font-medium text-ink/70">
+                            Material Usage
+                          </div>
+
+                          {materialUsageData.length > 0 ? (
+                            <ResponsiveContainer
+                              width="100%"
+                              height={Math.max(
+                                250,
+                                materialUsageData.length * 45
+                              )}
+                            >
+                              <BarChart
+                                data={materialUsageData}
+                                layout="vertical"
+                                margin={{
+                                  left: 10,
+                                  right: 20,
+                                }}
+                              >
+                                <CartesianGrid strokeDasharray="3 3" />
+
+                                <XAxis type="number" />
+
+                                <YAxis
+                                  dataKey="name"
+                                  type="category"
+                                  width={150}
+                                  tick={{ fontSize: 11 }}
+                                  tickFormatter={(value: string) =>
+                                    value.length > 24
+                                      ? `${value.slice(0, 24)}…`
+                                      : value
+                                  }
+                                />
+
+                                <Tooltip
+                                  formatter={(value) =>
+                                    formatInr(value as number)
+                                  }
+                                />
+
+                                <Bar
+                                  dataKey="amount"
+                                  fill="#3b82f6"
+                                />
+                              </BarChart>
+                            </ResponsiveContainer>
+                          ) : (
+                            <div className="py-8 text-center text-sm text-ink/60">
+                              No data available
+                            </div>
+                          )}
+                        </div>
+
+                        {/* KPI */}
+                        <div className="rounded-xl border border-ink/15 bg-paper/20 p-4 backdrop-blur-md md:col-span-2">
+                          <div className="mb-3 text-xs font-medium text-ink/70">
+                            Key Metrics
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                            <div className="rounded-lg bg-accent/10 p-3 backdrop-blur-sm">
+                              <div className="text-xs font-medium text-accent">
+                                Total Items
+                              </div>
+
+                              <div className="mt-1 text-xl font-bold text-ink">
+                                {boq.length}
+                              </div>
+                            </div>
+
+                            <div className="rounded-lg bg-green-500/10 p-3 backdrop-blur-sm">
+                              <div className="text-xs font-medium text-green-500">
+                                Total Qty
+                              </div>
+
+                              <div className="mt-1 text-xl font-bold text-ink">
+                                {boq
+                                  .reduce(
+                                    (sum, item) =>
+                                      sum +
+                                      (item.quantity || 0),
+                                    0
+                                  )
+                                  .toLocaleString()}
+                              </div>
+                            </div>
+
+                            <div className="rounded-lg bg-yellow-500/10 p-3 backdrop-blur-sm">
+                              <div className="text-xs font-medium text-yellow-500">
+                                Avg Rate
+                              </div>
+
+                              <div className="mt-1 text-xl font-bold text-ink">
+                                {boq.length > 0
+                                  ? formatInr(
+                                      boq.reduce(
+                                        (sum, item) =>
+                                          sum +
+                                          (item.rate || 0),
+                                        0
+                                      ) / boq.length
+                                    )
+                                  : '—'}
+                              </div>
+                            </div>
+
+                            <div className="rounded-lg bg-purple-500/10 p-3 backdrop-blur-sm">
+                              <div className="text-xs font-medium text-purple-500">
+                                Total Cost
+                              </div>
+
+                              <div className="mt-1 text-xl font-bold text-ink">
+                                {formatInr(
+                                  totals?.boq_total || 0
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* COMMENTS */}
+                  {activeTab === 'comments' && (
+                    <div>
+                      <div className="mb-4 text-sm font-semibold text-ink">
+                        Comments & Collaboration
+                      </div>
+
+                      <div className="mb-4">
+                        <textarea
+                          value={newComment}
+                          onChange={(e) =>
+                            setNewComment(e.target.value)
+                          }
+                          placeholder="Add a comment..."
+                          className="w-full rounded-xl border border-ink/15 bg-paper/20 px-4 py-3 text-sm text-ink placeholder:text-ink/40 backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-accent/50"
+                          rows={3}
+                        />
+
+                        <div className="mt-2 flex justify-end">
+                          <button
+                            onClick={handleAddComment}
+                            className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-xs font-medium text-paper hover:bg-accent/90"
+                          >
+                            <MessageSquare className="h-3 w-3" />
+                            Add Comment
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="max-h-96 space-y-3 overflow-y-auto">
+                        {comments.length === 0 ? (
+                          <div className="rounded-xl border border-ink/15 bg-paper/20 p-6 text-center text-sm text-ink/60 backdrop-blur-md">
+                            No comments yet. Be the first to add one!
+                          </div>
+                        ) : (
+                          comments.map((comment) => (
+                            <div
+                              key={comment.id}
+                              className="rounded-xl border border-ink/15 bg-paper/20 p-4 backdrop-blur-md"
+                            >
+                              <div className="mb-2 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/10">
+                                    <span className="text-xs font-medium text-accent">
+                                      {comment.user_name[0]}
+                                    </span>
+                                  </div>
+
+                                  <span className="text-xs font-medium text-ink">
+                                    {comment.user_name}
+                                  </span>
+                                </div>
+
+                                <span className="text-xs text-ink/40">
+                                  {new Date(
+                                    comment.created_at
+                                  ).toLocaleString()}
+                                </span>
+                              </div>
+
+                              <p className="text-sm text-ink/80">
+                                {comment.content}
+                              </p>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </Container>
+
+        {/* Calibration modal */}
+        {showCalibration &&
+          fileId &&
+          blueprintImageUrl && (
+            <ScaleCalibrationPanel
+              imageUrl={blueprintImageUrl}
+              onClose={() => setShowCalibration(false)}
+              onScaleApplied={handleCalibrationApplied}
+            />
+          )}
       </div>
-
-      <Container className="pt-10 md:pt-14">
-        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div className="space-y-2">
-            <div className="text-xs tracking-[0.22em] text-ink/55">RESULTS</div>
-            <h1 className="font-display text-4xl leading-[0.95] tracking-tight md:text-5xl">
-              Takeoff output
-            </h1>
-            <div className="text-sm text-ink/70">
-              {filename ? <span className="font-medium text-ink">{filename}</span> : 'Latest analysis'}
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {fileId && blueprintImageUrl && (
-              <button
-                type="button"
-                onClick={() => setShowCalibration(true)}
-                className="inline-flex items-center gap-2 rounded-full border border-ink/12 bg-paper/60 px-4 py-2 text-sm text-ink/80 transition hover:bg-paper hover:text-ink"
-              >
-                <Ruler className="h-4 w-4" />
-                Calibrate Scale
-              </button>
-            )}
-            {rooms.length > 0 && (
-              <button
-                type="button"
-                onClick={() => download('blueprint-rooms.csv', toCsv(rooms), 'text/csv')}
-                className="inline-flex items-center gap-2 rounded-full border border-ink/12 bg-paper/60 px-4 py-2 text-sm text-ink/80 transition hover:bg-paper hover:text-ink"
-              >
-                <Download className="h-4 w-4" />
-                Download CSV
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={reset}
-              className="inline-flex items-center gap-2 rounded-full border border-ink/12 bg-paper/60 px-4 py-2 text-sm text-ink/80 transition hover:bg-paper hover:text-ink"
-            >
-              <RotateCcw className="h-4 w-4" />
-              Reset
-            </button>
-          </div>
-        </div>
-
-        <div className="mt-10 grid gap-6 md:grid-cols-12">
-          {/* Summary Sidebar */}
-          <div className="md:col-span-3">
-            <div className="rounded-lg border border-ink/20 bg-paper shadow-sm p-5">
-              <div className="text-xs font-semibold text-ink/50 uppercase tracking-wider">SUMMARY</div>
-              <div className="mt-4 space-y-3">
-                {/* File Preview Card */}
-                {fileId && blueprintImageUrl && (
-                  <div className="rounded-lg border border-ink/15 bg-paper-2/50 p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="text-xs text-ink/60">Blueprint Preview</div>
-                      <button
-                        onClick={() => navigate(`/viewer?job_id=${fileId}`)}
-                        className="text-ink/60 hover:text-ink transition-colors"
-                        title="Expand to full viewer"
-                      >
-                        <Expand className="h-4 w-4" />
-                      </button>
-                    </div>
-                    <div className="relative rounded-lg overflow-hidden bg-paper border border-ink/10 aspect-video cursor-pointer" onClick={() => navigate(`/viewer?job_id=${fileId}`)}>
-                      <img
-                        src={blueprintImageUrl}
-                        alt="Blueprint preview"
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute inset-0 bg-ink/0 hover:bg-ink/10 transition-colors flex items-center justify-center opacity-0 hover:opacity-100">
-                        <Expand className="h-6 w-6 text-ink" />
-                      </div>
-                    </div>
-                  </div>
-                )}
-                <div className="rounded-lg border border-ink/15 bg-paper-2/50 p-3">
-                  <div className="text-xs text-ink/60">Rooms</div>
-                  <div className="mt-1 font-display text-2xl tracking-tight">
-                    {roomCount}
-                  </div>
-                </div>
-                <div className="rounded-lg border border-ink/15 bg-paper-2/50 p-3">
-                  <div className="text-xs text-ink/60">Total Area</div>
-                  <div className="mt-1 font-display text-2xl tracking-tight">
-                    {totals?.total_area ?? '—'}{' '}
-                    <span className="text-sm text-ink/60">{totals?.unit ?? ''}</span>
-                  </div>
-                </div>
-                {typeof totals?.boq_total === 'number' && totals.boq_total > 0 && (
-                  <div className="rounded-lg border border-ink/15 bg-paper-2/50 p-3">
-                    <div className="text-xs text-ink/60">BOQ Total</div>
-                    <div className="mt-1 font-display text-2xl tracking-tight">
-                      {formatInr(totals.boq_total)}
-                    </div>
-                    {typeof totals?.cost_per_sqft === 'number' && totals.cost_per_sqft > 0 && (
-                      <div className="mt-1 text-xs text-ink/60">
-                        {formatInr(totals.cost_per_sqft)} / sq ft
-                      </div>
-                    )}
-                  </div>
-                )}
-                {scaleCalibration?.status === 'auto_calibrated' && (
-                  <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-900">
-                    <div className="font-medium">Scale calibrated automatically</div>
-                    <div className="mt-1 text-xs">
-                      {scaleCalibration.scale_ratio} · {scaleCalibration.mm_per_pixel?.toFixed(3)} mm/px
-                    </div>
-                  </div>
-                )}
-                {scaleCalibration?.status === 'manual_required' && (
-                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
-                    <div className="font-medium">Scale needs one reference distance</div>
-                    <p className="mt-1 text-xs text-amber-800">
-                      {scaleCalibration.reason}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => navigate('/scale-calibration')}
-                      className="mt-2 text-xs font-medium underline underline-offset-2"
-                    >
-                      Calibrate manually
-                    </button>
-                  </div>
-                )}
-                {calibrationHistory.length > 0 && (
-                  <div className="rounded-lg border border-ink/15 bg-paper-2/50 p-3">
-                    <div className="text-xs font-semibold text-ink/60">Previous calibrations</div>
-                    <div className="mt-2 space-y-2">
-                      {calibrationHistory.slice(0, 4).map((calibration) => (
-                        <button
-                          key={calibration.analysis_job_id}
-                          type="button"
-                          onClick={() => navigate(`/results/${calibration.analysis_job_id}`)}
-                          className="block w-full rounded border border-ink/10 bg-paper/60 p-2 text-left text-xs hover:bg-paper"
-                        >
-                          <div className="font-medium text-ink">
-                            {calibration.scale_factor?.toFixed(6) ?? '—'} {calibration.unit ?? ''}/px
-                          </div>
-                          <div className="mt-0.5 text-ink/60">
-                            {calibration.real_world_distance ?? '—'} {calibration.unit ?? ''}
-                            {calibration.created_at ? ` · ${new Date(calibration.created_at).toLocaleDateString()}` : ''}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <button
-                  type="button"
-                  onClick={() => navigate('/calibration-history')}
-                  className="inline-flex w-full items-center justify-center rounded-lg border border-ink/15 bg-paper-2/50 px-4 py-2 text-sm font-medium text-ink transition hover:bg-paper"
-                >
-                  View calibration history
-                </button>
-                <NavLink
-                  to="/upload"
-                  className="inline-flex w-full items-center justify-center rounded-lg bg-ink px-4 py-2 text-sm font-medium text-paper transition hover:bg-ink/90"
-                >
-                  Analyze another file
-                </NavLink>
-              </div>
-            </div>
-          </div>
-
-          {/* Main Content with Tabs */}
-          <div className="md:col-span-9">
-            <div className="rounded-lg border border-ink/20 bg-paper shadow-sm">
-              {/* Tab Navigation */}
-              <div className="flex space-x-1 border-b border-ink/20 px-5 pt-5">
-                {[
-                  { id: 'rooms' as const, label: 'Rooms', icon: FileText },
-                  { id: 'boq' as const, label: 'BOQ', icon: Calculator },
-                  { id: 'charts' as const, label: 'Charts', icon: BarChart3 },
-                  { id: 'comments' as const, label: 'Comments', icon: MessageSquare },
-                ].map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center gap-2 px-4 py-2 text-xs font-medium border-b-2 transition-colors ${activeTab === tab.id
-                      ? 'border-accent text-accent'
-                      : 'border-transparent text-ink/60 hover:text-ink'
-                      }`}
-                  >
-                    <tab.icon className="h-4 w-4" />
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Tab Content */}
-              <div className="p-5">
-                {activeTab === 'rooms' && (
-                  <div>
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="text-sm font-semibold text-ink">Rooms ({rooms.length})</div>
-                    </div>
-                    {rooms.length === 0 ? (
-                      <div className="rounded-lg border border-ink/15 bg-paper-2/50 p-6 text-sm text-ink/70">
-                        No room list found in the response.
-                      </div>
-                    ) : (
-                      <div className="overflow-hidden rounded-lg border border-ink/15">
-                        <div className="grid grid-cols-12 bg-paper-2/60 px-4 py-3 text-xs font-medium text-ink/70">
-                          <div className="col-span-6">Room</div>
-                          <div className="col-span-3 text-right">Area</div>
-                          <div className="col-span-3 text-right">Confidence</div>
-                        </div>
-                        <div className="divide-y divide-ink/10 bg-paper-2/50 max-h-96 overflow-y-auto">
-                          {rooms.map((r, idx) => (
-                            <div key={idx} className="grid grid-cols-12 px-4 py-3 text-sm">
-                              <div className="col-span-6 truncate font-medium">
-                                {r.name ?? `Room ${idx + 1}`}
-                              </div>
-                              <div className="col-span-3 text-right text-ink/70">
-                                {r.area ?? '—'} {r.unit ?? ''}
-                              </div>
-                              <div className="col-span-3 text-right text-ink/70">
-                                {typeof r.confidence === 'number'
-                                  ? `${Math.round(r.confidence * 100)}%`
-                                  : '—'}
-                              </div>
-                              {r.notes ? (
-                                <div className="col-span-12 mt-2 text-xs text-ink/60">
-                                  {r.notes}
-                                </div>
-                              ) : null}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {activeTab === 'boq' && (
-                  <div>
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="text-sm font-semibold text-ink">Bill of Quantities ({editableBoq.length} items)</div>
-                      <div className="flex gap-2">
-                        {!boqFinalized && (
-                          <button
-                            onClick={handleFinalizeBoq}
-                            className="flex items-center gap-2 px-3 py-1.5 bg-accent text-paper rounded-lg text-xs font-medium hover:bg-accent/90"
-                          >
-                            <Check className="h-3 w-3" />
-                            Finalize Changes
-                          </button>
-                        )}
-                        {boqFinalized && (
-                          <button
-                            onClick={() => download('final-boq.csv', toCsv(editableBoq.map((b, idx) => ({
-                              name: b.item ?? `Item ${idx + 1}`,
-                              area: b.quantity,
-                              unit: b.unit,
-                              confidence: b.rate,
-                              notes: `Amount: ${formatInr(b.amount)}`
-                            }))), 'text/csv')}
-                            className="flex items-center gap-2 px-3 py-1.5 bg-green-500 text-paper rounded-lg text-xs font-medium hover:bg-green-500/90"
-                          >
-                            <Download className="h-3 w-3" />
-                            Download Final BOQ
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                    {boq.length === 0 ? (
-                      <div className="rounded-lg border border-ink/15 bg-paper-2/50 p-6 text-sm text-ink/70">
-                        No BOQ data found.
-                      </div>
-                    ) : (
-                      <div className="overflow-hidden rounded-lg border border-ink/15">
-                        <div className="grid grid-cols-12 bg-paper-2/60 px-4 py-3 text-xs font-medium text-ink/70">
-                          <div className="col-span-5">Item</div>
-                          <div className="col-span-2 text-right">Qty</div>
-                          <div className="col-span-2 text-right">Rate</div>
-                          <div className="col-span-1 text-right">Unit</div>
-                          <div className="col-span-2 text-right">Amount</div>
-                        </div>
-                        <div className="divide-y divide-ink/10 bg-paper-2/50 max-h-96 overflow-y-auto">
-                          {editableBoq.map((b, idx) => (
-                            <div key={idx} className="grid grid-cols-12 px-4 py-3 text-sm">
-                              <div className="col-span-5 font-medium">
-                                {b.item ?? `Item ${idx + 1}`}
-                              </div>
-                              <div className="col-span-2 text-right">
-                                <input
-                                  type="number"
-                                  value={b.quantity ?? ''}
-                                  disabled={boqFinalized}
-                                  onChange={(e) => {
-                                    const newBoq = [...editableBoq]
-                                    newBoq[idx].quantity = parseFloat(e.target.value) || 0
-                                    newBoq[idx].amount = (newBoq[idx].quantity || 0) * (newBoq[idx].rate || 0)
-                                    setEditableBoq(newBoq)
-                                  }}
-                                  className={`w-16 text-right border rounded px-1 py-0.5 text-ink/70 ${boqFinalized ? 'bg-paper-2/50 cursor-not-allowed' : ''}`}
-                                />
-                              </div>
-                              <div className="col-span-2 text-right">
-                                <input
-                                  type="number"
-                                  value={b.rate ?? ''}
-                                  disabled={boqFinalized}
-                                  onChange={(e) => {
-                                    const newBoq = [...editableBoq]
-                                    newBoq[idx].rate = parseFloat(e.target.value) || 0
-                                    newBoq[idx].amount = (newBoq[idx].quantity || 0) * (newBoq[idx].rate || 0)
-                                    setEditableBoq(newBoq)
-                                  }}
-                                  className={`w-20 text-right border rounded px-1 py-0.5 text-ink/70 ${boqFinalized ? 'bg-paper-2/50 cursor-not-allowed' : ''}`}
-                                />
-                              </div>
-                              <div className="col-span-1 text-right text-ink/70">
-                                {b.unit ?? ''}
-                              </div>
-                              <div className="col-span-2 text-right text-ink/70">
-                                {formatInr(b.amount)}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                        <div className="bg-paper-2/60 px-4 py-3 text-right">
-                          <div className="text-sm font-medium text-ink">
-                            Total: {formatInr(editableBoq.reduce((sum, item) => sum + (item.amount || 0), 0))}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {activeTab === 'charts' && (
-                  <div>
-                    <div className="text-sm font-semibold text-ink mb-4">Cost Breakdown Visualization</div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Cost Breakdown Pie Chart */}
-                      <div className="rounded-lg border border-ink/15 bg-paper-2/50 p-4">
-                        <div className="text-xs font-medium text-ink/70 mb-3">Cost Distribution</div>
-                        {costBreakdownData.length > 0 ? (
-                          <ResponsiveContainer width="100%" height={280}>
-                            <PieChart>
-                              <Pie
-                                data={costBreakdownData}
-                                cx="50%"
-                                cy="45%"
-                                labelLine={false}
-                                label={false}
-                                outerRadius={75}
-                                fill="#8884d8"
-                                dataKey="value"
-                              >
-                                {costBreakdownData.map((entry, index) => (
-                                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                ))}
-                              </Pie>
-                              <Tooltip formatter={(value: number, name: string) => [formatInr(value), name]} />
-                              <Legend
-                                layout="horizontal"
-                                verticalAlign="bottom"
-                                align="center"
-                                wrapperStyle={{ fontSize: 11, lineHeight: '1.4' }}
-                                formatter={(value: string) => value.length > 22 ? `${value.slice(0, 22)}…` : value}
-                              />
-                            </PieChart>
-                          </ResponsiveContainer>
-                        ) : (
-                          <div className="text-sm text-ink/60 text-center py-8">No data available</div>
-                        )}
-                      </div>
-
-                      {/* Material Usage Bar Chart */}
-                      <div className="rounded-lg border border-ink/15 bg-paper-2/50 p-4">
-                        <div className="text-xs font-medium text-ink/70 mb-3">Material Usage</div>
-                        {materialUsageData.length > 0 ? (
-                          <ResponsiveContainer width="100%" height={Math.max(250, materialUsageData.length * 45)}>
-                            <BarChart data={materialUsageData} layout="vertical" margin={{ left: 10, right: 20 }}>
-                              <CartesianGrid strokeDasharray="3 3" />
-                              <XAxis type="number" />
-                              <YAxis
-                                dataKey="name"
-                                type="category"
-                                width={150}
-                                tick={{ fontSize: 11 }}
-                                tickFormatter={(value: string) => value.length > 24 ? `${value.slice(0, 24)}…` : value}
-                              />
-                              <Tooltip formatter={(value) => formatInr(value as number)} />
-                              <Bar dataKey="amount" fill="#3b82f6" />
-                            </BarChart>
-                          </ResponsiveContainer>
-                        ) : (
-                          <div className="text-sm text-ink/60 text-center py-8">No data available</div>
-                        )}
-                      </div>
-
-                      {/* KPI Cards */}
-                      <div className="md:col-span-2 rounded-lg border border-ink/15 bg-paper-2/50 p-4">
-                        <div className="text-xs font-medium text-ink/70 mb-3">Key Metrics</div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                          <div className="rounded-lg bg-accent/10 p-3">
-                            <div className="text-xs text-accent font-medium">Total Items</div>
-                            <div className="mt-1 text-xl font-bold text-ink">{boq.length}</div>
-                          </div>
-                          <div className="rounded-lg bg-green-500/10 p-3">
-                            <div className="text-xs text-green-500 font-medium">Total Qty</div>
-                            <div className="mt-1 text-xl font-bold text-ink">{boq.reduce((sum, item) => sum + (item.quantity || 0), 0).toLocaleString()}</div>
-                          </div>
-                          <div className="rounded-lg bg-yellow-500/10 p-3">
-                            <div className="text-xs text-yellow-500 font-medium">Avg Rate</div>
-                            <div className="mt-1 text-xl font-bold text-ink">{boq.length > 0 ? formatInr(boq.reduce((sum, item) => sum + (item.rate || 0), 0) / boq.length) : '—'}</div>
-                          </div>
-                          <div className="rounded-lg bg-purple-500/10 p-3">
-                            <div className="text-xs text-purple-500 font-medium">Total Cost</div>
-                            <div className="mt-1 text-xl font-bold text-ink">{formatInr(totals?.boq_total || 0)}</div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {activeTab === 'comments' && (
-                  <div>
-                    <div className="text-sm font-semibold text-ink mb-4">Comments & Collaboration</div>
-
-                    {/* Add Comment Form */}
-                    <div className="mb-4">
-                      <textarea
-                        value={newComment}
-                        onChange={(e) => setNewComment(e.target.value)}
-                        placeholder="Add a comment..."
-                        className="w-full rounded-lg border border-ink/15 bg-paper-2/50 px-4 py-3 text-sm text-ink placeholder:text-ink/40 focus:outline-none focus:ring-2 focus:ring-accent/50"
-                        rows={3}
-                      />
-                      <div className="mt-2 flex justify-end">
-                        <button
-                          onClick={handleAddComment}
-                          className="flex items-center gap-2 px-4 py-2 bg-accent text-paper rounded-lg text-xs font-medium hover:bg-accent/90"
-                        >
-                          <MessageSquare className="h-3 w-3" />
-                          Add Comment
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Comments List */}
-                    <div className="space-y-3 max-h-96 overflow-y-auto">
-                      {comments.length === 0 ? (
-                        <div className="rounded-lg border border-ink/15 bg-paper-2/50 p-6 text-sm text-ink/60 text-center">
-                          No comments yet. Be the first to add one!
-                        </div>
-                      ) : (
-                        comments.map((comment) => (
-                          <div key={comment.id} className="rounded-lg border border-ink/15 bg-paper-2/50 p-4">
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-center gap-2">
-                                <div className="h-6 w-6 rounded-full bg-accent/10 flex items-center justify-center">
-                                  <span className="text-xs font-medium text-accent">{comment.user_name[0]}</span>
-                                </div>
-                                <span className="text-xs font-medium text-ink">{comment.user_name}</span>
-                              </div>
-                              <span className="text-xs text-ink/40">{new Date(comment.created_at).toLocaleString()}</span>
-                            </div>
-                            <p className="text-sm text-ink/80">{comment.content}</p>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </Container>
-
-      {/* Scale Calibration Modal */}
-      {showCalibration && fileId && blueprintImageUrl && (
-        <ScaleCalibrationPanel
-          imageUrl={blueprintImageUrl}
-          onClose={() => setShowCalibration(false)}
-          onScaleApplied={handleCalibrationApplied}
-        />
-      )}
     </div>
   )
 }

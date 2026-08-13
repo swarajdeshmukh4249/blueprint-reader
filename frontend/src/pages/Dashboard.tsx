@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { useAuth } from '@clerk/clerk-react'
-import { projectsApi, blueprintFilesApi } from '@/lib/api'
+import { useAuth, useUser } from '@clerk/clerk-react'
+import { projectsApi, blueprintFilesApi, analyticsApi, type DashboardStats, type ActivityItem } from '@/lib/api'
 import { Plus, FolderOpen, Calendar, MapPin, Building2, FileText, X, Eye, GitCompare, Share2, BarChart3, Trash2, Clock, DollarSign, PieChart, TrendingUp, MessageSquare, CheckCircle, AlertCircle, Upload } from 'lucide-react'
 import AdvancedSearch from '@/components/AdvancedSearch'
 import BreadcrumbNav from '@/components/BreadcrumbNav'
@@ -35,9 +35,12 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const location = useLocation()
   const { isLoaded, isSignedIn } = useAuth()
+  const { user } = useUser()
   const { setCurrentAnalysis } = useNavigationStore()
   const [projects, setProjects] = useState<Project[]>([])
   const [recentFiles, setRecentFiles] = useState<BlueprintFile[]>([])
+  const [stats, setStats] = useState<DashboardStats | null>(null)
+  const [activities, setActivities] = useState<ActivityItem[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [selectedFileForBoq, setSelectedFileForBoq] = useState<BlueprintFile | null>(null)
@@ -67,9 +70,11 @@ export default function Dashboard() {
   const loadData = async () => {
     try {
       setLoading(true)
-      const [projectsResult, filesResult] = await Promise.allSettled([
+      const [projectsResult, filesResult, statsResult, activityResult] = await Promise.allSettled([
         projectsApi.list(),
-        blueprintFilesApi.list(undefined, 5),
+        blueprintFilesApi.list(undefined, 50),
+        analyticsApi.getDashboardStats(),
+        analyticsApi.getActivity(8),
       ])
 
       if (projectsResult.status === 'fulfilled') {
@@ -85,11 +90,77 @@ export default function Dashboard() {
         console.error('Failed to load files:', filesResult.reason)
         setRecentFiles([])
       }
+
+      if (statsResult.status === 'fulfilled') {
+        setStats(statsResult.value)
+      } else {
+        console.error('Failed to load dashboard stats:', statsResult.reason)
+        setStats(null)
+      }
+
+      if (activityResult.status === 'fulfilled') {
+        setActivities(activityResult.value.activities || [])
+      } else {
+        console.error('Failed to load activity:', activityResult.reason)
+        setActivities([])
+      }
     } catch (error) {
       console.error('Failed to load data:', error)
     } finally {
       setLoading(false)
     }
+  }
+
+  const displayName = user?.firstName || user?.fullName || user?.username || 'there'
+
+  const projectChart = useMemo(() => {
+    const series = stats?.projects_by_month || []
+    const max = Math.max(1, ...series.map((s) => s.count))
+    return series.map((s) => ({
+      label: s.month.split(' ')[0],
+      count: s.count,
+      heightPct: Math.round((s.count / max) * 100),
+    }))
+  }, [stats])
+
+  const materialUsage = useMemo(() => {
+    const totals = new Map<string, number>()
+    recentFiles.forEach((file) => {
+      const materials = file.analysis_result?.materials
+      if (materials && typeof materials === 'object') {
+        Object.entries(materials).forEach(([name, value]) => {
+          const num = typeof value === 'number' ? value : Number(value) || 0
+          totals.set(name, (totals.get(name) || 0) + num)
+        })
+      }
+      file.analysis_result?.boq?.forEach((item: any) => {
+        const name = item.material_name || item.category || item.item
+        const qty = Number(item.quantity) || 0
+        if (name && qty > 0) totals.set(name, (totals.get(name) || 0) + qty)
+      })
+    })
+    return [...totals.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([name, value]) => ({ name, value }))
+  }, [recentFiles])
+
+  const maxMaterial = Math.max(1, ...materialUsage.map((m) => m.value))
+
+  const estimateFileCost = (file?: BlueprintFile | null) => {
+    if (!file) return null
+    if (file.analysis_result?.costs?.['Total Estimated Cost'] != null) {
+      return Number(file.analysis_result.costs['Total Estimated Cost'])
+    }
+    if (file.analysis_result?.total_cost != null) return Number(file.analysis_result.total_cost)
+    if (Array.isArray(file.analysis_result?.boq)) {
+      const sum = file.analysis_result.boq.reduce(
+        (acc: number, item: any) => acc + (Number(item.amount) || 0),
+        0
+      )
+      return sum > 0 ? sum : null
+    }
+    return null
   }
 
   const handleCreateProject = async () => {
@@ -208,7 +279,7 @@ export default function Dashboard() {
 
         {/* Welcome Section */}
         <div className="mb-8">
-          <h2 className="text-3xl font-bold text-ink mb-2">Welcome back, Swaraj 👋</h2>
+          <h2 className="text-3xl font-bold text-ink mb-2">Welcome back, {displayName} 👋</h2>
           <p className="text-ink/60">Here's what's happening with your projects today.</p>
         </div>
 
@@ -218,8 +289,12 @@ export default function Dashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-medium text-ink/50 uppercase tracking-wider">Total Projects</p>
-                <p className="text-2xl font-bold text-ink mt-1">{projects.length}</p>
-                <p className="text-xs text-green-500 mt-1">+2 this month</p>
+                <p className="text-2xl font-bold text-ink mt-1">{stats?.total_projects ?? projects.length}</p>
+                <p className="text-xs text-ink/50 mt-1">
+                  {stats?.trends.projects_this_month
+                    ? `+${stats.trends.projects_this_month} this month`
+                    : 'No new projects this month'}
+                </p>
               </div>
               <FolderOpen className="w-7 h-7 text-accent bg-accent/10 p-1.5 rounded-lg" />
             </div>
@@ -228,8 +303,12 @@ export default function Dashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-medium text-ink/50 uppercase tracking-wider">Blueprints Analyzed</p>
-                <p className="text-2xl font-bold text-ink mt-1">{recentFiles.length}</p>
-                <p className="text-xs text-green-500 mt-1">+7 this month</p>
+                <p className="text-2xl font-bold text-ink mt-1">{stats?.analyses_run ?? 0}</p>
+                <p className="text-xs text-ink/50 mt-1">
+                  {stats?.trends.analyses_this_month
+                    ? `+${stats.trends.analyses_this_month} this month`
+                    : 'No analyses this month'}
+                </p>
               </div>
               <FileText className="w-7 h-7 text-purple-500 bg-purple-500/10 p-1.5 rounded-lg" />
             </div>
@@ -238,8 +317,10 @@ export default function Dashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-medium text-ink/50 uppercase tracking-wider">Estimated Cost</p>
-                <p className="text-2xl font-bold text-ink mt-1">₹4.2 Cr</p>
-                <p className="text-xs text-ink/50 mt-1">Across all projects</p>
+                <p className="text-2xl font-bold text-ink mt-1">
+                  {formatInrCompact(stats?.total_estimated_value ?? 0)}
+                </p>
+                <p className="text-xs text-ink/50 mt-1">Across your projects</p>
               </div>
               <DollarSign className="w-7 h-7 text-teal-500 bg-teal-500/10 p-1.5 rounded-lg" />
             </div>
@@ -248,7 +329,9 @@ export default function Dashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-medium text-ink/50 uppercase tracking-wider">Avg. Analysis Time</p>
-                <p className="text-2xl font-bold text-ink mt-1">18 sec</p>
+                <p className="text-2xl font-bold text-ink mt-1">
+                  {stats?.avg_analysis_seconds != null ? `${stats.avg_analysis_seconds} sec` : '—'}
+                </p>
                 <p className="text-xs text-ink/50 mt-1">Per blueprint</p>
               </div>
               <Clock className="w-7 h-7 text-yellow-600 bg-yellow-600/10 p-1.5 rounded-lg" />
@@ -344,10 +427,10 @@ export default function Dashboard() {
                               )}
                             </td>
                             <td className="px-6 py-4 text-ink/70 text-sm">
-                              {projectFile?.total_area ? `${projectFile.total_area} m²` : '—'}
+                              {projectFile?.total_area ? `${projectFile.total_area} sq ft` : '—'}
                             </td>
                             <td className="px-6 py-4 text-ink/70 text-sm">
-                              ₹68.35 Lakh
+                              {formatInr(estimateFileCost(projectFile) ?? undefined)}
                             </td>
                             <td className="px-6 py-4 text-ink/70 text-sm">
                               {new Date(project.created_at).toLocaleDateString('en-IN')}
@@ -392,23 +475,26 @@ export default function Dashboard() {
               <div className="bg-paper/70 backdrop-blur-md rounded-lg border border-ink/20 shadow-sm p-5">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-sm font-semibold text-ink uppercase tracking-wider">Projects Overview</h3>
-                  <select className="text-xs bg-paper border border-ink/15 rounded px-2 py-1 text-ink/70">
-                    <option>This Month</option>
-                    <option>Last Month</option>
-                    <option>This Year</option>
-                  </select>
+                  <span className="text-xs text-ink/50">Last 6 months</span>
                 </div>
-                <div className="h-48 flex items-end justify-around gap-2">
-                  {[20, 15, 18, 12, 16, 14].map((height, i) => (
-                    <div key={i} className="flex flex-col items-center flex-1">
-                      <div
-                        className="w-full bg-gradient-to-t from-accent to-accent/60 rounded-t"
-                        style={{ height: `${height * 8}px` }}
-                      ></div>
-                      <span className="text-xs text-ink/50 mt-2">Jul {i + 5}</span>
-                    </div>
-                  ))}
-                </div>
+                {projectChart.every((b) => b.count === 0) ? (
+                  <div className="h-48 flex items-center justify-center text-sm text-ink/50">
+                    No project activity yet
+                  </div>
+                ) : (
+                  <div className="h-48 flex items-end justify-around gap-2">
+                    {projectChart.map((bar) => (
+                      <div key={bar.label} className="flex flex-col items-center flex-1">
+                        <div
+                          className="w-full bg-gradient-to-t from-accent to-accent/60 rounded-t min-h-[4px]"
+                          style={{ height: `${Math.max(bar.heightPct, bar.count > 0 ? 8 : 0)}%` }}
+                          title={`${bar.count} project(s)`}
+                        ></div>
+                        <span className="text-xs text-ink/50 mt-2">{bar.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Material Usage Chart */}
@@ -416,28 +502,28 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-sm font-semibold text-ink uppercase tracking-wider">Material Usage</h3>
                 </div>
-                <div className="space-y-3">
-                  {[
-                    { name: 'Cement', value: 3200, max: 5000, color: 'text-cyan-500', bg: 'bg-cyan-500' },
-                    { name: 'Steel', value: 1200, max: 2000, color: 'text-cyan-600', bg: 'bg-cyan-600' },
-                    { name: 'Bricks', value: 120000, max: 200000, color: 'text-cyan-400', bg: 'bg-cyan-400' },
-                    { name: 'Tiles', value: 18500, max: 30000, color: 'text-cyan-500', bg: 'bg-cyan-500' },
-                    { name: 'Sand', value: 450, max: 1000, color: 'text-cyan-300', bg: 'bg-cyan-300' },
-                  ].map((item) => (
-                    <div key={item.name}>
-                      <div className="flex justify-between text-xs mb-1">
-                        <span className="text-ink/70">{item.name}</span>
-                        <span className={`font-medium ${item.color}`}>{item.value.toLocaleString()} bags</span>
+                {materialUsage.length === 0 ? (
+                  <div className="h-48 flex items-center justify-center text-sm text-ink/50">
+                    No material data from your analyses yet
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {materialUsage.map((item) => (
+                      <div key={item.name}>
+                        <div className="flex justify-between text-xs mb-1">
+                          <span className="text-ink/70">{item.name}</span>
+                          <span className="font-medium text-cyan-500">{item.value.toLocaleString()}</span>
+                        </div>
+                        <div className="w-full h-2 bg-ink/10 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-cyan-500 rounded-full"
+                            style={{ width: `${(item.value / maxMaterial) * 100}%` }}
+                          ></div>
+                        </div>
                       </div>
-                      <div className="w-full h-2 bg-ink/10 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full ${item.bg} rounded-full`}
-                          style={{ width: `${(item.value / item.max) * 100}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -478,33 +564,30 @@ export default function Dashboard() {
             {/* Recent Activity */}
             <div className="bg-paper/70 backdrop-blur-md rounded-lg border border-ink/20 shadow-sm p-5">
               <h3 className="text-sm font-semibold text-ink uppercase tracking-wider mb-4">Recent Activity</h3>
-              <div className="space-y-3">
-                {[
-                  { icon: CheckCircle, color: 'text-green-500', bg: 'bg-green-500/10', title: 'Villa Project analysis completed', time: '2 Aug, 2025 • 11:30 AM' },
-                  { icon: Upload, color: 'text-blue-500', bg: 'bg-blue-500/10', title: 'Hospital Block uploaded', time: '2 Aug, 2025 • 10:15 AM' },
-                  { icon: FileText, color: 'text-accent', bg: 'bg-accent/10', title: 'Apartment Tower BOQ exported', time: '1 Aug, 2025 • 04:45 PM' },
-                  { icon: AlertCircle, color: 'text-red-500', bg: 'bg-red-500/10', title: 'School Building analysis failed', time: '31 Jul, 2025 • 09:20 PM' },
-                ].map((activity, i) => {
-                  const Icon = activity.icon
-                  return (
-                    <div key={i} className="flex gap-3">
-                      <div className={`${activity.bg} p-2 rounded-lg flex-shrink-0`}>
-                        <Icon className={`w-4 h-4 ${activity.color}`} />
+              {activities.length === 0 ? (
+                <p className="text-xs text-ink/50 py-4 text-center">No recent activity yet. Upload a blueprint to get started.</p>
+              ) : (
+                <div className="space-y-3">
+                  {activities.map((activity) => {
+                    const isFail = activity.event_type === 'analysis_failed'
+                    const isUpload = activity.event_type === 'file_uploaded'
+                    const Icon = isFail ? AlertCircle : isUpload ? Upload : CheckCircle
+                    const color = isFail ? 'text-red-500' : isUpload ? 'text-blue-500' : 'text-green-500'
+                    const bg = isFail ? 'bg-red-500/10' : isUpload ? 'bg-blue-500/10' : 'bg-green-500/10'
+                    return (
+                      <div key={activity.id} className="flex gap-3">
+                        <div className={`${bg} p-2 rounded-lg flex-shrink-0`}>
+                          <Icon className={`w-4 h-4 ${color}`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-ink">{activity.description}</p>
+                          <p className="text-xs text-ink/50">{activity.formatted_time || activity.created_at}</p>
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-ink">{activity.title}</p>
-                        <p className="text-xs text-ink/50">{activity.time}</p>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-              <button
-                onClick={() => navigate('/activity')}
-                className="w-full text-accent hover:text-accent/80 text-xs font-medium flex items-center justify-center gap-1 mt-4 py-2 border border-accent/20 rounded hover:bg-accent/5 transition"
-              >
-                View all activity →
-              </button>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -725,4 +808,11 @@ function formatInr(value?: number) {
     currency: 'INR',
     maximumFractionDigits: 0,
   }).format(value)
+}
+
+function formatInrCompact(value?: number) {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return '—'
+  if (value >= 10000000) return `₹${(value / 10000000).toFixed(1)} Cr`
+  if (value >= 100000) return `₹${(value / 100000).toFixed(1)} L`
+  return formatInr(value)
 }

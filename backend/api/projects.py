@@ -87,8 +87,8 @@ async def create_project(
         else:
             # Auto-create a personal organization for the user if they don't have one
             personal_org = Organization(
-                name=f"{current_user.first_name or current_user.email.split('@')[0]}'s Workspace",
-                slug=f"workspace-{current_user.id[:8]}",
+                name=f"{current_user.first_name or (current_user.email.split('@')[0] if current_user.email else 'User')}'s Workspace",
+                slug=f"workspace-{str(current_user.id)[:8]}",
                 plan_tier='starter',
                 max_users=5,
                 max_projects=10,

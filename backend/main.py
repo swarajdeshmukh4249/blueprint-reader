@@ -35,6 +35,17 @@ app = FastAPI(title="AI Blueprint Reader API")
 # Setup error handlers for consistent error response shape
 setup_error_handlers(app)
 
+@app.on_event("startup")
+def _ensure_local_schema():
+    """Keep local SQLite columns in sync with models (create_all won't alter existing tables)."""
+    try:
+        from models import Base, engine
+        Base.metadata.create_all(bind=engine)
+        from migrate_sqlite import main as migrate_sqlite_main
+        migrate_sqlite_main()
+    except Exception as exc:
+        print(f"Schema ensure skipped/failed: {exc}")
+
 # Include new enterprise API routes
 app.include_router(organizations_router, prefix="/api/v1")
 app.include_router(projects_router, prefix="/api/v1")

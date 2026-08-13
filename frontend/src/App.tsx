@@ -30,6 +30,22 @@ import CalibrationHistory from '@/pages/CalibrationHistory'
 const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || ''
 
 export default function App() {
+  if (!clerkPubKey || clerkPubKey.includes('your_clerk')) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24, fontFamily: 'system-ui' }}>
+        <div style={{ maxWidth: 520 }}>
+          <h1 style={{ fontSize: 22, marginBottom: 12 }}>Missing Clerk publishable key</h1>
+          <p style={{ lineHeight: 1.5, marginBottom: 12 }}>
+            Create <code>frontend/.env</code> with{' '}
+            <code>VITE_CLERK_PUBLISHABLE_KEY=pk_test_...</code> (same value as{' '}
+            <code>CLERK_PUBLISHABLE_KEY</code> in <code>backend/.env</code>), then restart{' '}
+            <code>npm run dev</code>.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <ClerkProvider publishableKey={clerkPubKey}>
       <BrowserRouter>
@@ -40,10 +56,24 @@ export default function App() {
             <Route path="/results/:fileId?" element={<Results />} />
             <Route path="/about" element={<About />} />
             <Route path="/contact" element={<Contact />} />
-            <Route path="/dashboard" element={<Dashboard />} />
+            <Route
+              path="/dashboard"
+              element={
+                <SignedIn>
+                  <Dashboard />
+                </SignedIn>
+              }
+            />
             <Route path="/new-dashboard" element={<NewDashboard />} />
             <Route path="/new-analytics" element={<NewAnalytics />} />
-            <Route path="/enterprise-dashboard" element={<EnterpriseAnalytics />} />
+            <Route
+              path="/enterprise-dashboard"
+              element={
+                <SignedIn>
+                  <EnterpriseAnalytics />
+                </SignedIn>
+              }
+            />
             <Route
               path="/floor-comparison/:projectId"
               element={

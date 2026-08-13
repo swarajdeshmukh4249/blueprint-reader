@@ -14,7 +14,7 @@ from models import RevisionAnalytic, TeamActivityMetric, PortfolioAnalytic, Appr
 from models import Project, AnalysisVersion, Room, BOQItem, Organization, User
 from auth.clerk import get_current_user_db
 from services.activity_service import ActivityService
-from utils.org_filtering import verify_user_org_access
+from utils.org_filtering import verify_user_org_access, get_user_organizations
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
@@ -893,90 +893,227 @@ class DashboardStats(BaseModel):
     trends: dict
 
 
+def _resolve_user_org_scope(
+    current_user: User,
+    db: Session,
+    organization_id: Optional[str],
+) -> list:
+    """Return org UUIDs the user may query. Raises 400/403 on bad/forbidden org_id."""
+    user_org_ids = get_user_organizations(current_user.id, db)
+
+    if organization_id:
+        try:
+            org_uuid = uuid.UUID(organization_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid organization_id format")
+        if org_uuid not in user_org_ids:
+            raise HTTPException(
+                status_code=403,
+                detail="User does not have access to this organization",
+            )
+        return [org_uuid]
+
+    return list(user_org_ids)
+
+
 @router.get("/dashboard/stats")
 async def get_dashboard_stats(
     organization_id: Optional[str] = Query(None),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_user_db),
+    db: Session = Depends(get_db),
 ):
-    """Get dashboard statistics with trends"""
-    
-    # Filter by organization if provided
-    org_filter = {}
-    if organization_id:
-        try:
-            org_filter = {"organization_id": uuid.UUID(organization_id)}
-        except ValueError:
-            pass  # Invalid UUID, ignore filter
-    
-    # If no organization filter, get first organization's data for demo
-    if not org_filter:
-        first_org = db.query(Organization).first()
-        if first_org:
-            org_filter = {"organization_id": first_org.id}
-    
-    # Calculate stats from live data
-    total_projects = db.query(Project).filter_by(**org_filter).count()
-    
-    analyses_run = db.query(AnalysisVersion).join(Project).filter_by(**org_filter).count()
-    
-    # Count BOQs generated (BOQItems with analysis_version)
-    boqs_generated = db.query(BOQItem).join(AnalysisVersion).join(Project).filter_by(**org_filter).count()
-    
-    # Calculate total estimated value (in paise to avoid float errors)
-    total_estimated_value = 0
-    boq_items = db.query(BOQItem).join(AnalysisVersion).join(Project).filter_by(**org_filter).all()
-    
+    """Live dashboard statistics scoped to the authenticated user's organizations."""
+    org_ids = _resolve_user_org_scope(current_user, db, organization_id)
+
+    empty = {
+        "total_projects": 0,
+        "analyses_run": 0,
+        "boqs_generated": 0,
+        "total_estimated_value": 0,
+        "total_area_sqft": 0,
+        "avg_analysis_seconds": None,
+        "projects_by_month": [],
+        "trends": {
+            "projects_this_month": 0,
+            "analyses_this_week": 0,
+            "analyses_this_month": 0,
+            "boqs_this_month": 0,
+        },
+    }
+
+    if not org_ids:
+        return empty
+
+    total_projects = (
+        db.query(Project).filter(Project.organization_id.in_(org_ids)).count()
+    )
+
+    analyses_run = (
+        db.query(AnalysisVersion)
+        .join(Project)
+        .filter(Project.organization_id.in_(org_ids))
+        .count()
+    )
+
+    boqs_generated = (
+        db.query(BOQItem)
+        .join(AnalysisVersion)
+        .join(Project)
+        .filter(Project.organization_id.in_(org_ids))
+        .count()
+    )
+
+    # Estimated value in INR rupees (sum of BOQ line amounts)
+    total_estimated_value = 0.0
+    boq_items = (
+        db.query(BOQItem)
+        .join(AnalysisVersion)
+        .join(Project)
+        .filter(Project.organization_id.in_(org_ids))
+        .all()
+    )
     for item in boq_items:
-        total_estimated_value += int((item.amount or 0) * 100)  # Convert to paise
-    
-    # Calculate trends
+        total_estimated_value += float(item.amount or 0)
+
+    # Also fold in analysis_result / raw_result totals when BOQ rows are empty
+    if total_estimated_value == 0:
+        analyses = (
+            db.query(AnalysisVersion)
+            .join(Project)
+            .filter(Project.organization_id.in_(org_ids))
+            .all()
+        )
+        for analysis in analyses:
+            raw = analysis.raw_result or {}
+            if isinstance(raw, dict):
+                total_estimated_value += float(
+                    raw.get("total_cost")
+                    or (raw.get("costs") or {}).get("Total Estimated Cost")
+                    or 0
+                )
+
+    # Latest completed analysis area per project (avoid double-counting versions)
+    completed = (
+        db.query(AnalysisVersion)
+        .join(Project)
+        .filter(
+            Project.organization_id.in_(org_ids),
+            AnalysisVersion.status == "completed",
+        )
+        .order_by(AnalysisVersion.created_at.desc())
+        .all()
+    )
+    seen_projects = set()
+    total_area_sqft = 0.0
+    processing_times = []
+    for analysis in completed:
+        if analysis.project_id not in seen_projects:
+            seen_projects.add(analysis.project_id)
+            total_area_sqft += float(analysis.total_area_sqft or 0)
+        if analysis.processing_time_seconds:
+            processing_times.append(int(analysis.processing_time_seconds))
+
+    # Fallback area from blueprint files when versions lack area
+    if total_area_sqft == 0:
+        from models import BlueprintFile
+
+        files = (
+            db.query(BlueprintFile)
+            .join(Project, BlueprintFile.project_id == Project.id)
+            .filter(Project.organization_id.in_(org_ids))
+            .all()
+        )
+        for f in files:
+            total_area_sqft += float(f.total_area or 0)
+
+    avg_analysis_seconds = (
+        int(round(sum(processing_times) / len(processing_times)))
+        if processing_times
+        else None
+    )
+
     now = datetime.utcnow()
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     week_start = now - timedelta(days=7)
-    
-    # Projects this month
-    if org_filter:
-        projects_this_month = db.query(Project).filter(
+
+    projects_this_month = (
+        db.query(Project)
+        .filter(
+            Project.organization_id.in_(org_ids),
             Project.created_at >= month_start,
-            Project.organization_id == org_filter["organization_id"]
-        ).count()
-    else:
-        projects_this_month = db.query(Project).filter(
-            Project.created_at >= month_start
-        ).count()
-    
-    # Analyses this week
-    if org_filter:
-        analyses_this_week = db.query(AnalysisVersion).join(Project).filter(
+        )
+        .count()
+    )
+    analyses_this_week = (
+        db.query(AnalysisVersion)
+        .join(Project)
+        .filter(
+            Project.organization_id.in_(org_ids),
             AnalysisVersion.created_at >= week_start,
-            Project.organization_id == org_filter["organization_id"]
-        ).count()
-    else:
-        analyses_this_week = db.query(AnalysisVersion).filter(
-            AnalysisVersion.created_at >= week_start
-        ).count()
-    
-    # BOQs this month
-    if org_filter:
-        boqs_this_month = db.query(BOQItem).join(AnalysisVersion).join(Project).filter(
+        )
+        .count()
+    )
+    analyses_this_month = (
+        db.query(AnalysisVersion)
+        .join(Project)
+        .filter(
+            Project.organization_id.in_(org_ids),
             AnalysisVersion.created_at >= month_start,
-            Project.organization_id == org_filter["organization_id"]
-        ).count()
-    else:
-        boqs_this_month = db.query(BOQItem).join(AnalysisVersion).filter(
-            AnalysisVersion.created_at >= month_start
-        ).count()
-    
+        )
+        .count()
+    )
+    boqs_this_month = (
+        db.query(BOQItem)
+        .join(AnalysisVersion)
+        .join(Project)
+        .filter(
+            Project.organization_id.in_(org_ids),
+            AnalysisVersion.created_at >= month_start,
+        )
+        .count()
+    )
+
+    # Last 6 calendar months of project creation counts (for charts)
+    projects_by_month = []
+    for i in range(5, -1, -1):
+        # Approximate month windows
+        year = now.year
+        month = now.month - i
+        while month <= 0:
+            month += 12
+            year -= 1
+        start = datetime(year, month, 1)
+        if month == 12:
+            end = datetime(year + 1, 1, 1)
+        else:
+            end = datetime(year, month + 1, 1)
+        count = (
+            db.query(Project)
+            .filter(
+                Project.organization_id.in_(org_ids),
+                Project.created_at >= start,
+                Project.created_at < end,
+            )
+            .count()
+        )
+        projects_by_month.append(
+            {"month": start.strftime("%b %Y"), "count": count}
+        )
+
     return {
         "total_projects": total_projects,
         "analyses_run": analyses_run,
         "boqs_generated": boqs_generated,
-        "total_estimated_value": total_estimated_value,
+        "total_estimated_value": round(total_estimated_value, 2),
+        "total_area_sqft": round(total_area_sqft, 2),
+        "avg_analysis_seconds": avg_analysis_seconds,
+        "projects_by_month": projects_by_month,
         "trends": {
             "projects_this_month": projects_this_month,
             "analyses_this_week": analyses_this_week,
-            "boqs_this_month": boqs_this_month
-        }
+            "analyses_this_month": analyses_this_month,
+            "boqs_this_month": boqs_this_month,
+        },
     }
 
 
@@ -986,19 +1123,32 @@ async def get_activity_feed(
     limit: int = Query(10, ge=1, le=100),
     project_id: Optional[str] = Query(None),
     organization_id: Optional[str] = Query(None),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_user_db),
+    db: Session = Depends(get_db),
 ):
-    """Get activity feed with recent events"""
-    
-    # Get activities using service
+    """Activity feed scoped to the authenticated user's organizations."""
+    org_ids = _resolve_user_org_scope(current_user, db, organization_id)
+
+    if project_id:
+        try:
+            project_uuid = uuid.UUID(project_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid project_id format")
+        project = db.query(Project).filter(Project.id == project_uuid).first()
+        if not project or project.organization_id not in org_ids:
+            raise HTTPException(status_code=403, detail="User does not have access to this project")
+
+    if not org_ids:
+        return {"activities": [], "count": 0}
+
     activity_service = ActivityService(db)
     activities = activity_service.get_activities(
         limit=limit,
         project_id=project_id,
-        organization_id=organization_id
+        organization_ids=org_ids,
     )
-    
+
     return {
         "activities": activities,
-        "count": len(activities)
+        "count": len(activities),
     }

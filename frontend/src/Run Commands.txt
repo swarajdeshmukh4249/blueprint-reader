@@ -1,0 +1,14 @@
+Terminal A — API
+cd "D:\College\2_SEM 2\0_ASEP\Application\The Main Application Code\backend"
+.\venv\Scripts\python.exe -m uvicorn main:app --reload --port 8000
+
+Terminal B — Worker
+cd "D:\College\2_SEM 2\0_ASEP\Application\The Main Application Code\backend"
+.\venv\Scripts\python.exe supabase_worker.py
+
+Terminal C — Frontend
+cd "D:\College\2_SEM 2\0_ASEP\Application\The Main Application Code\frontend"
+npm run dev
+
+Open: http://localhost:5173
+API docs: http://127.0.0.1:8000/docs

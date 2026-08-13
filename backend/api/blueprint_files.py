@@ -1,15 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException, Header, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Any
 from datetime import datetime
 import uuid
 import hashlib
 
-from models import get_db, BlueprintFile, Project
-from auth.clerk import verify_jwt
+from models import get_db, BlueprintFile, Project, User, OrganizationMember, AnalysisVersion, BOQItem, Room
+from auth.clerk import verify_jwt, get_current_user_db
 from services.storage import storage_service
 from services.multi_provider_analyzer import MultiProviderAnalyzer
+from utils.org_filtering import get_user_organizations
 
 router = APIRouter(prefix="/blueprint-files", tags=["blueprint-files"])
 
@@ -38,52 +39,258 @@ class BlueprintFileResponse(BaseModel):
     analyzed_at: Optional[datetime]
     analysis_result: Optional[dict] = None
 
+
+def _as_float(value: Any) -> Optional[float]:
+    try:
+        if value is None:
+            return None
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _metrics_from_analysis(result: dict, total_area: Optional[float], room_count: Optional[int]):
+    """Normalize totals from either UI shape or raw blueprint_logic payload."""
+    totals = result.get("totals") if isinstance(result.get("totals"), dict) else {}
+    raw = result.get("raw") if isinstance(result.get("raw"), dict) else result
+
+    area = (
+        _as_float(total_area)
+        or _as_float(totals.get("total_area"))
+        or _as_float(result.get("total_area"))
+        or _as_float(raw.get("total_area"))
+    )
+
+    rooms = result.get("rooms") or result.get("room_data") or raw.get("room_data") or []
+    count = room_count
+    if count is None:
+        count = totals.get("room_count")
+    if count is None and isinstance(rooms, list):
+        count = len(rooms)
+
+    costs = result.get("costs") if isinstance(result.get("costs"), dict) else {}
+    if not costs and isinstance(raw.get("costs"), dict):
+        costs = raw["costs"]
+
+    total_cost = (
+        _as_float(totals.get("boq_total"))
+        or _as_float(result.get("total_cost"))
+        or _as_float(raw.get("total_cost"))
+        or _as_float(costs.get("Total Estimated Cost"))
+    )
+
+    boq = result.get("boq") or raw.get("boq") or raw.get("boq_items") or []
+    if not isinstance(boq, list):
+        boq = []
+
+    materials = result.get("materials") if isinstance(result.get("materials"), dict) else {}
+    if not materials and isinstance(raw.get("materials"), dict):
+        materials = raw["materials"]
+
+    return {
+        "total_area": area,
+        "room_count": int(count) if count is not None else None,
+        "total_cost": total_cost,
+        "boq": boq,
+        "materials": materials,
+        "rooms": rooms if isinstance(rooms, list) else [],
+        "raw_result": result,
+    }
+
+
+def _ensure_project_for_user(
+    db: Session,
+    current_user: User,
+    project_id: Optional[str],
+) -> Project:
+    """Attach analysis to a project the user owns; create a default one if needed."""
+    org_ids = get_user_organizations(current_user.id, db)
+    if not org_ids:
+        raise HTTPException(status_code=400, detail="User has no organization")
+
+    if project_id:
+        try:
+            project_uuid = uuid.UUID(project_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid project_id format")
+        project = db.query(Project).filter(Project.id == project_uuid).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        if project.organization_id not in org_ids:
+            raise HTTPException(status_code=403, detail="No access to this project")
+        return project
+
+    # Prefer an existing project in the user's orgs
+    existing = (
+        db.query(Project)
+        .filter(Project.organization_id.in_(org_ids), Project.deleted_at.is_(None))
+        .order_by(Project.created_at.desc())
+        .first()
+    )
+    if existing:
+        return existing
+
+    project = Project(
+        organization_id=org_ids[0],
+        name="My Analyses",
+        building_type="residential",
+        status="active",
+        created_by=current_user.id,
+    )
+    db.add(project)
+    db.commit()
+    db.refresh(project)
+    return project
+
+
 @router.post("/save-analysis", response_model=BlueprintFileResponse)
 async def save_analysis_result(
     request: SaveAnalysisRequest,
-    authorization: Optional[str] = Header(None),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_user_db),
+    db: Session = Depends(get_db),
 ):
-    """Save analysis results to database (for analytics)"""
-    
-    # Optional authentication
-    if authorization:
-        try:
-            user = await verify_jwt(authorization.replace("Bearer ", ""))
-        except Exception as e:
-            print(f"Auth failed: {e}")
-            pass  # Allow request to proceed even if auth fails
-    
-    # Create file record with analysis results
+    """Persist upload/analyze results so Dashboard + Analytics can show them."""
+    metrics = _metrics_from_analysis(
+        request.analysis_result or {},
+        request.total_area,
+        request.room_count,
+    )
+    project = _ensure_project_for_user(db, current_user, request.project_id)
+
     try:
-        project_uuid = None
-        if request.project_id:
-            try:
-                project_uuid = uuid.UUID(request.project_id)
-            except ValueError:
-                print(f"Invalid project_id format: {request.project_id}")
-        
         new_file = BlueprintFile(
-            project_id=project_uuid,
+            project_id=project.id,
             filename=request.filename,
-            file_path="",  # No actual file uploaded
+            file_path="",
             file_size=0,
-            status='analyzed',
+            status="analyzed",
             analysis_result=request.analysis_result,
-            total_area=request.total_area,
-            room_count=request.room_count,
-            analyzed_at=datetime.utcnow()
+            total_area=metrics["total_area"],
+            room_count=metrics["room_count"],
+            analyzed_at=datetime.utcnow(),
         )
-        
         db.add(new_file)
+        db.flush()
+
+        last_version = (
+            db.query(AnalysisVersion)
+            .filter(AnalysisVersion.project_id == project.id)
+            .order_by(AnalysisVersion.version_number.desc())
+            .first()
+        )
+        version_number = (last_version.version_number + 1) if last_version else 1
+
+        analysis = AnalysisVersion(
+            project_id=project.id,
+            blueprint_file_id=new_file.id,
+            version_number=version_number,
+            name=request.filename,
+            status="completed",
+            total_area_sqft=metrics["total_area"],
+            room_count=metrics["room_count"],
+            raw_result={
+                **(metrics["raw_result"] if isinstance(metrics["raw_result"], dict) else {}),
+                "total_cost": metrics["total_cost"],
+            },
+            created_by=current_user.id,
+            user_id=current_user.id,
+            file_name=request.filename,
+            progress=100,
+            completed_at=datetime.utcnow(),
+        )
+        db.add(analysis)
+        db.flush()
+
+        # Persist rooms when present
+        for room in metrics["rooms"]:
+            if not isinstance(room, dict):
+                continue
+            name = room.get("name") or room.get("room") or room.get("label") or "Room"
+            db.add(
+                Room(
+                    analysis_version_id=analysis.id,
+                    name=str(name),
+                    room_type=str(room.get("room_type") or room.get("type") or "") or None,
+                    area_sqft=_as_float(room.get("area")),
+                    width_ft=_as_float(room.get("width")),
+                    height_ft=_as_float(room.get("height")),
+                    source=str(room.get("source") or "upload"),
+                    confidence_score=_as_float(room.get("confidence")),
+                )
+            )
+
+        # Persist BOQ lines when present
+        for item in metrics["boq"]:
+            if not isinstance(item, dict):
+                continue
+            description = (
+                item.get("description")
+                or item.get("item")
+                or item.get("material_name")
+                or item.get("category")
+                or "BOQ item"
+            )
+            db.add(
+                BOQItem(
+                    analysis_version_id=analysis.id,
+                    category=str(item.get("category") or "General"),
+                    item_code=str(item.get("item_code") or item.get("code") or "") or None,
+                    description=str(description),
+                    unit=str(item.get("unit") or "nos"),
+                    quantity=_as_float(item.get("quantity")),
+                    rate=_as_float(item.get("rate")),
+                    amount=_as_float(item.get("amount")),
+                    source="upload_analyze",
+                )
+            )
+
+        # If no BOQ rows but we have a total cost, store a summary line so cost KPIs work
+        if not metrics["boq"] and metrics["total_cost"]:
+            db.add(
+                BOQItem(
+                    analysis_version_id=analysis.id,
+                    category="Estimated",
+                    description="Total estimated construction cost",
+                    unit="ls",
+                    quantity=1,
+                    rate=metrics["total_cost"],
+                    amount=metrics["total_cost"],
+                    source="upload_analyze_summary",
+                )
+            )
+
+        # Material quantities as BOQ-like rows (for material charts)
+        if metrics["materials"] and not metrics["boq"]:
+            for name, qty in metrics["materials"].items():
+                amount = _as_float(qty)
+                if amount is None:
+                    continue
+                db.add(
+                    BOQItem(
+                        analysis_version_id=analysis.id,
+                        category="Materials",
+                        description=str(name),
+                        unit="unit",
+                        quantity=amount,
+                        rate=0,
+                        amount=0,
+                        source="upload_analyze_materials",
+                    )
+                )
+
+        if project.status == "draft":
+            project.status = "active"
+
         db.commit()
         db.refresh(new_file)
-        print(f"Analysis saved to database: {new_file.id}")
+        print(f"Analysis saved: file={new_file.id} analysis={analysis.id} project={project.id}")
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Failed to save analysis: {e}")
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to save analysis: {e}")
-    
+
     return BlueprintFileResponse(
         id=str(new_file.id),
         filename=new_file.filename,
@@ -93,7 +300,7 @@ async def save_analysis_result(
         room_count=new_file.room_count,
         created_at=new_file.created_at,
         analyzed_at=new_file.analyzed_at,
-        analysis_result=new_file.analysis_result
+        analysis_result=new_file.analysis_result,
     )
 
 
@@ -232,7 +439,7 @@ async def list_blueprint_files(
     authorization: Optional[str] = Header(None),
     db: Session = Depends(get_db)
 ):
-    """List recent blueprint files"""
+    """List recent blueprint files scoped to the authenticated user's organizations."""
     
     # Get current user
     current_user = None
@@ -249,17 +456,16 @@ async def list_blueprint_files(
     if current_user:
         clerk_user_id = current_user.get('sub')
         if clerk_user_id:
-            from models import User, OrganizationMember
             user = db.query(User).filter(User.clerk_user_id == clerk_user_id).first()
             if user:
-                # Get user's organization memberships
-                user_org_ids = [m.organization_id for m in db.query(OrganizationMember).filter(OrganizationMember.user_id == user.id).all()]
+                user_org_ids = get_user_organizations(user.id, db)
                 
-                # Filter files by projects in user's organizations
+                # INNER join would hide files with no project_id — use outerjoin + org filter
                 if user_org_ids:
-                    query = query.join(Project).filter(Project.organization_id.in_(user_org_ids))
+                    query = query.outerjoin(Project, BlueprintFile.project_id == Project.id).filter(
+                        Project.organization_id.in_(user_org_ids)
+                    )
                 else:
-                    # User has no organization memberships, return empty
                     query = query.filter(False)
     
     if project_id:

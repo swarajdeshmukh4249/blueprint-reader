@@ -407,3 +407,45 @@ export const costBenchmarkApi = {
   }),
 }
 
+export type DashboardStats = {
+  total_projects: number
+  analyses_run: number
+  boqs_generated: number
+  total_estimated_value: number
+  total_area_sqft: number
+  avg_analysis_seconds: number | null
+  projects_by_month: Array<{ month: string; count: number }>
+  trends: {
+    projects_this_month: number
+    analyses_this_week: number
+    analyses_this_month: number
+    boqs_this_month: number
+  }
+}
+
+export type ActivityItem = {
+  id: string
+  event_type: string
+  description: string
+  project_id?: string | null
+  created_at: string
+  formatted_time?: string
+  event_info?: { color: string; icon: string }
+}
+
+export const analyticsApi = {
+  getDashboardStats: (organizationId?: string) => {
+    const qs = organizationId ? `?organization_id=${encodeURIComponent(organizationId)}` : ''
+    return fetchWithAuth(`/analytics/dashboard/stats${qs}`) as Promise<DashboardStats>
+  },
+  getActivity: (limit = 10, organizationId?: string) => {
+    const params = new URLSearchParams()
+    params.set('limit', String(limit))
+    if (organizationId) params.set('organization_id', organizationId)
+    return fetchWithAuth(`/analytics/activity?${params.toString()}`) as Promise<{
+      activities: ActivityItem[]
+      count: number
+    }>
+  },
+}
+

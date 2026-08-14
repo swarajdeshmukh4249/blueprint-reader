@@ -12,11 +12,14 @@ export default function AppShell() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   return (
-    <div className="min-h-dvh text-ink selection:bg-accent/25 selection:text-ink relative">
+    <div className="relative min-h-dvh text-ink selection:bg-accent/25 selection:text-ink">
 
       {/* 3D Blueprint Background */}
-      <Blueprint3DBackground />
+      <div className="pointer-events-none">
+        <Blueprint3DBackground />
+      </div>
 
+      {/* Theme Toggle */}
       <ThemeToggle />
 
       {/* Floating Cube */}
@@ -27,7 +30,7 @@ export default function AppShell() {
       {/* Navigation */}
       <TopNav />
 
-      <div className="flex relative z-10">
+      <div className="relative z-10 flex">
         <SideNav onCollapsedChange={setSidebarCollapsed} />
 
         <main
@@ -40,6 +43,7 @@ export default function AppShell() {
       </div>
 
       <Footer />
+
       <CommandPalette />
     </div>
   )
